@@ -1,22 +1,38 @@
 import plotly.graph_objects as go
 import pandas as pd
+import numpy as np
 import os
 
 # Placeholder GPS data for two vultures
-data = [
-    [1, 46.5, 7.5, 1200, 'A'],
-    [2, 46.51, 7.51, 1210, 'A'],
-    [3, 46.52, 7.52, 1220, 'A'],
-    [1, 46.6, 7.6, 1300, 'B'],
-    [2, 46.61, 7.61, 1310, 'B'],
-    [3, 46.62, 7.62, 1320, 'B'],
-]
+
+np.random.seed(42)
+start_time = 1
+end_time = 50
+
+# Generate sample data for two vultures
+# Vulture A: 50 points
+timestamps_a = np.linspace(start_time, end_time, 50, dtype=int)
+latitudes_a = np.linspace(46.5, 46.7, 50) + np.random.normal(0, 0.002, 50)
+longitudes_a = np.linspace(7.5, 7.7, 50) + np.random.normal(0, 0.002, 50)
+altitudes_a = np.linspace(1200, 1400, 50) + np.random.normal(0, 5, 50)
+
+# Vulture B: 30 points, random intervals within same start/end
+timestamps_b = np.sort(np.random.choice(np.arange(start_time, end_time+1), 30, replace=False))
+latitudes_b = np.linspace(46.6, 46.8, 30) + np.random.normal(0, 0.002, 30)
+longitudes_b = np.linspace(7.6, 7.8, 30) + np.random.normal(0, 0.002, 30)
+altitudes_b = np.linspace(1300, 1500, 30) + np.random.normal(0, 5, 30)
+
+data_a = list(zip(timestamps_a, latitudes_a, longitudes_a, altitudes_a, ['A']*50))
+data_b = list(zip(timestamps_b, latitudes_b, longitudes_b, altitudes_b, ['B']*30))
+data = data_a + data_b
+
 df = pd.DataFrame(data, columns=['timestamp', 'latitude', 'longitude', 'altitude', 'vulture_id'])
 
 frames = []
 max_frame = df['timestamp'].max()
-for frame in range(1, max_frame + 1):
+for frame in range(start_time, end_time + 1):
     frame_data = []
+    colors = {'A': 'blue', 'B': 'orange'}
     for vulture_id, group in df.groupby('vulture_id'):
         data = group[group['timestamp'] <= frame]
         frame_data.append(go.Scatter3d(
@@ -24,14 +40,17 @@ for frame in range(1, max_frame + 1):
             y=data['latitude'],
             z=data['altitude'],
             mode='lines+markers',
-            name=f'Vulture {vulture_id}'
+            name=f'Vulture {vulture_id}',
+            line=dict(color=colors.get(vulture_id, 'gray')),
+            marker=dict(color=colors.get(vulture_id, 'gray'))
         ))
     frames.append(go.Frame(data=frame_data, name=str(frame)))
 
 fig = go.Figure(
-    data=[go.Scatter3d(
-        x=[], y=[], z=[], mode='lines+markers'
-    )],
+    data=[
+        go.Scatter3d(x=[], y=[], z=[], mode='lines+markers', name='Vulture A', line=dict(color='blue'), marker=dict(color='blue')),
+        go.Scatter3d(x=[], y=[], z=[], mode='lines+markers', name='Vulture B', line=dict(color='orange'), marker=dict(color='orange'))
+    ],
     frames=frames
 )
 fig.update_layout(
@@ -39,7 +58,10 @@ fig.update_layout(
     scene=dict(
         xaxis_title='Longitude',
         yaxis_title='Latitude',
-        zaxis_title='Altitude (m)'
+        zaxis_title='Altitude (m)',
+        xaxis=dict(range=[7.48, 7.82]),
+        yaxis=dict(range=[46.48, 46.82]),
+        zaxis=dict(range=[1190, 1510])
     ),
     updatemenus=[{
         'type': 'buttons',
