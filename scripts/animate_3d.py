@@ -106,6 +106,21 @@ fig.update_layout(
 				}
 			]
 		}],
+		sliders=[{
+			'active': 0,
+			'steps': [
+				{
+					'method': 'animate',
+					'label': str(frame),
+					'args': [[str(frame)], {'mode': 'immediate', 'frame': {'duration': 0, 'redraw': True}, 'transition': {'duration': 0}}]
+				} for frame in range(start_time, end_time + 1)
+			],
+			'transition': {'duration': 0},
+			'x': 0.1,
+			'y': 0,
+			'currentvalue': {'font': {'size': 16}, 'prefix': 'Timestamp: ', 'visible': True, 'xanchor': 'right'},
+			'len': 0.8
+		}],
 	legend_title='Vulture ID',
 	margin=dict(l=0, r=0, b=0, t=40)
 )
