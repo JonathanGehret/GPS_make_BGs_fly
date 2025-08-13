@@ -2,6 +2,8 @@ import plotly.graph_objects as go
 import pandas as pd
 import numpy as np
 import os
+import plotly.io as pio
+import plotly
 
 # Placeholder GPS data for two vultures
 
@@ -31,59 +33,80 @@ df = pd.DataFrame(data, columns=['timestamp', 'latitude', 'longitude', 'altitude
 frames = []
 max_frame = df['timestamp'].max()
 for frame in range(start_time, end_time + 1):
-    frame_data = []
-    colors = {'A': 'blue', 'B': 'orange'}
-    for vulture_id, group in df.groupby('vulture_id'):
-        data = group[group['timestamp'] <= frame]
-        frame_data.append(go.Scatter3d(
-            x=data['longitude'],
-            y=data['latitude'],
-            z=data['altitude'],
-            mode='lines+markers',
-            name=f'Vulture {vulture_id}',
-            line=dict(color=colors.get(vulture_id, 'gray')),
-            marker=dict(color=colors.get(vulture_id, 'gray'))
-        ))
-    frames.append(go.Frame(data=frame_data, name=str(frame)))
+	colors = {'A': 'blue', 'B': 'orange'}
+	frame_data = []
+	for vulture_id in ['A', 'B']:
+		group = df[df['vulture_id'] == vulture_id]
+		data = group[group['timestamp'] <= frame]
+		if len(data) > 0:
+			trace = go.Scatter3d(
+				x=data['longitude'],
+				y=data['latitude'],
+				z=data['altitude'],
+				mode='lines+markers',
+				name=f'Vulture {vulture_id}',
+				line=dict(color=colors[vulture_id]),
+				marker=dict(color=colors[vulture_id])
+			)
+		else:
+			trace = go.Scatter3d(
+				x=[], y=[], z=[], mode='lines+markers',
+				name=f'Vulture {vulture_id}',
+				line=dict(color=colors[vulture_id]),
+				marker=dict(color=colors[vulture_id])
+			)
+		frame_data.append(trace)
+	frames.append(go.Frame(data=frame_data, name=str(frame)))
 
 fig = go.Figure(
-    data=[
-        go.Scatter3d(x=[], y=[], z=[], mode='lines+markers', name='Vulture A', line=dict(color='blue'), marker=dict(color='blue')),
-        go.Scatter3d(x=[], y=[], z=[], mode='lines+markers', name='Vulture B', line=dict(color='orange'), marker=dict(color='orange'))
-    ],
-    frames=frames
+	data=[
+		go.Scatter3d(x=[], y=[], z=[], mode='lines+markers', name='Vulture A', line=dict(color='blue'), marker=dict(color='blue')),
+		go.Scatter3d(x=[], y=[], z=[], mode='lines+markers', name='Vulture B', line=dict(color='orange'), marker=dict(color='orange'))
+	],
+	frames=frames
 )
 fig.update_layout(
-    title='Animated 3D Flight Paths of Bearded Vultures',
-    scene=dict(
-        xaxis_title='Longitude',
-        yaxis_title='Latitude',
-        zaxis_title='Altitude (m)',
-        xaxis=dict(range=[7.48, 7.82]),
-        yaxis=dict(range=[46.48, 46.82]),
-        zaxis=dict(range=[1190, 1510])
-    ),
-    updatemenus=[{
-        'type': 'buttons',
-        'buttons': [
-            {
-                'label': 'Play',
-                'method': 'animate',
-                'args': [None, {'frame': {'duration': 1000, 'redraw': True}, 'fromcurrent': True}]
-            },
-            {
-                'label': 'Pause',
-                'method': 'animate',
-                'args': [[None], {'frame': {'duration': 0, 'redraw': False}, 'mode': 'immediate'}]
-            }
-        ]
-    }],
-    legend_title='Vulture ID',
-    margin=dict(l=0, r=0, b=0, t=40)
+	title='Animated 3D Flight Paths of Bearded Vultures',
+	scene=dict(
+		xaxis_title='Longitude',
+		yaxis_title='Latitude',
+		zaxis_title='Altitude (m)',
+		xaxis=dict(range=[7.48, 7.82]),
+		yaxis=dict(range=[46.48, 46.82]),
+		zaxis=dict(range=[1190, 1510]),
+		dragmode='orbit'
+	),
+		updatemenus=[{
+			'type': 'buttons',
+			'buttons': [
+				{
+					'label': 'Play',
+					'method': 'animate',
+					'args': [None, {
+						'frame': {'duration': 1000, 'redraw': True},
+						'transition': {'duration': 0, 'easing': 'linear'},
+						'fromcurrent': True,
+						'autoplay': True
+					}]
+				},
+				{
+					'label': 'Pause',
+					'method': 'animate',
+					'args': [[None], {'frame': {'duration': 0, 'redraw': True}, 'mode': 'immediate'}]
+				}
+			]
+		}],
+	legend_title='Vulture ID',
+	margin=dict(l=0, r=0, b=0, t=40)
 )
 
 output_dir = os.path.join(os.path.dirname(__file__), '../visualizations')
 os.makedirs(output_dir, exist_ok=True)
 output_path = os.path.join(output_dir, 'flight_paths_3d_animation.html')
 fig.write_html(output_path)
-fig.show()
+# Check Plotly version
+required_version = '5.0.0'
+if tuple(map(int, plotly.__version__.split('.'))) < tuple(map(int, required_version.split('.'))):
+	print(f"Warning: Plotly version {plotly.__version__} detected. Please upgrade to >= {required_version} for best animation support.")
+
+pio.show(fig)
