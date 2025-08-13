@@ -12,6 +12,13 @@ start_time = 1
 end_time = 50
 
 # Generate sample data for two vultures
+# Synthetic terrain mesh (mountain/valley)
+terrain_size = 50
+x_terrain = np.linspace(7.48, 7.82, terrain_size)
+y_terrain = np.linspace(46.48, 46.82, terrain_size)
+X, Y = np.meshgrid(x_terrain, y_terrain)
+# Simple mountain/valley function
+Z = 1250 + 100 * np.sin(2 * np.pi * (X - 7.48) / (7.82 - 7.48)) * np.cos(2 * np.pi * (Y - 46.48) / (46.82 - 46.48))
 # Vulture A: 50 points
 timestamps_a = np.linspace(start_time, end_time, 50, dtype=int)
 latitudes_a = np.linspace(46.5, 46.7, 50) + np.random.normal(0, 0.002, 50)
@@ -34,7 +41,9 @@ frames = []
 max_frame = df['timestamp'].max()
 for frame in range(start_time, end_time + 1):
 	colors = {'A': 'blue', 'B': 'orange'}
-	frame_data = []
+	frame_data = [
+		go.Surface(x=x_terrain, y=y_terrain, z=Z, colorscale='YlGnBu', opacity=0.6, showscale=False, name='Terrain')
+	]
 	for vulture_id in ['A', 'B']:
 		group = df[df['vulture_id'] == vulture_id]
 		data = group[group['timestamp'] <= frame]
@@ -60,6 +69,7 @@ for frame in range(start_time, end_time + 1):
 
 fig = go.Figure(
 	data=[
+		go.Surface(x=x_terrain, y=y_terrain, z=Z, colorscale='YlGnBu', opacity=0.6, showscale=False, name='Terrain'),
 		go.Scatter3d(x=[], y=[], z=[], mode='lines+markers', name='Vulture A', line=dict(color='blue'), marker=dict(color='blue')),
 		go.Scatter3d(x=[], y=[], z=[], mode='lines+markers', name='Vulture B', line=dict(color='orange'), marker=dict(color='orange'))
 	],
