@@ -1,5 +1,6 @@
 import plotly.graph_objects as go
 import pandas as pd
+import os
 
 # Placeholder GPS data for two vultures
 data = [
@@ -31,5 +32,8 @@ fig.update_layout(
     legend_title='Vulture ID',
     margin=dict(l=0, r=0, b=0, t=40)
 )
-fig.write_html('../visualizations/flight_paths_3d.html')
+output_dir = os.path.join(os.path.dirname(__file__), '../visualizations')
+os.makedirs(output_dir, exist_ok=True)
+output_path = os.path.join(output_dir, 'flight_paths_3d.html')
+fig.write_html(output_path)
 fig.show()

@@ -13,9 +13,12 @@ This project visualizes 3D GPS flight paths of bearded vultures, including multi
 3. Place your GPS data files in the `data/` folder
 
 ## Usage
-- Run scripts in the `scripts/` folder to generate visualizations
+- Run scripts in the `scripts/` folder to generate visualizations:
+	- `plot_2d.py`: Static 2D flight path plot
+	- `plot_3d.py`: Interactive 3D flight path plot
+	- `animate_2d.py`: Animated 2D flight path video (MP4)
 - Outputs will be saved in `visualizations/`
 
 ## Next Steps
-- Implement 2D and 3D visualization scripts
-- Add interactive and animated features
+- Animated 2D flight paths (video format)
+- Animated 3D flight paths (interactive web format)

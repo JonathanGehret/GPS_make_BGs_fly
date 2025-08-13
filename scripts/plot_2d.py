@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 import pandas as pd
+import os
 
 # Placeholder GPS data for two vultures
 # Columns: timestamp, latitude, longitude, altitude, vulture_id
@@ -15,12 +16,15 @@ df = pd.DataFrame(data, columns=['timestamp', 'latitude', 'longitude', 'altitude
 
 plt.figure(figsize=(8, 6))
 for vulture_id, group in df.groupby('vulture_id'):
-    plt.plot(group['longitude'], group['latitude'], marker='o', label=f'Vulture {vulture_id}')
+    plt.plot(group['longitude'].values, group['latitude'].values, marker='o', label=f'Vulture {vulture_id}')
 plt.xlabel('Longitude')
 plt.ylabel('Latitude')
 plt.title('2D Flight Paths of Bearded Vultures')
 plt.legend()
 plt.grid(True)
 plt.tight_layout()
-plt.savefig('../visualizations/flight_paths_2d.png')
+output_dir = os.path.join(os.path.dirname(__file__), '../visualizations')
+os.makedirs(output_dir, exist_ok=True)
+output_path = os.path.join(output_dir, 'flight_paths_2d.png')
+plt.savefig(output_path)
 plt.show()
