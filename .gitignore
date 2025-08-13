@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.env
+.env
+venv/
+
+# Data and outputs
+data/*
+!data/.gitkeep
+visualizations/*
+!visualizations/.gitkeep
+
+# Jupyter Notebooks
+*.ipynb_checkpoints
+
+# VS Code
+.vscode/
+
+# OS files
+.DS_Store
+Thumbs.db
