@@ -9,8 +9,16 @@ This project visualizes 3D GPS flight paths of bearded vultures, including multi
 
 ## Setup
 1. Install Python 3.8+
-2. Recommended packages: matplotlib, plotly, pandas, numpy
-3. Place your GPS data files in the `data/` folder
+2. Clone this repository:
+   ```bash
+   git clone https://github.com/JonathanGehret/GPS_make_BGs_fly.git
+   cd GPS_make_BGs_fly
+   ```
+3. Install required packages:
+   ```bash
+   pip install -r requirements.txt
+   ```
+4. Place your GPS data files in the `data/` folder
 
 ## Usage
 - Run scripts in the `scripts/` folder to generate visualizations:
