@@ -4,6 +4,7 @@ import numpy as np
 import os
 import plotly.io as pio
 import plotly
+import glob
 from datetime import datetime
 
 def load_vulture_data_from_csv(file_path, vulture_id):
@@ -29,15 +30,31 @@ def load_vulture_data_from_csv(file_path, vulture_id):
     
     return data
 
-# Load data from CSV files
-try:
-    data_a = load_vulture_data_from_csv('data/test_vulture_01.csv', 'A')
-    data_b = load_vulture_data_from_csv('data/test_vulture_02.csv', 'B')
-    data = data_a + data_b
-    print(f"Loaded {len(data_a)} points for Vulture A and {len(data_b)} points for Vulture B")
-except FileNotFoundError as e:
-    print(f"CSV files not found: {e}")
-    print("Using synthetic data instead...")
+# Automatically load all CSV files from data folder
+data_folder = 'data'
+csv_files = glob.glob(os.path.join(data_folder, '*.csv'))
+
+if csv_files:
+    print(f"Found {len(csv_files)} CSV files:")
+    all_data = []
+    vulture_colors = ['blue', 'orange', 'red', 'green', 'purple', 'brown', 'pink', 'gray', 'olive', 'cyan']
+    
+    for i, csv_file in enumerate(csv_files):
+        filename = os.path.basename(csv_file)
+        vulture_id = chr(65 + i)  # A, B, C, D, etc.
+        print(f"  - {filename} -> Vulture {vulture_id}")
+        
+        try:
+            vulture_data = load_vulture_data_from_csv(csv_file, vulture_id)
+            all_data.extend(vulture_data)
+        except Exception as e:
+            print(f"    Error loading {filename}: {e}")
+    
+    data = all_data
+    vulture_ids = [chr(65 + i) for i in range(len(csv_files))]
+    print(f"Loaded total of {len(data)} data points for {len(csv_files)} vultures")
+else:
+    print("No CSV files found in data folder. Using synthetic data instead...")
     
     # Fallback to synthetic data (same as before)
     np.random.seed(42)
@@ -57,6 +74,7 @@ except FileNotFoundError as e:
     data_a = list(zip(timestamps_a, latitudes_a, longitudes_a, altitudes_a, ['A']*50))
     data_b = list(zip(timestamps_b, latitudes_b, longitudes_b, altitudes_b, ['B']*30))
     data = data_a + data_b
+    vulture_ids = ['A', 'B']
 
 # Create DataFrame
 df = pd.DataFrame(data, columns=['timestamp', 'latitude', 'longitude', 'altitude', 'vulture_id'])
@@ -91,11 +109,11 @@ end_time = int(df['timestamp'].max())
 # Create animation frames
 frames = []
 for frame in range(start_time, end_time + 1):
-    colors = {'A': 'blue', 'B': 'orange'}
+    colors = dict(zip(vulture_ids, vulture_colors[:len(vulture_ids)]))
     frame_data = [
         go.Surface(x=x_terrain, y=y_terrain, z=Z, colorscale='earth', opacity=0.7, showscale=False, name='Berchtesgaden Alps')
     ]
-    for vulture_id in ['A', 'B']:
+    for vulture_id in vulture_ids:
         group = df[df['vulture_id'] == vulture_id]
         data_frame = group[group['timestamp'] <= frame]
         if len(data_frame) > 0:
@@ -105,26 +123,31 @@ for frame in range(start_time, end_time + 1):
                 z=data_frame['altitude'],
                 mode='lines+markers',
                 name=f'Vulture {vulture_id}',
-                line=dict(color=colors[vulture_id]),
-                marker=dict(color=colors[vulture_id])
+                line=dict(color=colors.get(vulture_id, 'gray')),
+                marker=dict(color=colors.get(vulture_id, 'gray'))
             )
         else:
             trace = go.Scatter3d(
                 x=[], y=[], z=[], mode='lines+markers',
                 name=f'Vulture {vulture_id}',
-                line=dict(color=colors[vulture_id]),
-                marker=dict(color=colors[vulture_id])
+                line=dict(color=colors.get(vulture_id, 'gray')),
+                marker=dict(color=colors.get(vulture_id, 'gray'))
             )
         frame_data.append(trace)
     frames.append(go.Frame(data=frame_data, name=str(frame)))
 
-# Create figure
+# Create figure with initial traces for all vultures
+initial_traces = [go.Surface(x=x_terrain, y=y_terrain, z=Z, colorscale='earth', opacity=0.7, showscale=False, name='Berchtesgaden Alps')]
+colors = dict(zip(vulture_ids, vulture_colors[:len(vulture_ids)]))
+for vulture_id in vulture_ids:
+    initial_traces.append(
+        go.Scatter3d(x=[], y=[], z=[], mode='lines+markers', 
+                    name=f'Vulture {vulture_id}', 
+                    line=dict(color=colors.get(vulture_id, 'gray')), 
+                    marker=dict(color=colors.get(vulture_id, 'gray')))
+    )
 fig = go.Figure(
-    data=[
-        go.Surface(x=x_terrain, y=y_terrain, z=Z, colorscale='earth', opacity=0.7, showscale=False, name='Berchtesgaden Alps'),
-        go.Scatter3d(x=[], y=[], z=[], mode='lines+markers', name='Vulture A', line=dict(color='blue'), marker=dict(color='blue')),
-        go.Scatter3d(x=[], y=[], z=[], mode='lines+markers', name='Vulture B', line=dict(color='orange'), marker=dict(color='orange'))
-    ],
+    data=initial_traces,
     frames=frames
 )
 
