@@ -11,25 +11,28 @@ np.random.seed(42)
 start_time = 1
 end_time = 50
 
-# Generate sample data for two vultures
-# Synthetic terrain mesh (mountain/valley)
+# Generate sample data for two vultures around Königssee, Berchtesgaden
+# Synthetic terrain mesh for Königssee region
 terrain_size = 50
-x_terrain = np.linspace(7.48, 7.82, terrain_size)
-y_terrain = np.linspace(46.48, 46.82, terrain_size)
+x_terrain = np.linspace(12.94, 13.04, terrain_size)  # Königssee longitude range
+y_terrain = np.linspace(47.52, 47.62, terrain_size)  # Königssee latitude range
 X, Y = np.meshgrid(x_terrain, y_terrain)
-# Simple mountain/valley function
-Z = 1250 + 100 * np.sin(2 * np.pi * (X - 7.48) / (7.82 - 7.48)) * np.cos(2 * np.pi * (Y - 46.48) / (46.82 - 46.48))
-# Vulture A: 50 points
-timestamps_a = np.linspace(start_time, end_time, 50, dtype=int)
-latitudes_a = np.linspace(46.5, 46.7, 50) + np.random.normal(0, 0.002, 50)
-longitudes_a = np.linspace(7.5, 7.7, 50) + np.random.normal(0, 0.002, 50)
-altitudes_a = np.linspace(1200, 1400, 50) + np.random.normal(0, 5, 50)
+# Alpine terrain with lake and mountains
+Z = 600 + 800 * (np.sin(3 * np.pi * (X - 12.94) / (13.04 - 12.94)) ** 2 + 
+                 np.cos(4 * np.pi * (Y - 47.52) / (47.62 - 47.52)) ** 2) + \
+    300 * np.exp(-((X - 12.98)**2 + (Y - 47.57)**2) * 1000)  # Lake depression
 
-# Vulture B: 30 points, random intervals within same start/end
+# Vulture A: 50 points - flying around the lake
+timestamps_a = np.linspace(start_time, end_time, 50, dtype=int)
+latitudes_a = np.linspace(47.54, 47.58, 50) + np.random.normal(0, 0.001, 50)
+longitudes_a = np.linspace(12.96, 13.00, 50) + np.random.normal(0, 0.001, 50)
+altitudes_a = np.linspace(800, 1800, 50) + np.random.normal(0, 20, 50)  # From lake level to mountain heights
+
+# Vulture B: 30 points - flying higher around mountain peaks
 timestamps_b = np.sort(np.random.choice(np.arange(start_time, end_time+1), 30, replace=False))
-latitudes_b = np.linspace(46.6, 46.8, 30) + np.random.normal(0, 0.002, 30)
-longitudes_b = np.linspace(7.6, 7.8, 30) + np.random.normal(0, 0.002, 30)
-altitudes_b = np.linspace(1300, 1500, 30) + np.random.normal(0, 5, 30)
+latitudes_b = np.linspace(47.56, 47.60, 30) + np.random.normal(0, 0.001, 30)
+longitudes_b = np.linspace(12.98, 13.02, 30) + np.random.normal(0, 0.001, 30)
+altitudes_b = np.linspace(1200, 2200, 30) + np.random.normal(0, 30, 30)  # Higher mountain flight
 
 data_a = list(zip(timestamps_a, latitudes_a, longitudes_a, altitudes_a, ['A']*50))
 data_b = list(zip(timestamps_b, latitudes_b, longitudes_b, altitudes_b, ['B']*30))
@@ -42,7 +45,7 @@ max_frame = df['timestamp'].max()
 for frame in range(start_time, end_time + 1):
 	colors = {'A': 'blue', 'B': 'orange'}
 	frame_data = [
-		go.Surface(x=x_terrain, y=y_terrain, z=Z, colorscale='YlGnBu', opacity=0.6, showscale=False, name='Terrain')
+		go.Surface(x=x_terrain, y=y_terrain, z=Z, colorscale='terrain', opacity=0.7, showscale=False, name='Berchtesgaden Alps')
 	]
 	for vulture_id in ['A', 'B']:
 		group = df[df['vulture_id'] == vulture_id]
@@ -69,21 +72,21 @@ for frame in range(start_time, end_time + 1):
 
 fig = go.Figure(
 	data=[
-		go.Surface(x=x_terrain, y=y_terrain, z=Z, colorscale='YlGnBu', opacity=0.6, showscale=False, name='Terrain'),
+		go.Surface(x=x_terrain, y=y_terrain, z=Z, colorscale='terrain', opacity=0.7, showscale=False, name='Berchtesgaden Alps'),
 		go.Scatter3d(x=[], y=[], z=[], mode='lines+markers', name='Vulture A', line=dict(color='blue'), marker=dict(color='blue')),
 		go.Scatter3d(x=[], y=[], z=[], mode='lines+markers', name='Vulture B', line=dict(color='orange'), marker=dict(color='orange'))
 	],
 	frames=frames
 )
 fig.update_layout(
-	title='Animated 3D Flight Paths of Bearded Vultures',
+	title='Animated 3D Flight Paths of Bearded Vultures - Königssee, Berchtesgaden',
 	scene=dict(
 		xaxis_title='Longitude',
 		yaxis_title='Latitude',
 		zaxis_title='Altitude (m)',
-		xaxis=dict(range=[7.48, 7.82]),
-		yaxis=dict(range=[46.48, 46.82]),
-		zaxis=dict(range=[1190, 1510]),
+		xaxis=dict(range=[12.94, 13.04]),
+		yaxis=dict(range=[47.52, 47.62]),
+		zaxis=dict(range=[600, 2400]),
 		dragmode='orbit'
 	),
 		updatemenus=[{
