@@ -45,7 +45,7 @@ max_frame = df['timestamp'].max()
 for frame in range(start_time, end_time + 1):
 	colors = {'A': 'blue', 'B': 'orange'}
 	frame_data = [
-		go.Surface(x=x_terrain, y=y_terrain, z=Z, colorscale='terrain', opacity=0.7, showscale=False, name='Berchtesgaden Alps')
+		go.Surface(x=x_terrain, y=y_terrain, z=Z, colorscale='earth', opacity=0.7, showscale=False, name='Berchtesgaden Alps')
 	]
 	for vulture_id in ['A', 'B']:
 		group = df[df['vulture_id'] == vulture_id]
@@ -72,7 +72,7 @@ for frame in range(start_time, end_time + 1):
 
 fig = go.Figure(
 	data=[
-		go.Surface(x=x_terrain, y=y_terrain, z=Z, colorscale='terrain', opacity=0.7, showscale=False, name='Berchtesgaden Alps'),
+		go.Surface(x=x_terrain, y=y_terrain, z=Z, colorscale='earth', opacity=0.7, showscale=False, name='Berchtesgaden Alps'),
 		go.Scatter3d(x=[], y=[], z=[], mode='lines+markers', name='Vulture A', line=dict(color='blue'), marker=dict(color='blue')),
 		go.Scatter3d(x=[], y=[], z=[], mode='lines+markers', name='Vulture B', line=dict(color='orange'), marker=dict(color='orange'))
 	],
