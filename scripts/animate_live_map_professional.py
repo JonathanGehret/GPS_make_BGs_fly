@@ -350,9 +350,10 @@ class LiveMapAnimator:
             fig.frames = frames
             
             # Apply layout optimizations
+            # Configure MapLibre map layout (OpenStreetMap with MapLibre GL JS)
             fig.update_layout(
                 mapbox=dict(
-                    style="open-street-map",
+                    style="open-street-map",  # MapLibre-compatible style
                     center=dict(
                         lat=df['Latitude'].mean(),
                         lon=df['Longitude'].mean()
@@ -426,7 +427,8 @@ class LiveMapAnimator:
             )
             
             # Apply layout optimizations
-            layout_config = self.viz_helper.setup_mapbox_layout(df, height=600, zoom=12)
+            # Configure MapLibre layout (successor to deprecated Mapbox)
+            layout_config = self.viz_helper.setup_maplibre_layout(df, height=600, zoom=12)
             
             fig.update_layout(
                 **layout_config,

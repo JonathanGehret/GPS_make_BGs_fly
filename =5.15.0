@@ -1,0 +1,13 @@
+Defaulting to user installation because normal site-packages is not writeable
+Requirement already satisfied: plotly in /usr/lib/python3/dist-packages (5.4.0)
+Collecting plotly
+  Downloading plotly-6.3.0-py3-none-any.whl.metadata (8.5 kB)
+Collecting narwhals>=1.15.1 (from plotly)
+  Downloading narwhals-2.1.2-py3-none-any.whl.metadata (11 kB)
+Requirement already satisfied: packaging in /usr/lib/python3/dist-packages (from plotly) (21.3)
+Downloading plotly-6.3.0-py3-none-any.whl (9.8 MB)
+   ━━━━━━━━━━━━━━━━━━ 9.8/9.8 MB 5.1 MB/s  0:00:01
+Downloading narwhals-2.1.2-py3-none-any.whl (392 kB)
+Installing collected packages: narwhals, plotly
+
+Successfully installed narwhals-2.1.2 plotly-6.3.0

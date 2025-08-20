@@ -1,6 +1,6 @@
 # Core data processing and visualization
 matplotlib>=3.5.0
-plotly>=5.0.0
+plotly>=5.15.0  # Updated for MapLibre GL JS support
 pandas>=1.3.0
 numpy>=1.21.0
 
@@ -10,6 +10,9 @@ scikit-learn>=1.0.0
 # Web and image processing
 requests>=2.25.0
 Pillow>=8.0.0
+
+# MapLibre GL JS support (automatically included with modern Plotly)
+# Note: Plotly 5.15+ uses MapLibre GL JS instead of deprecated Mapbox GL JS
 
 # Development and code quality (optional)
 # mypy>=0.910  # For type checking

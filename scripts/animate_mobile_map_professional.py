@@ -337,9 +337,10 @@ class MobileLiveMapAnimator:
             
             fig.frames = frames
             
-            # Mobile-optimized layout
+            # Mobile-optimized MapLibre layout (successor to deprecated Mapbox)
             fig.update_layout(
                 mapbox=dict(
+                    style="open-street-map",  # MapLibre-compatible OpenStreetMap style
                     center=dict(
                         lat=df['Latitude'].mean(),
                         lon=df['Longitude'].mean()

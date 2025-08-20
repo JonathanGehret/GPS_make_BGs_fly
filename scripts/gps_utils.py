@@ -36,7 +36,16 @@ TIMESTAMP_MOBILE_FORMAT = '%d.%m %H:%M'
 
 # Visualization constants
 DEFAULT_COLORS = px.colors.qualitative.Set1
-DEFAULT_MAPBOX_STYLE = "open-street-map"
+# MapLibre GL JS configuration (successor to deprecated Mapbox GL JS)
+DEFAULT_MAPLIBRE_STYLE = "open-street-map"  # OpenStreetMap style works with MapLibre
+MAPLIBRE_STYLES = {
+    "open-street-map": "open-street-map",  # Default OpenStreetMap
+    "carto-positron": "carto-positron",    # Light theme
+    "carto-darkmatter": "carto-darkmatter", # Dark theme  
+    "stamen-terrain": "stamen-terrain",    # Terrain view
+    "stamen-toner": "stamen-toner",        # High contrast
+    "white-bg": "white-bg"                 # White background
+}
 EARTH_RADIUS_KM = 6371
 
 # Performance thresholds
@@ -282,11 +291,11 @@ class VisualizationHelper:
     """Helper functions for creating consistent visualizations"""
     
     @staticmethod
-    def setup_mapbox_layout(df: pd.DataFrame, height: int = 600, zoom: int = 12) -> Dict:
-        """Create standard mapbox layout configuration"""
+    def setup_maplibre_layout(df: pd.DataFrame, height: int = 600, zoom: int = 12) -> Dict:
+        """Create standard MapLibre layout configuration (successor to Mapbox)"""
         return {
-            'mapbox': {
-                'style': DEFAULT_MAPBOX_STYLE,
+            'mapbox': {  # Note: Plotly still uses 'mapbox' key but with MapLibre backend
+                'style': DEFAULT_MAPLIBRE_STYLE,
                 'center': {
                     'lat': df['Latitude'].mean(),
                     'lon': df['Longitude'].mean()
@@ -294,6 +303,7 @@ class VisualizationHelper:
                 'zoom': zoom
             },
             'height': height,
+            'margin': {'r': 0, 'l': 0, 't': 30, 'b': 0},
             'showlegend': True
         }
     

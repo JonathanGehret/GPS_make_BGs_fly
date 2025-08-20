@@ -546,7 +546,7 @@ class ProximityAnalyzer:
         
         map_df = pd.DataFrame(map_data)
         
-        # Create map with clustering
+        # Create map with clustering using MapLibre (successor to deprecated Mapbox)
         fig = px.scatter_mapbox(
             map_df,
             lat='lat',
@@ -554,7 +554,7 @@ class ProximityAnalyzer:
             color='pair',
             size='distance',
             hover_data=['timestamp', 'distance', 'altitude1', 'altitude2'],
-            mapbox_style='open-street-map',
+            mapbox_style='open-street-map',  # MapLibre-compatible style
             title='Proximity Events Map',
             height=700,
             zoom=10
