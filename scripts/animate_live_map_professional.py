@@ -324,9 +324,9 @@ class LiveMapAnimator:
                     )
                 )
             
-            # Create animation frames
+            # Create animation frames (simplified approach)
             frames = []
-            unique_times = df['timestamp_str'].unique()
+            unique_times = sorted(df['timestamp_str'].unique())
             
             for time_str in unique_times:
                 frame_data = []
@@ -430,29 +430,54 @@ class LiveMapAnimator:
                     y=0,
                     yanchor="top"
                 )],
-                sliders=[dict(
-                    active=0,
-                    yanchor="top",
-                    xanchor="left",
-                    currentvalue=dict(
-                        font=dict(size=16),
-                        prefix="Time: ",
-                        visible=True,
-                        xanchor="right"
+                sliders=[
+                    # Start Time Slider (left) - Controls how far back to show data
+                    dict(
+                        active=0,
+                        yanchor="top",
+                        xanchor="left",
+                        currentvalue=dict(
+                            font=dict(size=14),
+                            prefix="Hide before: ",
+                            visible=True,
+                            xanchor="right"
+                        ),
+                        transition=dict(duration=200, easing="cubic-in-out"),
+                        pad=dict(b=10, t=50),
+                        len=0.35,  # Shorter slider
+                        x=0.05,   # Positioned to the left
+                        y=0,
+                        steps=[dict(
+                            args=[i],  # Just pass the index
+                            label=frame.name.split(' ')[0] + ' ' + frame.name.split(' ')[1],  # Short format
+                            method="skip",  # Use skip method for custom handling
+                            value=str(i)
+                        ) for i, frame in enumerate(frames)]
                     ),
-                    transition=dict(duration=300, easing="cubic-in-out"),
-                    pad=dict(b=10, t=50),
-                    len=0.9,
-                    x=0.1,
-                    y=0,
-                    steps=[dict(
-                        args=[[frame.name], {"frame": {"duration": 300, "redraw": True},
-                                            "mode": "immediate",
-                                            "transition": {"duration": 300}}],
-                        label=frame.name.split(' ')[0] + ' ' + frame.name.split(' ')[1],  # Short format
-                        method="animate"
-                    ) for frame in frames]
-                )]
+                    # Main Time Slider (right) - Controls current time
+                    dict(
+                        active=len(frames) - 1,  # Start at last frame
+                        yanchor="top",
+                        xanchor="left",
+                        currentvalue=dict(
+                            font=dict(size=16),
+                            prefix="Current time: ",
+                            visible=True,
+                            xanchor="right"
+                        ),
+                        transition=dict(duration=300, easing="cubic-in-out"),
+                        pad=dict(b=10, t=50),
+                        len=0.5,   # Main slider
+                        x=0.45,    # Positioned to the right
+                        y=0,
+                        steps=[dict(
+                            args=[[frame.name], {"frame": {"duration": 300, "redraw": True},
+                                                "mode": "immediate", "transition": {"duration": 300}}],
+                            label=frame.name.split(' ')[0] + ' ' + frame.name.split(' ')[1],  # Short format
+                            method="animate"
+                        ) for frame in frames]
+                    )
+                ]
             )
             
             # Apply comprehensive MapLibre layout configuration with smart bounds
@@ -489,11 +514,229 @@ class LiveMapAnimator:
                 fig.layout.updatemenus[0].buttons[0].args[1]["frame"]["duration"] = 600
                 fig.layout.updatemenus[0].buttons[0].args[1]["transition"]["duration"] = 300
             
-            # Save the visualization
-            output_path = get_output_path('flight_paths_live_map_optimized.html')
+            # Save the visualization with custom time window controls
+            output_path = get_output_path('flight_paths_live_map_professional.html')
             
             print("💾 Saving visualization...")
-            fig.write_html(output_path)
+            
+            # Write the HTML with custom JavaScript for dual slider interaction
+            html_string = fig.to_html(include_plotlyjs=True)
+            
+            # Add custom JavaScript for time window functionality
+            unique_times = sorted(df['timestamp_str'].unique())
+            time_window_js = f"""
+            <script>
+            // Time window control variables
+            let startTimeIndex = 0;
+            let currentTimeIndex = {len(unique_times) - 1};
+            let timeFrames = {[t for t in unique_times]};
+            let plotlyDiv = document.querySelector('.plotly-graph-div');
+            let allFrameData = {{}};  // Store all frame data for filtering
+            
+            // Store original frame data when the page loads
+            document.addEventListener('DOMContentLoaded', function() {{
+                setTimeout(function() {{
+                    if (plotlyDiv && plotlyDiv._fullLayout && plotlyDiv._fullLayout._frames) {{
+                        // Store all original frame data
+                        plotlyDiv._fullLayout._frames.forEach(function(frame, index) {{
+                            allFrameData[frame.name] = frame.data;
+                        }});
+                        
+                        // Set up slider event listeners
+                        setupSliderListeners();
+                    }}
+                }}, 1000);
+            }});
+            
+            // Function to create filtered frame data based on time window
+            function createFilteredFrame(endTimeIndex, startTimeIndex) {{
+                if (!plotlyDiv || !plotlyDiv._fullData) return null;
+                
+                // Get the current frame data
+                let currentFrameData = plotlyDiv._fullData;
+                
+                // Get the time values for filtering
+                let timeSteps = [];
+                if (plotlyDiv._fullLayout && plotlyDiv._fullLayout.sliders && plotlyDiv._fullLayout.sliders[1]) {{
+                    timeSteps = plotlyDiv._fullLayout.sliders[1].steps.map(step => step.label);
+                }}
+                
+                if (timeSteps.length === 0) return currentFrameData;
+                
+                // Get start and end time strings for filtering
+                let startTimeStr = timeSteps[startTimeIndex] || timeSteps[0];
+                let endTimeStr = timeSteps[endTimeIndex] || timeSteps[timeSteps.length - 1];
+                
+                console.log('Time filtering:', {{
+                    startTimeIndex: startTimeIndex,
+                    endTimeIndex: endTimeIndex,
+                    startTime: startTimeStr,
+                    endTime: endTimeStr
+                }});
+                
+                // Parse times for comparison
+                let startTime = parseTimeString(startTimeStr);
+                let endTime = parseTimeString(endTimeStr);
+                
+                // Filter each trace based on actual timestamps
+                let filteredData = currentFrameData.map(function(trace) {{
+                    if (!trace.lat || !trace.lon || !trace.customdata || trace.lat.length === 0) {{
+                        return trace; // Return empty trace as-is
+                    }}
+                    
+                    let filteredIndices = [];
+                    
+                    // Check each data point's timestamp
+                    trace.customdata.forEach(function(customPoint, pointIndex) {{
+                        if (customPoint && customPoint[0]) {{
+                            // customPoint[0] contains the timestamp display (e.g., "15.06 08:02")
+                            let pointTime = parseTimeString(customPoint[0]);
+                            
+                            // Include point if it's within the time window
+                            if (pointTime >= startTime && pointTime <= endTime) {{
+                                filteredIndices.push(pointIndex);
+                            }}
+                        }}
+                    }});
+                    
+                    console.log('Filtered trace:', {{
+                        originalPoints: trace.lat.length,
+                        filteredPoints: filteredIndices.length,
+                        traceName: trace.name
+                    }});
+                    
+                    // Create filtered trace
+                    let filteredTrace = {{
+                        ...trace,
+                        lat: filteredIndices.map(i => trace.lat[i]),
+                        lon: filteredIndices.map(i => trace.lon[i]),
+                        customdata: filteredIndices.map(i => trace.customdata[i])
+                    }};
+                    
+                    return filteredTrace;
+                }});
+                
+                return filteredData;
+            }}
+            
+            // Helper function to parse time strings into comparable values
+            function parseTimeString(timeStr) {{
+                // Handle different time formats
+                // Expected formats: "15.06.2024 08:02:00" or "15.06 08:02"
+                let parts = timeStr.trim().split(' ');
+                if (parts.length < 2) return 0;
+                
+                let datePart = parts[0]; // "15.06.2024" or "15.06"
+                let timePart = parts[1]; // "08:02:00" or "08:02"
+                
+                // Parse date
+                let dateComponents = datePart.split('.');
+                let day = parseInt(dateComponents[0]) || 1;
+                let month = parseInt(dateComponents[1]) || 1;
+                let year = parseInt(dateComponents[2]) || 2024;
+                
+                // Parse time
+                let timeComponents = timePart.split(':');
+                let hours = parseInt(timeComponents[0]) || 0;
+                let minutes = parseInt(timeComponents[1]) || 0;
+                let seconds = parseInt(timeComponents[2]) || 0;
+                
+                // Create a timestamp for comparison
+                let date = new Date(year, month - 1, day, hours, minutes, seconds);
+                return date.getTime();
+            }}
+            
+            // Function to update visualization based on time window
+            function updateTimeWindow() {{
+                if (!plotlyDiv) return;
+                
+                console.log('Updating time window:', {{
+                    startTimeIndex: startTimeIndex,
+                    currentTimeIndex: currentTimeIndex
+                }});
+                
+                // First, navigate to the correct time frame using Plotly's animation
+                if (plotlyDiv._fullLayout && plotlyDiv._fullLayout.sliders && plotlyDiv._fullLayout.sliders[1]) {{
+                    let mainSlider = plotlyDiv._fullLayout.sliders[1];
+                    if (mainSlider.steps && mainSlider.steps[currentTimeIndex]) {{
+                        // Navigate to the current time frame first
+                        Plotly.animate(plotlyDiv, [mainSlider.steps[currentTimeIndex].name], {{
+                            frame: {{ duration: 0, redraw: true }},
+                            transition: {{ duration: 0 }}
+                        }}).then(function() {{
+                            // After navigation, apply the time window filter
+                            let filteredData = createFilteredFrame(currentTimeIndex, startTimeIndex);
+                            if (filteredData) {{
+                                Plotly.react(plotlyDiv, filteredData, plotlyDiv.layout);
+                            }}
+                        }});
+                    }}
+                }} else {{
+                    // Fallback: just apply filtering
+                    let filteredData = createFilteredFrame(currentTimeIndex, startTimeIndex);
+                    if (filteredData) {{
+                        Plotly.react(plotlyDiv, filteredData, plotlyDiv.layout);
+                    }}
+                }}
+            }}
+            
+            // Set up slider event listeners
+            function setupSliderListeners() {{
+                console.log('Setting up slider listeners...');
+                
+                // Strategy 1: Look for Plotly slider containers
+                let sliderContainers = document.querySelectorAll('.slider-container, .rangeslider-container, [class*="slider"]');
+                console.log('Found slider containers:', sliderContainers.length);
+                
+                // Strategy 2: Look for input range elements directly
+                let rangeInputs = document.querySelectorAll('input[type="range"]');
+                console.log('Found range inputs:', rangeInputs.length);
+                
+                // Strategy 3: Look within Plotly's layout structure
+                let plotlySliders = document.querySelectorAll('.plotly .slider-group, .plotly [class*="slider"]');
+                console.log('Found plotly sliders:', plotlySliders.length);
+                
+                // Try to find slider inputs
+                let allSliderInputs = Array.from(rangeInputs);
+                
+                if (allSliderInputs.length >= 2) {{
+                    console.log('Setting up event listeners for', allSliderInputs.length, 'sliders');
+                    
+                    // Start time slider (left) - index 0
+                    let startSlider = allSliderInputs[0];
+                    if (startSlider) {{
+                        console.log('Setting up start slider');
+                        startSlider.addEventListener('input', function(e) {{
+                            console.log('Start slider changed to:', e.target.value);
+                            startTimeIndex = parseInt(e.target.value) || 0;
+                            updateTimeWindow();
+                        }});
+                    }}
+                    
+                    // Main time slider (right) - index 1
+                    let mainSlider = allSliderInputs[1];
+                    if (mainSlider) {{
+                        console.log('Setting up main slider');
+                        mainSlider.addEventListener('input', function(e) {{
+                            console.log('Main slider changed to:', e.target.value);
+                            currentTimeIndex = parseInt(e.target.value) || timeFrames.length - 1;
+                            updateTimeWindow();
+                        }});
+                    }}
+                }} else {{
+                    console.log('Not enough slider inputs found, retrying in 1 second...');
+                    setTimeout(setupSliderListeners, 1000);
+                }}
+            }}
+            </script>
+            """
+            
+            # Insert the custom JavaScript before the closing body tag
+            html_string = html_string.replace('</body>', time_window_js + '</body>')
+            
+            # Write the modified HTML
+            with open(output_path, 'w', encoding='utf-8') as f:
+                f.write(html_string)
             
             self.ui.print_success("Visualization created successfully!")
             print(f"📁 Saved to: {output_path}")
