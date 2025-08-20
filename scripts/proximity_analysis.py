@@ -63,7 +63,7 @@ class VultureProximityAnalyzer:
                         # Try to parse the timestamp (format: DD.MM.YYYY HH:mm:ss)
                         dt = datetime.strptime(str(timestamp_str), '%d.%m.%Y %H:%M:%S')
                         timestamps.append(dt)
-                    except:
+                    except Exception:
                         # Fallback: use index as time
                         timestamps.append(datetime.now() + timedelta(hours=len(timestamps)))
                 
@@ -114,12 +114,11 @@ class VultureProximityAnalyzer:
             print("No data loaded. Please run load_csv_data() first.")
             return
         
-        print(f"\nAnalyzing proximity events...")
+        print("\nAnalyzing proximity events...")
         print(f"Proximity threshold: {self.proximity_threshold_km} km")
         print(f"Time window: ±{time_window_minutes} minutes")
         
         proximity_events = []
-        vulture_ids = self.data['vulture_id'].unique()
         
         # Group data by time windows
         self.data['time_group'] = self.data['timestamp'].dt.floor(f'{time_window_minutes}min')
