@@ -6,8 +6,8 @@ import plotly.io as pio
 import glob
 from datetime import datetime
 
-def create_mapbox_3d_visualization():
-    """Create 2D visualization using Mapbox tiles for fast, live map data"""
+def create_mobile_optimized_map():
+    """Create mobile-optimized 2D visualization with live map tiles"""
     
     def load_vulture_data_from_csv(file_path, vulture_id):
         """Load vulture data from CSV file with proper timestamp parsing"""
@@ -20,12 +20,12 @@ def create_mapbox_3d_visualization():
             try:
                 # Parse the timestamp (format: DD.MM.YYYY HH:mm:ss)
                 dt = datetime.strptime(str(timestamp_str), '%d.%m.%Y %H:%M:%S')
-                timestamps.append(i + 1)  # Keep numeric for animation
-                timestamp_strings.append(dt.strftime('%d.%m.%Y %H:%M:%S'))
-            except Exception:
-                # Fallback: use index
                 timestamps.append(i + 1)
-                timestamp_strings.append(f"Point {i + 1}")
+                # Create compact time format for mobile
+                timestamp_strings.append(dt.strftime('%d.%m %H:%M'))
+            except Exception:
+                timestamps.append(i + 1)
+                timestamp_strings.append(f"Pt{i + 1}")
         
         data = []
         for i, row in df.iterrows():
@@ -35,7 +35,7 @@ def create_mapbox_3d_visualization():
                 float(str(row['Longitude']).replace(',', '.')),
                 float(str(row['Height'])),
                 vulture_id,
-                timestamp_strings[i]  # Add formatted timestamp
+                timestamp_strings[i]
             ])
         
         return data
@@ -47,7 +47,7 @@ def create_mapbox_3d_visualization():
     if csv_files:
         print(f"Found {len(csv_files)} CSV files:")
         all_data = []
-        vulture_colors = ['blue', 'orange', 'red', 'green', 'purple', 'brown', 'pink', 'gray', 'olive', 'cyan']
+        vulture_colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd']
         
         for i, csv_file in enumerate(csv_files):
             filename = os.path.basename(csv_file)
@@ -62,10 +62,9 @@ def create_mapbox_3d_visualization():
         
         data = all_data
         vulture_ids = [chr(65 + i) for i in range(len(csv_files))]
-        print(f"Loaded total of {len(data)} data points for {len(csv_files)} vultures")
     else:
-        # Fallback synthetic data
         print("No CSV files found. Using synthetic data...")
+        # Synthetic data with compact timestamps
         np.random.seed(42)
         start_time, end_time = 1, 50
         
@@ -73,66 +72,50 @@ def create_mapbox_3d_visualization():
         latitudes_a = np.linspace(47.54, 47.58, 50) + np.random.normal(0, 0.001, 50)
         longitudes_a = np.linspace(12.96, 13.00, 50) + np.random.normal(0, 0.001, 50)
         altitudes_a = np.linspace(800, 1800, 50) + np.random.normal(0, 20, 50)
-        timestamp_strings_a = [f"Synthetic Point {i+1}" for i in range(50)]
+        timestamp_strings_a = [f"08:{i:02d}" for i in range(50)]
         
-        data_a = list(zip(timestamps_a, latitudes_a, longitudes_a, altitudes_a, ['A']*50, timestamp_strings_a))
-        data = data_a
+        data = list(zip(timestamps_a, latitudes_a, longitudes_a, altitudes_a, ['A']*50, timestamp_strings_a))
         vulture_ids = ['A']
 
     # Create DataFrame
     df = pd.DataFrame(data, columns=['timestamp', 'latitude', 'longitude', 'altitude', 'vulture_id', 'datetime_str'])
 
-    # Calculate center point for map
+    # Calculate optimal map parameters for mobile
     center_lat = df['latitude'].mean()
     center_lon = df['longitude'].mean()
     
-    # Calculate zoom level based on data spread and optimize for smaller screens
     lat_range = df['latitude'].max() - df['latitude'].min()
     lon_range = df['longitude'].max() - df['longitude'].min()
     max_range = max(lat_range, lon_range)
     
-    # Improved zoom level calculation for better mobile/smaller screen experience
-    if max_range > 0.1:
-        zoom = 9   # Increased from 8
-    elif max_range > 0.05:
-        zoom = 11  # Increased from 10
+    # Higher zoom for mobile (tighter focus)
+    if max_range > 0.05:
+        zoom = 12
     elif max_range > 0.01:
-        zoom = 13  # Increased from 12
+        zoom = 14
     else:
-        zoom = 15  # Increased from 14
+        zoom = 16
 
-    print(f"Map center: {center_lat:.4f}, {center_lon:.4f}")
-    print(f"Zoom level: {zoom}")
+    print(f"Mobile-optimized map: Center {center_lat:.4f}, {center_lon:.4f}, Zoom {zoom}")
 
-    # Create the figure with Mapbox
+    # Create the figure
     fig = go.Figure()
 
-    # Add initial empty traces for each vulture
-    colors = dict(zip(vulture_ids, vulture_colors[:len(vulture_ids)]))
-    for vulture_id in vulture_ids:
-        fig.add_trace(
-            go.Scattermapbox(
-                lat=[],
-                lon=[],
-                mode='lines+markers',
-                name=f'Vulture {vulture_id}',
-                line=dict(color=colors.get(vulture_id, 'gray'), width=3),
-                marker=dict(color=colors.get(vulture_id, 'gray'), size=8)
-            )
-        )
-
-    # Create animation frames with enhanced hover and time information
+    # Animation frames with mobile-optimized hover
     start_time = int(df['timestamp'].min())
     end_time = int(df['timestamp'].max())
     
-    # Create lookup for datetime strings by frame
+    # Create datetime lookup for slider
     frame_datetime_lookup = {}
     for frame in range(start_time, end_time + 1):
-        current_frame_data = df[df['timestamp'] == frame]
-        if len(current_frame_data) > 0:
-            frame_datetime_lookup[frame] = current_frame_data.iloc[0]['datetime_str']
+        current_data = df[df['timestamp'] == frame]
+        if len(current_data) > 0:
+            frame_datetime_lookup[frame] = current_data.iloc[0]['datetime_str']
         else:
-            frame_datetime_lookup[frame] = f"Frame {frame}"
+            frame_datetime_lookup[frame] = f"F{frame}"
+    
+    # Create frames
+    colors = dict(zip(vulture_ids, vulture_colors[:len(vulture_ids)]))
     
     frames = []
     for frame in range(start_time, end_time + 1):
@@ -142,13 +125,10 @@ def create_mapbox_3d_visualization():
             data_frame = group[group['timestamp'] <= frame]
             
             if len(data_frame) > 0:
-                # Prepare enhanced hover data
+                # Mobile-friendly hover template
                 hover_data = []
                 for _, row in data_frame.iterrows():
-                    hover_data.append({
-                        'datetime': row['datetime_str'],
-                        'altitude': row['altitude']
-                    })
+                    hover_data.append([row['altitude'], row['datetime_str']])
                 
                 frame_data.append(
                     go.Scattermapbox(
@@ -156,14 +136,14 @@ def create_mapbox_3d_visualization():
                         lon=data_frame['longitude'].tolist(),
                         mode='lines+markers',
                         name=f'Vulture {vulture_id}',
-                        line=dict(color=colors.get(vulture_id, 'gray'), width=3),
-                        marker=dict(color=colors.get(vulture_id, 'gray'), size=8),
-                        customdata=[[h['altitude'], h['datetime']] for h in hover_data],
+                        line=dict(color=colors.get(vulture_id, 'gray'), width=4),
+                        marker=dict(color=colors.get(vulture_id, 'gray'), size=10),
+                        customdata=hover_data,
                         hovertemplate='<b>Vulture %{text}</b><br>' +
-                                    'Date/Time: %{customdata[1]}<br>' +
-                                    'Latitude: %{lat:.6f}°<br>' +
-                                    'Longitude: %{lon:.6f}°<br>' +
-                                    'Altitude: %{customdata[0]:.0f}m<br>' +
+                                    'Time: %{customdata[1]}<br>' +
+                                    'Lat: %{lat:.4f}°<br>' +
+                                    'Lon: %{lon:.4f}°<br>' +
+                                    'Alt: %{customdata[0]:.0f}m<br>' +
                                     '<extra></extra>',
                         text=[vulture_id] * len(data_frame)
                     )
@@ -171,25 +151,35 @@ def create_mapbox_3d_visualization():
             else:
                 frame_data.append(
                     go.Scattermapbox(
-                        lat=[],
-                        lon=[],
-                        mode='lines+markers',
+                        lat=[], lon=[], mode='lines+markers',
                         name=f'Vulture {vulture_id}',
-                        line=dict(color=colors.get(vulture_id, 'gray'), width=3),
-                        marker=dict(color=colors.get(vulture_id, 'gray'), size=8)
+                        line=dict(color=colors.get(vulture_id, 'gray'), width=4),
+                        marker=dict(color=colors.get(vulture_id, 'gray'), size=10)
                     )
                 )
         
         frames.append(go.Frame(data=frame_data, name=str(frame)))
 
-    fig.frames = frames
+    # Initial traces
+    initial_traces = []
+    for vulture_id in vulture_ids:
+        initial_traces.append(
+            go.Scattermapbox(
+                lat=[], lon=[], mode='lines+markers',
+                name=f'Vulture {vulture_id}',
+                line=dict(color=colors.get(vulture_id, 'gray'), width=4),
+                marker=dict(color=colors.get(vulture_id, 'gray'), size=10)
+            )
+        )
 
-    # Configure the layout with enhanced mobile support and time display
+    fig = go.Figure(data=initial_traces, frames=frames)
+
+    # Mobile-optimized layout
     fig.update_layout(
         title=dict(
-            text='Animated Flight Paths of Bearded Vultures - Live Map Data',
+            text='Vulture Flight Paths - Mobile View',
             x=0.5,
-            font=dict(size=16)  # Smaller title for mobile
+            font=dict(size=14)
         ),
         mapbox=dict(
             style='open-street-map',
@@ -199,25 +189,25 @@ def create_mapbox_3d_visualization():
         updatemenus=[{
             'type': 'buttons',
             'direction': 'left',
-            'pad': {'r': 5, 't': 5},  # Reduced padding
+            'pad': {'r': 2, 't': 2},
             'showactive': True,
-            'x': 0.05,  # Moved closer to left
+            'x': 0.02,
             'xanchor': 'left',
-            'y': 1.02,
+            'y': 0.98,
             'yanchor': 'top',
             'buttons': [
                 {
-                    'label': '▶ Play',
+                    'label': '▶',
                     'method': 'animate',
                     'args': [None, {
-                        'frame': {'duration': 1000, 'redraw': True},
-                        'transition': {'duration': 200, 'easing': 'linear'},
+                        'frame': {'duration': 800, 'redraw': True},
+                        'transition': {'duration': 150},
                         'fromcurrent': True,
                         'autoplay': True
                     }]
                 },
                 {
-                    'label': '⏸ Pause',
+                    'label': '⏸',
                     'method': 'animate',
                     'args': [[None], {'frame': {'duration': 0, 'redraw': True}, 'mode': 'immediate'}]
                 }
@@ -228,51 +218,60 @@ def create_mapbox_3d_visualization():
             'steps': [
                 {
                     'method': 'animate',
-                    'label': frame_datetime_lookup.get(frame, str(frame)),  # Use datetime string
+                    'label': frame_datetime_lookup.get(frame, str(frame)),
                     'args': [[str(frame)], {'mode': 'immediate', 
                             'frame': {'duration': 0, 'redraw': True}, 
                             'transition': {'duration': 0}}]
                 } for frame in range(start_time, end_time + 1)
             ],
             'transition': {'duration': 0},
-            'x': 0.05,  # Moved closer to left edge
-            'y': 0,
+            'x': 0.02,
+            'y': 0.02,
             'currentvalue': {
-                'font': {'size': 14},  # Slightly smaller font
-                'prefix': 'Date/Time: ', 
+                'font': {'size': 12},
+                'prefix': '', 
                 'visible': True, 
-                'xanchor': 'left'  # Align to left
+                'xanchor': 'left'
             },
-            'len': 0.9  # Longer slider for better mobile experience
+            'len': 0.96
         }],
         legend=dict(
             x=0.02, 
-            y=0.98,
-            bgcolor='rgba(255,255,255,0.8)',  # Semi-transparent background
-            font=dict(size=12)  # Smaller legend font
+            y=0.85,
+            bgcolor='rgba(255,255,255,0.9)',
+            font=dict(size=10),
+            bordercolor='rgba(0,0,0,0.2)',
+            borderwidth=1
         ),
-        margin=dict(l=10, r=10, b=50, t=70),  # Better margins for mobile
-        height=600,  # Reduced height for smaller screens
-        autosize=True  # Auto-resize for different screen sizes
+        margin=dict(l=5, r=5, b=40, t=50),
+        height=500,  # Compact height for mobile
+        autosize=True,
+        # Note: Mobile optimizations handled by mapbox settings
+        dragmode='pan'  # Better for touch screens
     )
 
     return fig
 
 def main():
     """Main function"""
-    print("Creating enhanced 2D visualization with live map tiles...")
-    print("Features: Date/time display, mobile-friendly design, enhanced hover info")
+    print("Creating mobile-optimized 2D visualization...")
+    print("Features: Compact display, touch-friendly controls, simplified UI")
     
-    fig = create_mapbox_3d_visualization()
+    fig = create_mobile_optimized_map()
     
     # Save the visualization
     output_dir = os.path.join(os.path.dirname(__file__), '../visualizations')
     os.makedirs(output_dir, exist_ok=True)
-    output_path = os.path.join(output_dir, 'flight_paths_live_map.html')
+    output_path = os.path.join(output_dir, 'flight_paths_mobile.html')
     fig.write_html(output_path)
     
-    print(f"\nVisualization saved to: {output_path}")
-    print("Using: Live OpenStreetMap tiles (fast loading!)")
+    print(f"\nMobile visualization saved to: {output_path}")
+    print("Optimizations:")
+    print("- Compact time format (DD.MM HH:MM)")
+    print("- Larger markers and lines for touch screens")
+    print("- Simplified controls and legend")
+    print("- Higher zoom level for detailed view")
+    print("- Touch-friendly pan and zoom")
     
     # Show the figure
     pio.show(fig)
