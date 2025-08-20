@@ -5,7 +5,7 @@ A comprehensive Python toolkit for visualizing GPS flight paths of bearded vultu
 ## 🌟 Features
 
 ### 🗺️ Interactive Visualizations
-- **Live Map Integration**: Real-time OpenStreetMap tiles with authentic geographic context
+- **Live Map Integration**: Real-time OpenStreetMap tiles with MapLibre GL JS (modern successor to Mapbox)
 - **Flight Path Animation**: Smooth animated tracking of vulture movements over time
 - **Multi-Vulture Support**: Simultaneous visualization of multiple birds with color coding
 - **Real Geographic Data**: Königssee, Berchtesgaden National Park coordinates
@@ -110,7 +110,7 @@ GPS_make_BGs_fly/
 
 ### Dependencies
 - **Python 3.8+** with modern async/await support
-- **Plotly 5.0+** for interactive visualizations
+- **Plotly 6.3.0+** for interactive visualizations with MapLibre GL JS
 - **Pandas** for data processing
 - **NumPy** for numerical computations
 - **Requests** for live map tile loading

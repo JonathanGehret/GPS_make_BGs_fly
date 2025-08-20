@@ -546,8 +546,8 @@ class ProximityAnalyzer:
         
         map_df = pd.DataFrame(map_data)
         
-        # Create map with clustering using MapLibre (successor to deprecated Mapbox)
-        fig = px.scatter_mapbox(
+        # Create map with clustering using MapLibre-compatible Scattermap (successor to deprecated Mapbox)
+        fig = px.scatter_map(  # Updated from scatter_mapbox for MapLibre compatibility
             map_df,
             lat='lat',
             lon='lon',

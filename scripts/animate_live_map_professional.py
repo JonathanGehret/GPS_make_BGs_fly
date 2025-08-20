@@ -6,7 +6,36 @@ This script provides a high-performance, user-friendly interface for visualizing
 GPS flight paths with real-time map tiles and configurable time-step filtering.
 
 Features:
-- Interactive configuration interface
+- Interac            # Add initial empty traces for each vulture using MapLibre-compati                        # Empty trace for vultures with no data at this time
+                        frame_data.append(
+                            go.Scattermap(  # Updated from Scattermapbox for MapLibre compatibility
+                                lat=[],
+                                lon=[],
+                                mode='lines+markers',
+                                name=vulture_id,
+                                line=dict(color=color_map[vulture_id], width=3),
+                                marker=dict(color=color_map[vulture_id], size=6)
+                            )
+                        )map
+            for vulture_id in vulture_ids:
+                fig.add_trace(
+                    go.Scattermap(  # Updated from Scattermapbox for MapLibre compatibility
+                        lat=[],
+                        lon=[],
+                        mode='lines+markers',
+                        name=vulture_id,
+                        line=dict(color=color_map[vulture_id], width=3),
+                        marker=dict(color=color_map[vulture_id], size=6),
+                        hovertemplate=(
+                            f"<b>{vulture_id}</b><br>"
+                            "Time: %{customdata[0]}<br>"
+                            "Lat: %{lat:.6f}°<br>"
+                            "Lon: %{lon:.6f}°<br>"
+                            "Alt: %{customdata[1]}m"
+                            "<extra></extra>"
+                        )
+                    )
+                )nterface
 - Performance optimization through time-step filtering  
 - Real-time data point estimation
 - Comprehensive error handling and validation
@@ -274,10 +303,10 @@ class LiveMapAnimator:
             colors = px.colors.qualitative.Set1[:len(vulture_ids)]
             color_map = dict(zip(vulture_ids, colors))
             
-            # Add initial empty traces for each vulture
+            # Add initial empty traces for each vulture using MapLibre-compatible Scattermap
             for vulture_id in vulture_ids:
                 fig.add_trace(
-                    go.Scattermapbox(
+                    go.Scattermap(  # Updated from Scattermapbox for MapLibre compatibility
                         lat=[],
                         lon=[],
                         mode='lines+markers',
@@ -314,13 +343,13 @@ class LiveMapAnimator:
                             customdata.append([row['timestamp_display'], row['Height']])
                         
                         frame_data.append(
-                            go.Scattermapbox(
+                            go.Scattermap(  # Updated from Scattermapbox for MapLibre compatibility
                                 lat=cumulative_data['Latitude'].tolist(),
                                 lon=cumulative_data['Longitude'].tolist(),
                                 mode='lines+markers',
                                 name=vulture_id,
                                 line=dict(color=color_map[vulture_id], width=3),
-                                marker=dict(color=color_map[vulture_id], size=8),
+                                marker=dict(color=color_map[vulture_id], size=6),
                                 customdata=customdata,
                                 hovertemplate=(
                                     f"<b>{vulture_id}</b><br>"
@@ -333,9 +362,9 @@ class LiveMapAnimator:
                             )
                         )
                     else:
-                        # Empty trace for vultures with no data at this time
+                        # Empty trace for vultures with no data at this time (MapLibre compatible)
                         frame_data.append(
-                            go.Scattermapbox(
+                            go.Scattermap(  # Updated from Scattermapbox for MapLibre compatibility
                                 lat=[],
                                 lon=[],
                                 mode='lines+markers',
@@ -426,12 +455,18 @@ class LiveMapAnimator:
                 )]
             )
             
-            # Apply layout optimizations
-            # Configure MapLibre layout (successor to deprecated Mapbox)
-            layout_config = self.viz_helper.setup_maplibre_layout(df, height=600, zoom=12)
-            
+            # Apply comprehensive MapLibre layout configuration
             fig.update_layout(
-                **layout_config,
+                # MapLibre configuration (successor to deprecated Mapbox)
+                mapbox=dict(
+                    style="open-street-map",  # MapLibre-compatible OpenStreetMap style
+                    center=dict(
+                        lat=df['Latitude'].mean(),
+                        lon=df['Longitude'].mean()
+                    ),
+                    zoom=12
+                ),
+                height=600,
                 legend=dict(
                     orientation="v",
                     yanchor="top",

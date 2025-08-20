@@ -262,10 +262,10 @@ class MobileLiveMapAnimator:
             colors = px.colors.qualitative.Set1[:len(vulture_ids)]
             color_map = dict(zip(vulture_ids, colors))
             
-            # Add initial empty traces for each vulture
+            # Add initial empty traces for each vulture using MapLibre-compatible Scattermap
             for vulture_id in vulture_ids:
                 fig.add_trace(
-                    go.Scattermapbox(
+                    go.Scattermap(  # Updated from Scattermapbox for MapLibre compatibility
                         lat=[],
                         lon=[],
                         mode='lines+markers',
@@ -302,7 +302,7 @@ class MobileLiveMapAnimator:
                             customdata.append([row['timestamp_mobile'], row['Height']])
                         
                         frame_data.append(
-                            go.Scattermapbox(
+                            go.Scattermap(  # Updated from Scattermapbox for MapLibre compatibility
                                 lat=cumulative_data['Latitude'].tolist(),
                                 lon=cumulative_data['Longitude'].tolist(),
                                 mode='lines+markers',
@@ -323,7 +323,7 @@ class MobileLiveMapAnimator:
                     else:
                         # Empty trace for vultures with no data at this time
                         frame_data.append(
-                            go.Scattermapbox(
+                            go.Scattermap(  # Updated from Scattermapbox for MapLibre compatibility
                                 lat=[],
                                 lon=[],
                                 mode='lines+markers',
