@@ -40,6 +40,19 @@ class UserInterface:
     def print_info(message: str):
         """Print an info message"""
         print(f"ℹ️  {message}")
+    
+    @staticmethod
+    def get_user_input(prompt: str, default_value: str, value_type=str):
+        """Get user input with a default value"""
+        user_input = input(f"{prompt} [{default_value}]: ").strip()
+        if not user_input:
+            user_input = default_value
+        
+        try:
+            return value_type(user_input)
+        except ValueError:
+            print(f"Invalid input, using default: {default_value}")
+            return value_type(default_value)
 
 
 # ===========================
