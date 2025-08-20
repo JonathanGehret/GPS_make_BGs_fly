@@ -26,7 +26,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from gps_utils import (
     DataLoader, PerformanceOptimizer, VisualizationHelper, UserInterface,
     get_output_path, ensure_output_directories, logger,
-    DataLoadError
+    DataLoadError, format_height_display
 )
 import pandas as pd
 import plotly.express as px
@@ -299,7 +299,8 @@ class MobileLiveMapAnimator:
                         # Prepare custom data for hover
                         customdata = []
                         for _, row in cumulative_data.iterrows():
-                            customdata.append([row['timestamp_mobile'], row['Height']])
+                            height_display = format_height_display(row['Height'])
+                            customdata.append([row['timestamp_mobile'], height_display])
                         
                         frame_data.append(
                             go.Scattermap(  # Updated from Scattermapbox for MapLibre compatibility
@@ -315,7 +316,7 @@ class MobileLiveMapAnimator:
                                     "Time: %{customdata[0]}<br>"
                                     "Lat: %{lat:.4f}°<br>"
                                     "Lon: %{lon:.4f}°<br>"
-                                    "Alt: %{customdata[1]}m"
+                                    "Alt: %{customdata[1]}"
                                     "<extra></extra>"
                                 )
                             )

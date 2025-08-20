@@ -85,31 +85,65 @@ class DataValidator:
     def validate_csv_format(df: pd.DataFrame) -> Tuple[bool, List[str]]:
         """
         Validate that DataFrame has required columns and proper format
+        Now more lenient - cleans bad data instead of rejecting files
         
         Returns:
             Tuple of (is_valid, list_of_errors)
         """
         errors = []
         
-        # Check required columns
+        # Check required columns (still critical)
         missing_cols = [col for col in DataValidator.REQUIRED_COLUMNS if col not in df.columns]
         if missing_cols:
             errors.append(f"Missing required columns: {missing_cols}")
+            return False, errors  # This is still a critical error
         
-        # Check data types and ranges
+        # Check for empty DataFrame (still critical)
+        if df.empty:
+            errors.append("CSV file is empty")
+            return False, errors
+        
+        # For other validation, we'll now be more lenient and just warn
+        warnings = []
+        
+        # Clean and validate coordinates
         if 'Longitude' in df.columns:
-            if not df['Longitude'].between(-180, 180).all():
-                errors.append("Longitude values must be between -180 and 180")
+            try:
+                # Convert to numeric, replacing errors with NaN
+                df['Longitude'] = pd.to_numeric(df['Longitude'], errors='coerce')
+                invalid_lon = ~df['Longitude'].between(-180, 180)
+                if invalid_lon.any():
+                    warnings.append(f"Found {invalid_lon.sum()} invalid longitude values (will be excluded)")
+            except Exception as e:
+                warnings.append(f"Longitude column has formatting issues: {e}")
         
         if 'Latitude' in df.columns:
-            if not df['Latitude'].between(-90, 90).all():
-                errors.append("Latitude values must be between -90 and 90")
+            try:
+                # Convert to numeric, replacing errors with NaN
+                df['Latitude'] = pd.to_numeric(df['Latitude'], errors='coerce')
+                invalid_lat = ~df['Latitude'].between(-90, 90)
+                if invalid_lat.any():
+                    warnings.append(f"Found {invalid_lat.sum()} invalid latitude values (will be excluded)")
+            except Exception as e:
+                warnings.append(f"Latitude column has formatting issues: {e}")
         
         if 'Height' in df.columns:
-            if df['Height'].min() < -500 or df['Height'].max() > 10000:
-                errors.append("Height values seem unrealistic (should be between -500m and 10,000m)")
+            try:
+                # Convert to numeric, replacing errors with NaN
+                df['Height'] = pd.to_numeric(df['Height'], errors='coerce')
+                # Replace unrealistic heights with NaN (will show as "no height data")
+                invalid_height = (df['Height'] < 0) | (df['Height'] > 10000)
+                if invalid_height.any():
+                    df.loc[invalid_height, 'Height'] = float('nan')
+                    warnings.append(f"Found {invalid_height.sum()} unrealistic height values (0-10000m range) - will show as 'no height data'")
+            except Exception as e:
+                warnings.append(f"Height column has formatting issues: {e}")
         
-        return len(errors) == 0, errors
+        # Log warnings but don't reject the file
+        if warnings:
+            errors.extend(warnings)
+        
+        return True, errors  # Always return True now, just log issues
     
     @staticmethod
     def validate_timestamp_format(timestamp_series: pd.Series) -> bool:
@@ -138,6 +172,7 @@ class DataLoader:
     def load_single_csv(self, file_path: str, validate: bool = True) -> Optional[pd.DataFrame]:
         """
         Load and validate a single CSV file
+        Now more robust - cleans bad data instead of rejecting files
         
         Args:
             file_path: Path to the CSV file
@@ -154,20 +189,58 @@ class DataLoader:
             if 'display' in df.columns:
                 df = df[df['display'] == 1].copy()
             
-            # Validate if requested
+            # Validate and clean if requested
             if validate:
-                is_valid, errors = DataValidator.validate_csv_format(df)
+                is_valid, messages = DataValidator.validate_csv_format(df)
                 if not is_valid:
-                    self.logger.warning(f"Validation errors in {file_path}: {errors}")
+                    self.logger.error(f"Critical validation errors in {file_path}: {messages}")
                     return None
+                elif messages:
+                    # Log warnings but continue
+                    for msg in messages:
+                        self.logger.warning(f"Data issue in {file_path}: {msg}")
             
-            # Parse timestamps
+            # Clean data by removing rows with invalid coordinates
+            initial_count = len(df)
+            
+            # Remove rows with NaN coordinates (but keep rows with NaN height)
+            if 'Longitude' in df.columns and 'Latitude' in df.columns:
+                df = df.dropna(subset=['Longitude', 'Latitude'])
+                
+                # Additional safety check for coordinate ranges
+                valid_coords = (
+                    (df['Longitude'].between(-180, 180)) & 
+                    (df['Latitude'].between(-90, 90))
+                )
+                df = df[valid_coords]
+            
+            cleaned_count = len(df)
+            if cleaned_count < initial_count:
+                self.logger.info(f"Cleaned data: removed {initial_count - cleaned_count} invalid GPS points from {os.path.basename(file_path)}")
+            
+            if df.empty:
+                self.logger.warning(f"No valid GPS data remaining in {file_path} after cleaning")
+                return None
+            
+            # Parse timestamps with better error handling
             if 'Timestamp [UTC]' in df.columns:
                 try:
                     df['Timestamp [UTC]'] = pd.to_datetime(
                         df['Timestamp [UTC]'], 
-                        format=TIMESTAMP_FORMAT
+                        format=TIMESTAMP_FORMAT,
+                        errors='coerce'  # Convert invalid timestamps to NaT
                     )
+                    
+                    # Remove rows with invalid timestamps
+                    timestamp_invalid = df['Timestamp [UTC]'].isna()
+                    if timestamp_invalid.any():
+                        self.logger.warning(f"Removed {timestamp_invalid.sum()} rows with invalid timestamps from {os.path.basename(file_path)}")
+                        df = df[~timestamp_invalid]
+                    
+                    if df.empty:
+                        self.logger.warning(f"No valid timestamps remaining in {file_path}")
+                        return None
+                        
                 except Exception as e:
                     self.logger.error(f"Failed to parse timestamps in {file_path}: {e}")
                     return None
@@ -177,7 +250,7 @@ class DataLoader:
             df['source_file'] = filename
             df['vulture_id'] = filename.replace('.csv', '').replace('_', ' ').title()
             
-            self.logger.info(f"Loaded {len(df)} records from {filename}")
+            self.logger.info(f"Successfully loaded {len(df)} valid records from {filename}")
             return df
             
         except Exception as e:
@@ -512,3 +585,36 @@ class ValidationError(GPSVisualizationError):
 class VisualizationError(GPSVisualizationError):
     """Raised when visualization creation fails"""
     pass
+
+
+# ===========================
+# UTILITY FUNCTIONS
+# ===========================
+
+def format_height_display(height_value) -> str:
+    """
+    Format height value for display in tooltips, handling NaN values gracefully.
+    
+    Args:
+        height_value: Height value (can be float, int, or NaN)
+        
+    Returns:
+        str: Formatted height string for display
+    """
+    try:
+        # Check if the value is NaN or None
+        if pd.isna(height_value) or height_value is None:
+            return "No height data"
+        
+        # Convert to numeric if it's a string
+        if isinstance(height_value, str):
+            try:
+                height_value = float(height_value)
+            except (ValueError, TypeError):
+                return "No height data"
+        
+        # Format the numeric value
+        return f"{height_value:.1f}m"
+        
+    except Exception:
+        return "No height data"

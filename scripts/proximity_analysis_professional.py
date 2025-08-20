@@ -304,6 +304,7 @@ class ProximityAnalyzer:
             
             # Check if within proximity threshold
             if distance <= self.proximity_threshold_km:
+                # Create proximity event with proper NaN handling for altitude
                 event = ProximityEvent(
                     vulture1=vulture1,
                     vulture2=vulture2,
@@ -313,8 +314,8 @@ class ProximityAnalyzer:
                     lon1=point1['Longitude'],
                     lat2=point2['Latitude'],
                     lon2=point2['Longitude'],
-                    altitude1=point1['Height'],
-                    altitude2=point2['Height']
+                    altitude1=point1['Height'] if pd.notna(point1['Height']) else 0.0,
+                    altitude2=point2['Height'] if pd.notna(point2['Height']) else 0.0
                 )
                 events.append(event)
         
