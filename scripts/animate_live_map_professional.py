@@ -71,7 +71,7 @@ class LiveMapAnimator:
     visualization creation, with emphasis on performance and user experience.
     """
     
-    def __init__(self):
+    def __init__(self, programmatic_data=None):
         self.ui = UserInterface()
         self.data_loader = DataLoader()
         self.optimizer = PerformanceOptimizer()
@@ -82,6 +82,14 @@ class LiveMapAnimator:
         self.trail_length_minutes: Optional[int] = None
         self.dataframes: List[pd.DataFrame] = []
         self.combined_data: Optional[pd.DataFrame] = None
+        
+        # NEW: Support for programmatic data input
+        self.programmatic_data = programmatic_data
+        self.is_programmatic_mode = programmatic_data is not None
+        
+        # If programmatic data is provided, set it up immediately
+        if self.programmatic_data is not None:
+            self.set_programmatic_data(programmatic_data)
     
     def display_welcome_screen(self) -> None:
         """Display welcome screen and project information"""
@@ -94,44 +102,98 @@ class LiveMapAnimator:
         print("  ✅ Professional-grade data processing")
         print("  ✅ Responsive design for all screen sizes")
         print()
+        
+        # Display mode information
+        if self.is_programmatic_mode:
+            print("🔧 Running in PROGRAMMATIC MODE")
+            print("   Data provided directly for encounter analysis")
+            print()
+        else:
+            print("📁 Running in FILE MODE")
+            print("   Loading data from CSV files in data folder")
+            print()
+    
+    def set_programmatic_data(self, data):
+        """
+        Set data programmatically for encounter analysis
+        
+        Args:
+            data: Either a pandas DataFrame or list of DataFrames
+        """
+        if isinstance(data, pd.DataFrame):
+            # Single DataFrame - convert to list
+            self.dataframes = [data]
+        elif isinstance(data, list) and all(isinstance(df, pd.DataFrame) for df in data):
+            # List of DataFrames
+            self.dataframes = data
+        else:
+            raise ValueError("Programmatic data must be a DataFrame or list of DataFrames")
+        
+        self.is_programmatic_mode = True
+        print(f"✅ Programmatic data set: {len(self.dataframes)} DataFrame(s) loaded")
+        
+        # Calculate total points
+        total_points = sum(len(df) for df in self.dataframes)
+        print(f"📈 Total GPS points: {total_points:,}")
     
     def analyze_available_data(self) -> bool:
         """
-        Analyze available CSV files and display summary
+        Analyze available data (from files or programmatic input)
         
         Returns:
-            True if data files are found, False otherwise
+            True if data is available, False otherwise
         """
         self.ui.print_section("📊 DATA ANALYSIS")
         
-        csv_files = self.data_loader.find_csv_files()
-        
-        if not csv_files:
-            self.ui.print_error("No CSV files found in data directory!")
-            self.ui.print_info("Please add GPS data files to the 'data/' folder")
-            return False
-        
-        print(f"Found {len(csv_files)} GPS data file(s):")
-        
-        total_records = 0
-        for i, file_path in enumerate(csv_files, 1):
-            filename = os.path.basename(file_path)
-            try:
-                # Quick count without full loading
-                df = pd.read_csv(file_path, sep=';')
-                valid_records = len(df[df['display'] == 1]) if 'display' in df.columns else len(df)
+        if self.is_programmatic_mode:
+            # Programmatic mode - data already loaded
+            print("Using programmatically provided data:")
+            
+            total_records = 0
+            for i, df in enumerate(self.dataframes, 1):
+                vulture_id = df['vulture_id'].iloc[0] if 'vulture_id' in df.columns else f"Vulture {i}"
+                valid_records = len(df)
                 total_records += valid_records
-                print(f"   {i:2d}. {filename:<25} ({valid_records:4d} GPS points)")
-            except Exception as e:
-                self.ui.print_warning(f"Could not analyze {filename}: {e}")
+                print(f"   {i:2d}. {vulture_id:<25} ({valid_records:4d} GPS points)")
+            
+            print(f"\n📈 Total GPS points available: {total_records:,}")
+            
+            if total_records == 0:
+                self.ui.print_error("No valid GPS data found!")
+                return False
+            
+            return True
         
-        print(f"\n📈 Total GPS points available: {total_records:,}")
-        
-        if total_records == 0:
-            self.ui.print_error("No valid GPS data found!")
-            return False
-        
-        return True
+        else:
+            # File mode - load from CSV files
+            csv_files = self.data_loader.find_csv_files()
+            
+            if not csv_files:
+                self.ui.print_error("No CSV files found in data directory!")
+                self.ui.print_info("Please add GPS data files to the 'data/' folder")
+                return False
+            
+            print(f"Found {len(csv_files)} GPS data file(s):")
+            
+            total_records = 0
+            for i, file_path in enumerate(csv_files, 1):
+                filename = os.path.basename(file_path)
+                try:
+                    # Quick count without full loading
+                    df = pd.read_csv(file_path, sep=';')
+                    valid_records = len(df[df['display'] == 1]) if 'display' in df.columns else len(df)
+                    total_records += valid_records
+                    print(f"   {i:2d}. {filename:<25} ({valid_records:4d} GPS points)")
+                except Exception as e:
+                    self.ui.print_warning(f"Could not analyze {filename}: {e}")
+            
+            print(f"\n📈 Total GPS points available: {total_records:,}")
+            
+            if total_records == 0:
+                self.ui.print_error("No valid GPS data found!")
+                return False
+            
+            return True
     
     def display_performance_options(self) -> Optional[int]:
         """
@@ -149,9 +211,15 @@ class LiveMapAnimator:
         
         # Load data for estimation
         try:
-            self.dataframes = self.data_loader.load_all_csv_files()
+            if not self.is_programmatic_mode:
+                # File mode - load from CSV files
+                self.dataframes = self.data_loader.load_all_csv_files()
+                if not self.dataframes:
+                    raise DataLoadError("No valid data files could be loaded")
+            # In programmatic mode, data is already loaded in self.dataframes
+            
             if not self.dataframes:
-                raise DataLoadError("No valid data files could be loaded")
+                raise DataLoadError("No data available for analysis")
         except Exception as e:
             self.ui.print_error(f"Failed to load data for analysis: {e}")
             return None
@@ -910,6 +978,69 @@ class LiveMapAnimator:
             self.ui.print_error(f"Unexpected error: {e}")
             logger.exception("Unexpected error in main workflow")
             return False
+
+    def create_encounter_animation(self, output_file=None, time_step_seconds=30, trail_length_minutes=10):
+        """
+        Create an encounter animation with programmatically provided data
+        
+        Args:
+            output_file (str): Output file path for the animation
+            time_step_seconds (int): Time step for animation (default 30 seconds)
+            trail_length_minutes (int): Trail length in minutes (default 10)
+            
+        Returns:
+            str: Path to generated animation file, or None if failed
+        """
+        if not self.is_programmatic_mode:
+            raise ValueError("create_encounter_animation() can only be used with programmatic data")
+        
+        try:
+            # Set configuration programmatically
+            self.selected_time_step = time_step_seconds
+            self.trail_length_minutes = trail_length_minutes
+            
+            print("🎬 Creating encounter animation...")
+            print(f"   Time step: {time_step_seconds} seconds")
+            print(f"   Trail length: {trail_length_minutes} minutes")
+            
+            # Process data
+            if not self.process_data():
+                return None
+            
+            # Create visualization with custom output file
+            if output_file:
+                # Temporarily override the global get_numbered_output_path function
+                original_get_path = globals().get('get_numbered_output_path', get_numbered_output_path)
+                
+                def custom_get_path(prefix=''):
+                    return output_file
+                
+                # Override the global function
+                globals()['get_numbered_output_path'] = custom_get_path
+                
+                try:
+                    success = self.create_visualization()
+                    if success:
+                        print(f"✅ Encounter animation saved: {output_file}")
+                        return output_file
+                    else:
+                        return None
+                finally:
+                    # Restore original function
+                    globals()['get_numbered_output_path'] = original_get_path
+            else:
+                # Use default output path generation
+                success = self.create_visualization()
+                if success:
+                    # Get the generated file path (would need to track this in create_visualization)
+                    return "animation_generated.html"  # Placeholder - actual path would be tracked
+                else:
+                    return None
+                    
+        except Exception as e:
+            print(f"❌ Error creating encounter animation: {e}")
+            logger.exception("Error in create_encounter_animation")
+            return None
 
 
 def main():

@@ -11,11 +11,6 @@ import pandas as pd
 import plotly.express as px
 from typing import Optional, List
 from pathlib import Path
-
-# Add the scripts directory to the Python path
-scripts_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, scripts_dir)
-
 from utils.user_interface import UserInterface
 from utils.performance_optimizer import PerformanceOptimizer
 from core.trail_system import TrailSystem
@@ -23,6 +18,10 @@ from gps_utils import (
     get_numbered_output_path, ensure_output_directories, logger,
     DataLoader, VisualizationHelper
 )
+
+# Add the scripts directory to the Python path
+scripts_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, scripts_dir)
 
 
 class LiveMapAnimator:

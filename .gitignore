@@ -6,6 +6,7 @@ __pycache__/
 *.env
 .env
 venv/
+.venv/
 
 # Data and outputs
 data/*
@@ -13,11 +14,35 @@ data/*
 visualizations/*
 !visualizations/.gitkeep
 
+# Analysis outputs and generated files
+analysis/*
+!analysis/.gitkeep
+demo_output/
+elevation_cache/
+encounters/
+*.html
+*.json
+!requirements.txt
+!package.json
+
+# CSV outputs (keep sample data but ignore generated analysis)
+*_events.csv
+*_results.csv
+*_analysis.csv
+*_summary.txt
+*_statistics.txt
+proximity_*.csv
+proximity_*.txt
+encounter_*.txt
+encounter_*.csv
+
 # Old files and deprecated code
 old_files/
+old_working_scripts/
 
 # Jupyter Notebooks
 *.ipynb_checkpoints
+*.ipynb
 
 # VS Code
 .vscode/
@@ -25,3 +50,19 @@ old_files/
 # OS files
 .DS_Store
 Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
+*.log
+
+# Documentation that should be organized
+*_COMPLETE.md
+*_GUIDE.md
+*_SUMMARY.md
+*_IMPLEMENTATION.md
+*_FIXES.md
+*_ENHANCEMENTS.md
+*_OPTIMIZATION*.md
+*_MIGRATION.md
+*_OPTIONS.md
