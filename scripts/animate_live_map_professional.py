@@ -381,7 +381,7 @@ class LiveMapAnimator:
             # Apply layout optimizations
             # Configure MapLibre map layout (OpenStreetMap with MapLibre GL JS)
             fig.update_layout(
-                mapbox=dict(
+                map=dict(
                     style="open-street-map",  # MapLibre-compatible style
                     center=dict(
                         lat=df['Latitude'].mean(),
@@ -455,16 +455,14 @@ class LiveMapAnimator:
                 )]
             )
             
-            # Apply comprehensive MapLibre layout configuration
+            # Apply comprehensive MapLibre layout configuration with smart bounds
+            map_bounds = self.viz_helper.calculate_map_bounds(df, padding_percent=0.15)
             fig.update_layout(
-                # MapLibre configuration (successor to deprecated Mapbox)
-                mapbox=dict(
+                # MapLibre configuration with auto-fitted bounds
+                map=dict(
                     style="open-street-map",  # MapLibre-compatible OpenStreetMap style
-                    center=dict(
-                        lat=df['Latitude'].mean(),
-                        lon=df['Longitude'].mean()
-                    ),
-                    zoom=12
+                    center=map_bounds['center'],
+                    zoom=map_bounds['zoom']
                 ),
                 height=600,
                 legend=dict(

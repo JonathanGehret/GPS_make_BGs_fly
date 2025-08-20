@@ -29,7 +29,7 @@ import json
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from gps_utils import (
-    DataLoader, UserInterface, haversine_distance, get_output_path,
+    DataLoader, UserInterface, VisualizationHelper, haversine_distance, get_output_path,
     ensure_output_directories, logger
 )
 import pandas as pd
@@ -546,7 +546,8 @@ class ProximityAnalyzer:
         
         map_df = pd.DataFrame(map_data)
         
-        # Create map with clustering using MapLibre-compatible Scattermap (successor to deprecated Mapbox)
+        # Create map with clustering using MapLibre with smart bounds
+        map_bounds = VisualizationHelper.calculate_map_bounds(map_df.rename(columns={'lat': 'Latitude', 'lon': 'Longitude'}))
         fig = px.scatter_map(  # Updated from scatter_mapbox for MapLibre compatibility
             map_df,
             lat='lat',
@@ -556,16 +557,13 @@ class ProximityAnalyzer:
             hover_data=['timestamp', 'distance', 'altitude1', 'altitude2'],
             mapbox_style='open-street-map',  # MapLibre-compatible style
             title='Proximity Events Map',
-            height=700,
-            zoom=10
+            height=700
         )
         
         fig.update_layout(
-            mapbox=dict(
-                center=dict(
-                    lat=map_df['lat'].mean(),
-                    lon=map_df['lon'].mean()
-                )
+            map=dict(
+                center=map_bounds['center'],
+                zoom=map_bounds['zoom']
             )
         )
         

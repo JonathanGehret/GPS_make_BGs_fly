@@ -337,15 +337,13 @@ class MobileLiveMapAnimator:
             
             fig.frames = frames
             
-            # Mobile-optimized MapLibre layout (successor to deprecated Mapbox)
+            # Mobile-optimized MapLibre layout with smart bounds
+            map_bounds = self.viz_helper.calculate_map_bounds(df, padding_percent=0.2)  # More padding for mobile
             fig.update_layout(
-                mapbox=dict(
+                map=dict(
                     style="open-street-map",  # MapLibre-compatible OpenStreetMap style
-                    center=dict(
-                        lat=df['Latitude'].mean(),
-                        lon=df['Longitude'].mean()
-                    ),
-                    zoom=self.mobile_zoom  # Higher zoom for mobile detail
+                    center=map_bounds['center'],
+                    zoom=map_bounds['zoom']  # Auto-calculated optimal zoom
                 ),
                 showlegend=True,
                 legend=dict(
