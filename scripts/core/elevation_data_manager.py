@@ -45,11 +45,11 @@ class ElevationDataManager:
     PREDEFINED_REGIONS = {
         'berchtesgaden_full': RegionBounds(
             name='berchtesgaden_full',
-            lat_min=47.45,  # South: Bischofshofen/Saalfelden area
-            lat_max=47.75,  # North: Beyond Berchtesgaden
-            lon_min=12.85,  # West: Extended Berchtesgaden
-            lon_max=13.45,  # East: Tennengebirge region
-            description='Full Berchtesgaden to Tennengebirge region (Bischofshofen/Saalfelden)'
+            lat_min=47.40,  # South: Saalfelden/Bischofshofen area
+            lat_max=47.75,  # North: Extended towards Berchtesgaden
+            lon_min=12.80,  # West: Saalfelden area
+            lon_max=13.25,  # East: Past Bischofshofen
+            description='Full Berchtesgaden to Saalfelden/Bischofshofen region (~35x40km)'
         ),
         'berchtesgaden_core': RegionBounds(
             name='berchtesgaden_core',
@@ -67,13 +67,13 @@ class ElevationDataManager:
             lon_max=13.45,
             description='Tennengebirge mountain range'
         ),
-        'salzburg_south': RegionBounds(
-            name='salzburg_south',
-            lat_min=47.45,
-            lat_max=47.60,
-            lon_min=12.85,
-            lon_max=13.20,
-            description='Southern Salzburg region (Bischofshofen/Saalfelden)'
+        'saalfelden_bischofshofen': RegionBounds(
+            name='saalfelden_bischofshofen',
+            lat_min=47.40,  # South: Below Bischofshofen
+            lat_max=47.70,  # North: 30km north towards Berchtesgaden
+            lon_min=12.80,  # West: Saalfelden area
+            lon_max=13.25,  # East: Past Bischofshofen  
+            description='30x30km square: Saalfelden to Bischofshofen, 30km north towards Berchtesgaden'
         )
     }
     

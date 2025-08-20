@@ -20,20 +20,23 @@ from datetime import datetime, timedelta
 def create_sample_gps_data():
     """Create sample GPS data for testing in Austrian Alps region"""
     
-    # Berchtesgaden area coordinates (approximate)
-    base_lat = 47.6  # Berchtesgaden center
-    base_lon = 12.9
+    # Use Salzburg area coordinates (Saalfelden to Bischofshofen region)
+    # This should match the 'salzburg_south' region bounds:
+    # lat_min=47.45, lat_max=47.60, lon_min=12.85, lon_max=13.20
+    
+    base_lat = 47.52  # Center of Saalfelden/Bischofshofen area
+    base_lon = 13.00  # Center longitude
     
     # Create sample flight paths for 2 vultures
     sample_data = []
     
     start_time = datetime.now() - timedelta(hours=3)
     
-    # Vulture 1: Circular flight pattern
+    # Vulture 1: Circular flight pattern around Saalfelden area
     for i in range(50):
         time_offset = i * 3  # 3 minutes between points
         angle = (i * 7.2) % 360  # Full circle every 50 points
-        radius = 0.02  # About 2 km radius
+        radius = 0.03  # About 3 km radius within region bounds
         
         lat = base_lat + radius * np.cos(np.radians(angle))
         lon = base_lon + radius * np.sin(np.radians(angle))
@@ -47,22 +50,22 @@ def create_sample_gps_data():
             'vulture_id': 'Sample Vulture 1'
         })
     
-    # Vulture 2: Linear flight with turns
+    # Vulture 2: Linear flight with turns (Saalfelden to Bischofshofen direction)
     for i in range(40):
         time_offset = i * 4  # 4 minutes between points
         
         if i < 15:
-            # Flying north
-            lat = base_lat - 0.01 + (i * 0.002)
-            lon = base_lon + 0.01
+            # Flying southwest towards Bischofshofen
+            lat = base_lat - (i * 0.002)  # Moving south
+            lon = base_lon - 0.05 + (i * 0.002)  # Moving slightly west
         elif i < 30:
-            # Flying east
-            lat = base_lat + 0.02
-            lon = base_lon + 0.01 + ((i - 15) * 0.0015)
+            # Flying east towards Tennengebirge
+            lat = base_lat - 0.03
+            lon = base_lon - 0.02 + ((i - 15) * 0.004)
         else:
-            # Flying south
-            lat = base_lat + 0.02 - ((i - 30) * 0.002)
-            lon = base_lon + 0.025
+            # Flying back north
+            lat = base_lat - 0.03 + ((i - 30) * 0.003)
+            lon = base_lon + 0.05
         
         altitude = 1300 + 150 * np.sin(i * 0.3)  # Gentle altitude changes
         
@@ -98,10 +101,10 @@ def main():
         
         # Get terrain settings (with defaults for demo)
         print("\n🗺️ Using demo terrain settings...")
-        region = "berchtesgaden_core"  # Smaller region for faster demo
+        region = "saalfelden_bischofshofen"  # 30x30km region you requested
         resolution = 50  # Lower resolution for speed
         
-        print(f"   🏔️ Region: {region}")
+        print(f"   🏔️ Region: {region} (30x30km square: Saalfelden to Bischofshofen)")
         print(f"   📐 Resolution: {resolution}")
         
         # Setup terrain
@@ -120,9 +123,9 @@ def main():
         ui.show_3d_progress("gps_process")
         animation_engine.load_processed_data(sample_data)
         
-        # Create static 3D visualization (faster for demo)
-        ui.show_3d_progress("render_3d", "Creating static 3D view")
-        output_path = animation_engine.create_3d_visualization('static')
+        # Create full animation with time controls
+        ui.show_3d_progress("render_3d", "Creating animated 3D view with time controls")
+        output_path = animation_engine.create_3d_visualization('full')
         
         if output_path:
             # Show completion info
