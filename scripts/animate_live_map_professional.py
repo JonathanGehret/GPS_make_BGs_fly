@@ -549,77 +549,6 @@ class LiveMapAnimator:
                 }}, 1000);
             }});
             
-            // Function to create filtered frame data based on time window
-            function createFilteredFrame(endTimeIndex, startTimeIndex) {{
-                if (!plotlyDiv || !plotlyDiv._fullData) return null;
-                
-                // Get the current frame data
-                let currentFrameData = plotlyDiv._fullData;
-                
-                // Get the time values for filtering
-                let timeSteps = [];
-                if (plotlyDiv._fullLayout && plotlyDiv._fullLayout.sliders && plotlyDiv._fullLayout.sliders[1]) {{
-                    timeSteps = plotlyDiv._fullLayout.sliders[1].steps.map(step => step.label);
-                }}
-                
-                if (timeSteps.length === 0) return currentFrameData;
-                
-                // Get start and end time strings for filtering
-                let startTimeStr = timeSteps[startTimeIndex] || timeSteps[0];
-                let endTimeStr = timeSteps[endTimeIndex] || timeSteps[timeSteps.length - 1];
-                
-                console.log('Time filtering:', {{
-                    startTimeIndex: startTimeIndex,
-                    endTimeIndex: endTimeIndex,
-                    startTime: startTimeStr,
-                    endTime: endTimeStr
-                }});
-                
-                // Parse times for comparison
-                let startTime = parseTimeString(startTimeStr);
-                let endTime = parseTimeString(endTimeStr);
-                
-                // Filter each trace based on actual timestamps
-                let filteredData = currentFrameData.map(function(trace) {{
-                    if (!trace.lat || !trace.lon || !trace.customdata || trace.lat.length === 0) {{
-                        return trace; // Return empty trace as-is
-                    }}
-                    
-                    let filteredIndices = [];
-                    
-                    // Check each data point's timestamp
-                    trace.customdata.forEach(function(customPoint, pointIndex) {{
-                        if (customPoint && customPoint[0]) {{
-                            // customPoint[0] contains the timestamp display (e.g., "15.06 08:02")
-                            let pointTime = parseTimeString(customPoint[0]);
-                            
-                            // Include point if it's within the time window
-                            if (pointTime >= startTime && pointTime <= endTime) {{
-                                filteredIndices.push(pointIndex);
-                            }}
-                        }}
-                    }});
-                    
-                    console.log('Filtered trace:', {{
-                        originalPoints: trace.lat.length,
-                        filteredPoints: filteredIndices.length,
-                        traceName: trace.name
-                    }});
-                    
-                    // Create filtered trace
-                    let filteredTrace = {{
-                        ...trace,
-                        lat: filteredIndices.map(i => trace.lat[i]),
-                        lon: filteredIndices.map(i => trace.lon[i]),
-                        customdata: filteredIndices.map(i => trace.customdata[i])
-                    }};
-                    
-                    return filteredTrace;
-                }});
-                
-                return filteredData;
-            }}
-            
             // Helper function to parse time strings into comparable values
             function parseTimeString(timeStr) {{
                 // Handle different time formats
@@ -656,28 +585,96 @@ class LiveMapAnimator:
                     currentTimeIndex: currentTimeIndex
                 }});
                 
-                // First, navigate to the correct time frame using Plotly's animation
+                // Force refresh of the current frame with filtering
                 if (plotlyDiv._fullLayout && plotlyDiv._fullLayout.sliders && plotlyDiv._fullLayout.sliders[1]) {{
                     let mainSlider = plotlyDiv._fullLayout.sliders[1];
                     if (mainSlider.steps && mainSlider.steps[currentTimeIndex]) {{
-                        // Navigate to the current time frame first
-                        Plotly.animate(plotlyDiv, [mainSlider.steps[currentTimeIndex].name], {{
+                        // Get the current frame name
+                        let frameName = mainSlider.steps[currentTimeIndex].args[0][0];
+                        
+                        // Animate to current frame, then apply start time filtering
+                        Plotly.animate(plotlyDiv, [frameName], {{
                             frame: {{ duration: 0, redraw: true }},
                             transition: {{ duration: 0 }}
                         }}).then(function() {{
-                            // After navigation, apply the time window filter
-                            let filteredData = createFilteredFrame(currentTimeIndex, startTimeIndex);
-                            if (filteredData) {{
-                                Plotly.react(plotlyDiv, filteredData, plotlyDiv.layout);
-                            }}
+                            // Use setTimeout to ensure the frame is fully loaded
+                            setTimeout(applyStartTimeFilter, 100);
                         }});
                     }}
-                }} else {{
-                    // Fallback: just apply filtering
-                    let filteredData = createFilteredFrame(currentTimeIndex, startTimeIndex);
-                    if (filteredData) {{
-                        Plotly.react(plotlyDiv, filteredData, plotlyDiv.layout);
+                }}
+            }}
+            
+            // Function to apply start time filtering to current visible data
+            function applyStartTimeFilter() {{
+                if (!plotlyDiv || startTimeIndex === 0) {{
+                    return; // No filtering needed
+                }}
+                
+                console.log('Applying start time filter, startTimeIndex:', startTimeIndex);
+                
+                // Get time steps for reference
+                let timeSteps = [];
+                if (plotlyDiv._fullLayout && plotlyDiv._fullLayout.sliders && plotlyDiv._fullLayout.sliders[1]) {{
+                    timeSteps = plotlyDiv._fullLayout.sliders[1].steps.map(step => step.label);
+                }}
+                
+                if (timeSteps.length === 0) return;
+                
+                // Get start time threshold
+                let startTimeStr = timeSteps[startTimeIndex];
+                if (!startTimeStr) return;
+                
+                console.log('Filtering from time:', startTimeStr);
+                let startTime = parseTimeString(startTimeStr);
+                
+                // Prepare update for all traces
+                let updateData = {{}};
+                let traceIndices = [];
+                
+                // Process each trace
+                for (let i = 0; i < plotlyDiv.data.length; i++) {{
+                    let trace = plotlyDiv.data[i];
+                    
+                    if (!trace.lat || !trace.lon || !trace.customdata || trace.lat.length === 0) {{
+                        continue; // Skip empty traces
                     }}
+                    
+                    let filteredLat = [];
+                    let filteredLon = [];
+                    let filteredCustomdata = [];
+                    
+                    // Filter each point
+                    for (let j = 0; j < trace.lat.length; j++) {{
+                        if (trace.customdata[j] && trace.customdata[j][0]) {{
+                            let pointTime = parseTimeString(trace.customdata[j][0]);
+                            
+                            // Only include points that are at or after the start time
+                            if (pointTime >= startTime) {{
+                                filteredLat.push(trace.lat[j]);
+                                filteredLon.push(trace.lon[j]);
+                                filteredCustomdata.push(trace.customdata[j]);
+                            }}
+                        }}
+                    }}
+                    
+                    console.log(`Trace ${{i}} filtered: ${{trace.lat.length}} -> ${{filteredLat.length}} points`);
+                    
+                    // Update this trace
+                    if (!updateData.lat) updateData.lat = [];
+                    if (!updateData.lon) updateData.lon = [];
+                    if (!updateData.customdata) updateData.customdata = [];
+                    
+                    updateData.lat[i] = filteredLat;
+                    updateData.lon[i] = filteredLon;
+                    updateData.customdata[i] = filteredCustomdata;
+                    
+                    traceIndices.push(i);
+                }}
+                
+                // Apply the filtering update
+                if (traceIndices.length > 0) {{
+                    console.log('Updating', traceIndices.length, 'traces with filtered data');
+                    Plotly.restyle(plotlyDiv, updateData, traceIndices);
                 }}
             }}
             
@@ -729,6 +726,41 @@ class LiveMapAnimator:
                     setTimeout(setupSliderListeners, 1000);
                 }}
             }}
+            
+            // Setup Plotly event listeners for automatic filtering
+            function setupPlotlyEventListeners() {{
+                if (!plotlyDiv) {{
+                    setTimeout(setupPlotlyEventListeners, 500);
+                    return;
+                }}
+                
+                // Listen for slider changes and frame transitions
+                plotlyDiv.on('plotly_sliderchange', function(eventdata) {{
+                    console.log('Plotly slider changed:', eventdata);
+                    // Apply start time filter after a brief delay to ensure frame is loaded
+                    setTimeout(applyStartTimeFilter, 150);
+                }});
+                
+                plotlyDiv.on('plotly_animating', function(eventdata) {{
+                    console.log('Plotly animating:', eventdata);
+                }});
+                
+                plotlyDiv.on('plotly_animated', function(eventdata) {{
+                    console.log('Plotly animation complete');
+                    // Apply start time filter after animation completes
+                    setTimeout(applyStartTimeFilter, 100);
+                }});
+                
+                console.log('Plotly event listeners set up');
+            }}
+            
+            // Initialize everything after page load
+            window.addEventListener('load', function() {{
+                setTimeout(function() {{
+                    setupSliderListeners();
+                    setupPlotlyEventListeners();
+                }}, 1000);
+            }});
             </script>
             """
             
