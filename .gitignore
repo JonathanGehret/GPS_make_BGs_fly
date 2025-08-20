@@ -13,6 +13,9 @@ data/*
 visualizations/*
 !visualizations/.gitkeep
 
+# Old files and deprecated code
+old_files/
+
 # Jupyter Notebooks
 *.ipynb_checkpoints
 
