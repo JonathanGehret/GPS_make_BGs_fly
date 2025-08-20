@@ -95,3 +95,22 @@ class PerformanceOptimizer:
             return "⏱️"
         else:
             return "🐌"
+    
+    @staticmethod
+    def get_performance_options(dataframes) -> dict:
+        """Get predefined performance options for user selection"""
+        return {
+            1: {"name": "Ultra Fast (Mobile)", "seconds": 300},
+            2: {"name": "Fast (Mobile Optimal)", "seconds": 120},
+            3: {"name": "Balanced (Good Quality)", "seconds": 60},
+            4: {"name": "High Quality (May be slow)", "seconds": 30}
+        }
+    
+    @staticmethod
+    def estimate_final_points(dataframes, time_step_seconds: int) -> int:
+        """Estimate final point count after filtering"""
+        if not dataframes:
+            return 0
+        
+        total_points, _ = PerformanceOptimizer.estimate_data_points(dataframes, time_step_seconds)
+        return total_points
