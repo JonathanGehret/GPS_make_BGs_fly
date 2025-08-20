@@ -31,6 +31,7 @@ from gps_utils import (
 )
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
 
 
 class LiveMapAnimator:
@@ -259,39 +260,169 @@ class LiveMapAnimator:
             df['timestamp_str'] = df['Timestamp [UTC]'].dt.strftime('%d.%m.%Y %H:%M:%S')
             df['timestamp_display'] = df['Timestamp [UTC]'].dt.strftime('%d.%m %H:%M')
             
-            # Create animated line map with flight paths
-            fig = px.line_mapbox(
-                df,
-                lat="Latitude",
-                lon="Longitude",
-                color="vulture_id",
-                animation_frame="timestamp_str",
-                hover_name="vulture_id",
-                hover_data={
-                    "timestamp_display": ":Time",
-                    "Latitude": ":.6f",
-                    "Longitude": ":.6f",
-                    "Height": ":Altitude (m)",
-                    "vulture_id": False,
-                    "timestamp_str": False
-                },
-                labels={
-                    "timestamp_display": "Time",
-                    "Latitude": "Latitude",
-                    "Longitude": "Longitude",
-                    "Height": "Altitude (m)",
-                    "vulture_id": "Vulture"
-                },
-                mapbox_style="open-street-map",
-                height=600,
-                title="🦅 Bearded Vulture GPS Flight Paths - Live Map Visualization"
-            )
+            # Create frame index for animation
+            df = df.sort_values('Timestamp [UTC]')
+            df['frame_index'] = range(len(df))
             
-            # Update traces to show both lines and markers
-            fig.update_traces(
-                mode='lines+markers',  # Show both lines and markers
-                line=dict(width=3),
-                marker=dict(size=8, opacity=0.9)
+            # Use the working approach with go.Figure and manual traces
+            import plotly.graph_objects as go
+            
+            fig = go.Figure()
+            
+            # Get unique vultures and assign colors
+            vulture_ids = df['vulture_id'].unique()
+            colors = px.colors.qualitative.Set1[:len(vulture_ids)]
+            color_map = dict(zip(vulture_ids, colors))
+            
+            # Add initial empty traces for each vulture
+            for vulture_id in vulture_ids:
+                fig.add_trace(
+                    go.Scattermapbox(
+                        lat=[],
+                        lon=[],
+                        mode='lines+markers',
+                        name=vulture_id,
+                        line=dict(color=color_map[vulture_id], width=3),
+                        marker=dict(color=color_map[vulture_id], size=8),
+                        hovertemplate=(
+                            f"<b>{vulture_id}</b><br>"
+                            "Time: %{customdata[0]}<br>"
+                            "Lat: %{lat:.6f}°<br>"
+                            "Lon: %{lon:.6f}°<br>"
+                            "Alt: %{customdata[1]}m"
+                            "<extra></extra>"
+                        )
+                    )
+                )
+            
+            # Create animation frames
+            frames = []
+            unique_times = df['timestamp_str'].unique()
+            
+            for time_str in unique_times:
+                frame_data = []
+                
+                for vulture_id in vulture_ids:
+                    # Get cumulative data up to this time for each vulture
+                    vulture_data = df[df['vulture_id'] == vulture_id]
+                    cumulative_data = vulture_data[vulture_data['timestamp_str'] <= time_str]
+                    
+                    if len(cumulative_data) > 0:
+                        # Prepare custom data for hover
+                        customdata = []
+                        for _, row in cumulative_data.iterrows():
+                            customdata.append([row['timestamp_display'], row['Height']])
+                        
+                        frame_data.append(
+                            go.Scattermapbox(
+                                lat=cumulative_data['Latitude'].tolist(),
+                                lon=cumulative_data['Longitude'].tolist(),
+                                mode='lines+markers',
+                                name=vulture_id,
+                                line=dict(color=color_map[vulture_id], width=3),
+                                marker=dict(color=color_map[vulture_id], size=8),
+                                customdata=customdata,
+                                hovertemplate=(
+                                    f"<b>{vulture_id}</b><br>"
+                                    "Time: %{customdata[0]}<br>"
+                                    "Lat: %{lat:.6f}°<br>"
+                                    "Lon: %{lon:.6f}°<br>"
+                                    "Alt: %{customdata[1]}m"
+                                    "<extra></extra>"
+                                )
+                            )
+                        )
+                    else:
+                        # Empty trace for vultures with no data at this time
+                        frame_data.append(
+                            go.Scattermapbox(
+                                lat=[],
+                                lon=[],
+                                mode='lines+markers',
+                                name=vulture_id,
+                                line=dict(color=color_map[vulture_id], width=3),
+                                marker=dict(color=color_map[vulture_id], size=8)
+                            )
+                        )
+                
+                frames.append(go.Frame(data=frame_data, name=time_str))
+            
+            fig.frames = frames
+            
+            # Apply layout optimizations
+            fig.update_layout(
+                mapbox=dict(
+                    style="open-street-map",
+                    center=dict(
+                        lat=df['Latitude'].mean(),
+                        lon=df['Longitude'].mean()
+                    ),
+                    zoom=12
+                ),
+                height=600,
+                title="🦅 Bearded Vulture GPS Flight Paths - Live Map Visualization",
+                showlegend=True,
+                legend=dict(
+                    orientation="v",
+                    yanchor="top",
+                    y=1,
+                    xanchor="left",
+                    x=1.02,
+                    bgcolor="rgba(255,255,255,0.9)",
+                    bordercolor="rgba(0,0,0,0.2)",
+                    borderwidth=1
+                ),
+                margin=dict(l=0, r=120, t=50, b=0),
+                font=dict(size=12),
+                updatemenus=[dict(
+                    type="buttons",
+                    direction="left",
+                    buttons=list([
+                        dict(
+                            label="▶",
+                            method="animate",
+                            args=[None, {"frame": {"duration": 600, "redraw": True},
+                                        "transition": {"duration": 300},
+                                        "fromcurrent": True}]
+                        ),
+                        dict(
+                            label="⏸",
+                            method="animate",
+                            args=[[None], {"frame": {"duration": 0, "redraw": False},
+                                          "mode": "immediate",
+                                          "transition": {"duration": 0}}]
+                        )
+                    ]),
+                    pad={"r": 10, "t": 87},
+                    showactive=False,
+                    x=0.011,
+                    xanchor="left",
+                    y=0,
+                    yanchor="top"
+                )],
+                sliders=[dict(
+                    active=0,
+                    yanchor="top",
+                    xanchor="left",
+                    currentvalue=dict(
+                        font=dict(size=16),
+                        prefix="Time: ",
+                        visible=True,
+                        xanchor="right"
+                    ),
+                    transition=dict(duration=300, easing="cubic-in-out"),
+                    pad=dict(b=10, t=50),
+                    len=0.9,
+                    x=0.1,
+                    y=0,
+                    steps=[dict(
+                        args=[[frame.name], {"frame": {"duration": 300, "redraw": True},
+                                            "mode": "immediate",
+                                            "transition": {"duration": 300}}],
+                        label=frame.name.split(' ')[0] + ' ' + frame.name.split(' ')[1],  # Short format
+                        method="animate"
+                    ) for frame in frames]
+                )]
             )
             
             # Apply layout optimizations

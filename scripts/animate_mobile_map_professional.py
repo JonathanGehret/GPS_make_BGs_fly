@@ -30,6 +30,7 @@ from gps_utils import (
 )
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
 
 
 class MobileLiveMapAnimator:
@@ -250,33 +251,91 @@ class MobileLiveMapAnimator:
             df['timestamp_str'] = df['Timestamp [UTC]'].dt.strftime('%d.%m.%Y %H:%M:%S')
             df['timestamp_mobile'] = df['Timestamp [UTC]'].dt.strftime('%d.%m %H:%M')
             
-            # Create mobile-optimized animated line mapbox with flight paths
-            fig = px.line_mapbox(
-                df,
-                lat="Latitude",
-                lon="Longitude",
-                color="vulture_id",
-                animation_frame="timestamp_str",
-                hover_name="vulture_id",
-                hover_data={
-                    "timestamp_mobile": ":Time",
-                    "Latitude": ":.4f",  # Reduced precision for mobile
-                    "Longitude": ":.4f",
-                    "Height": ":Altitude (m)",
-                    "vulture_id": False,
-                    "timestamp_str": False
-                },
-                mapbox_style="open-street-map",
-                height=self.mobile_height,
-                title="🦅 Vulture GPS - Mobile View"
-            )
+            # Sort for proper animation
+            df = df.sort_values('Timestamp [UTC]')
             
-            # Update mobile-optimized styling with visible markers
-            fig.update_traces(
-                mode='lines+markers',  # Show both lines and markers
-                line=dict(width=4),  # Thicker lines for mobile
-                marker=dict(size=self.mobile_marker_size, opacity=0.9)
-            )
+            # Use the working manual trace approach for mobile
+            fig = go.Figure()
+            
+            # Get unique vultures and assign colors
+            vulture_ids = df['vulture_id'].unique()
+            colors = px.colors.qualitative.Set1[:len(vulture_ids)]
+            color_map = dict(zip(vulture_ids, colors))
+            
+            # Add initial empty traces for each vulture
+            for vulture_id in vulture_ids:
+                fig.add_trace(
+                    go.Scattermapbox(
+                        lat=[],
+                        lon=[],
+                        mode='lines+markers',
+                        name=vulture_id,
+                        line=dict(color=color_map[vulture_id], width=4),  # Thicker for mobile
+                        marker=dict(color=color_map[vulture_id], size=self.mobile_marker_size),
+                        hovertemplate=(
+                            f"<b>{vulture_id}</b><br>"
+                            "Time: %{customdata[0]}<br>"
+                            "Lat: %{lat:.4f}°<br>"
+                            "Lon: %{lon:.4f}°<br>"
+                            "Alt: %{customdata[1]}m"
+                            "<extra></extra>"
+                        )
+                    )
+                )
+            
+            # Create animation frames
+            frames = []
+            unique_times = df['timestamp_str'].unique()
+            
+            for time_str in unique_times:
+                frame_data = []
+                
+                for vulture_id in vulture_ids:
+                    # Get cumulative data up to this time for each vulture
+                    vulture_data = df[df['vulture_id'] == vulture_id]
+                    cumulative_data = vulture_data[vulture_data['timestamp_str'] <= time_str]
+                    
+                    if len(cumulative_data) > 0:
+                        # Prepare custom data for hover
+                        customdata = []
+                        for _, row in cumulative_data.iterrows():
+                            customdata.append([row['timestamp_mobile'], row['Height']])
+                        
+                        frame_data.append(
+                            go.Scattermapbox(
+                                lat=cumulative_data['Latitude'].tolist(),
+                                lon=cumulative_data['Longitude'].tolist(),
+                                mode='lines+markers',
+                                name=vulture_id,
+                                line=dict(color=color_map[vulture_id], width=4),
+                                marker=dict(color=color_map[vulture_id], size=self.mobile_marker_size),
+                                customdata=customdata,
+                                hovertemplate=(
+                                    f"<b>{vulture_id}</b><br>"
+                                    "Time: %{customdata[0]}<br>"
+                                    "Lat: %{lat:.4f}°<br>"
+                                    "Lon: %{lon:.4f}°<br>"
+                                    "Alt: %{customdata[1]}m"
+                                    "<extra></extra>"
+                                )
+                            )
+                        )
+                    else:
+                        # Empty trace for vultures with no data at this time
+                        frame_data.append(
+                            go.Scattermapbox(
+                                lat=[],
+                                lon=[],
+                                mode='lines+markers',
+                                name=vulture_id,
+                                line=dict(color=color_map[vulture_id], width=4),
+                                marker=dict(color=color_map[vulture_id], size=self.mobile_marker_size)
+                            )
+                        )
+                
+                frames.append(go.Frame(data=frame_data, name=time_str))
+            
+            fig.frames = frames
             
             # Mobile-optimized layout
             fig.update_layout(
