@@ -250,13 +250,12 @@ class MobileLiveMapAnimator:
             df['timestamp_str'] = df['Timestamp [UTC]'].dt.strftime('%d.%m.%Y %H:%M:%S')
             df['timestamp_mobile'] = df['Timestamp [UTC]'].dt.strftime('%d.%m %H:%M')
             
-            # Create mobile-optimized animated scatter mapbox
-            fig = px.scatter_mapbox(
+            # Create mobile-optimized animated line mapbox with flight paths
+            fig = px.line_mapbox(
                 df,
                 lat="Latitude",
                 lon="Longitude",
                 color="vulture_id",
-                size_max=self.mobile_marker_size,  # Larger markers for touch
                 animation_frame="timestamp_str",
                 hover_name="vulture_id",
                 hover_data={
@@ -270,6 +269,13 @@ class MobileLiveMapAnimator:
                 mapbox_style="open-street-map",
                 height=self.mobile_height,
                 title="🦅 Vulture GPS - Mobile View"
+            )
+            
+            # Update mobile-optimized styling with visible markers
+            fig.update_traces(
+                mode='lines+markers',  # Show both lines and markers
+                line=dict(width=4),  # Thicker lines for mobile
+                marker=dict(size=self.mobile_marker_size, opacity=0.9)
             )
             
             # Mobile-optimized layout

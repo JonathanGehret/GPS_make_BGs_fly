@@ -259,13 +259,12 @@ class LiveMapAnimator:
             df['timestamp_str'] = df['Timestamp [UTC]'].dt.strftime('%d.%m.%Y %H:%M:%S')
             df['timestamp_display'] = df['Timestamp [UTC]'].dt.strftime('%d.%m %H:%M')
             
-            # Create the animated scatter mapbox
-            fig = px.scatter_mapbox(
+            # Create animated line map with flight paths
+            fig = px.line_mapbox(
                 df,
                 lat="Latitude",
                 lon="Longitude",
                 color="vulture_id",
-                size_max=10,
                 animation_frame="timestamp_str",
                 hover_name="vulture_id",
                 hover_data={
@@ -286,6 +285,13 @@ class LiveMapAnimator:
                 mapbox_style="open-street-map",
                 height=600,
                 title="🦅 Bearded Vulture GPS Flight Paths - Live Map Visualization"
+            )
+            
+            # Update traces to show both lines and markers
+            fig.update_traces(
+                mode='lines+markers',  # Show both lines and markers
+                line=dict(width=3),
+                marker=dict(size=8, opacity=0.9)
             )
             
             # Apply layout optimizations
