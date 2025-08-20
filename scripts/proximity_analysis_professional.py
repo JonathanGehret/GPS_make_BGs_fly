@@ -24,6 +24,7 @@ from typing import List, Tuple, Optional
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 import json
+import numpy as np
 
 # Add scripts directory to path for imports
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -556,7 +557,7 @@ class ProximityAnalyzer:
             color='pair',
             size='distance',
             hover_data=['timestamp', 'distance', 'altitude1', 'altitude2'],
-            mapbox_style='open-street-map',  # MapLibre-compatible style
+            map_style='open-street-map',  # MapLibre-compatible style
             title='Proximity Events Map',
             height=700
         )
@@ -653,19 +654,30 @@ class ProximityAnalyzer:
         
         try:
             # Export to JSON
+            # Convert numpy/pandas types to native Python types for JSON serialization
+            def convert_for_json(obj):
+                """Convert numpy/pandas types to JSON-serializable types"""
+                if hasattr(obj, 'item'):  # numpy scalars
+                    return obj.item()
+                elif hasattr(obj, 'tolist'):  # numpy arrays
+                    return obj.tolist()
+                elif isinstance(obj, (np.integer, np.floating)):
+                    return obj.item()
+                return obj
+            
             json_data = {
                 'analysis_settings': {
-                    'proximity_threshold_km': self.proximity_threshold_km,
-                    'min_duration_minutes': self.min_duration_minutes,
+                    'proximity_threshold_km': convert_for_json(self.proximity_threshold_km),
+                    'min_duration_minutes': convert_for_json(self.min_duration_minutes),
                     'analysis_date': datetime.now().isoformat()
                 },
                 'statistics': {
-                    'total_events': self.statistics.total_events,
-                    'unique_pairs': self.statistics.unique_pairs,
-                    'average_distance': self.statistics.average_distance,
-                    'closest_distance': self.statistics.closest_distance,
-                    'total_duration_hours': self.statistics.total_duration_hours,
-                    'events_per_day': self.statistics.events_per_day,
+                    'total_events': convert_for_json(self.statistics.total_events),
+                    'unique_pairs': convert_for_json(self.statistics.unique_pairs),
+                    'average_distance': convert_for_json(self.statistics.average_distance),
+                    'closest_distance': convert_for_json(self.statistics.closest_distance),
+                    'total_duration_hours': convert_for_json(self.statistics.total_duration_hours),
+                    'events_per_day': convert_for_json(self.statistics.events_per_day),
                     'most_active_pair': self.statistics.most_active_pair,
                     'most_active_time': self.statistics.most_active_time
                 } if self.statistics else {},
@@ -674,14 +686,14 @@ class ProximityAnalyzer:
                         'vulture1': event.vulture1,
                         'vulture2': event.vulture2,
                         'timestamp': event.timestamp.isoformat(),
-                        'distance_km': event.distance_km,
-                        'latitude1': event.lat1,
-                        'longitude1': event.lon1,
-                        'latitude2': event.lat2,
-                        'longitude2': event.lon2,
-                        'altitude1': event.altitude1,
-                        'altitude2': event.altitude2,
-                        'duration_minutes': event.duration_minutes
+                        'distance_km': convert_for_json(event.distance_km),
+                        'latitude1': convert_for_json(event.lat1),
+                        'longitude1': convert_for_json(event.lon1),
+                        'latitude2': convert_for_json(event.lat2),
+                        'longitude2': convert_for_json(event.lon2),
+                        'altitude1': convert_for_json(event.altitude1),
+                        'altitude2': convert_for_json(event.altitude2),
+                        'duration_minutes': convert_for_json(event.duration_minutes)
                     }
                     for event in self.proximity_events
                 ]
