@@ -55,7 +55,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from gps_utils import (
     DataLoader, PerformanceOptimizer, VisualizationHelper, UserInterface,
-    get_output_path, ensure_output_directories, logger,
+    get_output_path, get_numbered_output_path, ensure_output_directories, logger,
     DataLoadError, format_height_display
 )
 import pandas as pd
@@ -515,8 +515,8 @@ class LiveMapAnimator:
                 fig.layout.updatemenus[0].buttons[0].args[1]["frame"]["duration"] = 600
                 fig.layout.updatemenus[0].buttons[0].args[1]["transition"]["duration"] = 300
             
-            # Save the visualization with custom time window controls
-            output_path = get_output_path('flight_paths_live_map_professional.html')
+            # Save the visualization with consecutive numbering
+            output_path = get_numbered_output_path('flight_paths_live_map_professional')
             
             print("💾 Saving visualization...")
             

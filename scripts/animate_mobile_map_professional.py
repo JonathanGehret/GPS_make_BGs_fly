@@ -25,7 +25,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from gps_utils import (
     DataLoader, PerformanceOptimizer, VisualizationHelper, UserInterface,
-    get_output_path, ensure_output_directories, logger,
+    get_numbered_output_path, ensure_output_directories, logger,
     DataLoadError, format_height_display
 )
 import pandas as pd
@@ -416,7 +416,7 @@ class MobileLiveMapAnimator:
             )
             
             # Save mobile visualization
-            output_path = get_output_path('flight_paths_mobile_professional.html')
+            output_path = get_numbered_output_path('flight_paths_mobile_professional')
             
             print("💾 Saving mobile visualization...")
             fig.write_html(output_path)

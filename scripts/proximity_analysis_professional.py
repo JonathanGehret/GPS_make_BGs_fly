@@ -29,7 +29,7 @@ import json
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from gps_utils import (
-    DataLoader, UserInterface, VisualizationHelper, haversine_distance, get_output_path,
+    DataLoader, UserInterface, VisualizationHelper, haversine_distance, get_output_path, get_numbered_output_path,
     ensure_output_directories, logger
 )
 import pandas as pd
@@ -520,7 +520,7 @@ class ProximityAnalyzer:
             yaxis_title="Vulture Pairs"
         )
         
-        output_path = get_output_path('proximity_timeline.html')
+        output_path = get_numbered_output_path('proximity_timeline')
         fig.write_html(output_path)
         print(f"      💾 Timeline saved to: {output_path}")
     
@@ -568,7 +568,7 @@ class ProximityAnalyzer:
             )
         )
         
-        output_path = get_output_path('proximity_map.html')
+        output_path = get_numbered_output_path('proximity_map')
         fig.write_html(output_path)
         print(f"      💾 Map saved to: {output_path}")
     
@@ -635,7 +635,7 @@ class ProximityAnalyzer:
             showlegend=False
         )
         
-        output_path = get_output_path('proximity_dashboard.html')
+        output_path = get_numbered_output_path('proximity_dashboard')
         fig.write_html(output_path)
         print(f"      💾 Dashboard saved to: {output_path}")
     
