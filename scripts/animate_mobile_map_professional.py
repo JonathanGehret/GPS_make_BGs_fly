@@ -367,62 +367,53 @@ class MobileLiveMapAnimator:
                 )
             )
             
-            # Mobile-optimized animation settings
-            if hasattr(fig, 'layout') and hasattr(fig.layout, 'updatemenus'):
-                # Slower animation for better mobile experience
-                fig.layout.updatemenus[0].buttons[0].args[1]["frame"]["duration"] = 1000
-                fig.layout.updatemenus[0].buttons[0].args[1]["transition"]["duration"] = 400
-                
-                # Mobile-friendly control buttons
-                fig.update_layout(
-                    updatemenus=[dict(
-                        type="buttons",
-                        direction="left",
-                        buttons=list([
-                            dict(label="▶", method="animate", args=[None, {
-                                "frame": {"duration": 1000, "redraw": True},
-                                "transition": {"duration": 400},
-                                "fromcurrent": True
-                            }]),
-                            dict(label="⏸", method="animate", args=[[None], {
-                                "frame": {"duration": 0, "redraw": False},
-                                "mode": "immediate",
-                                "transition": {"duration": 0}
-                            }])
-                        ]),
-                        pad={"r": 10, "t": 87},
-                        showactive=False,
-                        x=0.01,
-                        xanchor="left",
-                        y=0.02,
-                        yanchor="bottom",
-                        bgcolor="rgba(255,255,255,0.8)",
-                        bordercolor="rgba(0,0,0,0.2)",
-                        borderwidth=1
-                    )]
-                )
-            
-            # Mobile-friendly slider
-            if hasattr(fig, 'layout') and hasattr(fig.layout, 'sliders'):
-                fig.update_layout(
-                    sliders=[dict(
-                        active=0,
-                        yanchor="top",
-                        xanchor="left",
-                        currentvalue=dict(
-                            font=dict(size=12),
-                            prefix="Time: ",
-                            visible=True,
-                            xanchor="right"
-                        ),
-                        transition=dict(duration=400, easing="cubic-in-out"),
-                        pad=dict(b=10, t=50),
-                        len=0.9,
-                        x=0.05,
-                        y=0,
-                        steps=[]
-                    )]
-                )
+            # Mobile-friendly control buttons and slider configuration
+            fig.update_layout(
+                updatemenus=[dict(
+                    type="buttons",
+                    direction="left",
+                    buttons=list([
+                        dict(label="▶", method="animate", args=[None, {
+                            "frame": {"duration": 1000, "redraw": True},
+                            "transition": {"duration": 400},
+                            "fromcurrent": True
+                        }]),
+                        dict(label="⏸", method="animate", args=[[None], {
+                            "frame": {"duration": 0, "redraw": False},
+                            "mode": "immediate",
+                            "transition": {"duration": 0}
+                        }])
+                    ]),
+                    pad={"r": 10, "t": 70},
+                    showactive=False,
+                    x=0.1,
+                    xanchor="right",
+                    y=0.02,
+                    yanchor="top"
+                )],
+                sliders=[dict(
+                    active=0,
+                    yanchor="top",
+                    xanchor="left",
+                    currentvalue=dict(
+                        font=dict(size=12),
+                        prefix="Time: ",
+                        visible=True,
+                        xanchor="right"
+                    ),
+                    transition=dict(duration=400, easing="cubic-in-out"),
+                    pad=dict(b=10, t=50),
+                    len=0.9,
+                    x=0.05,
+                    y=0,
+                    steps=[dict(
+                        args=[[frame.name], {"frame": {"duration": 1000, "redraw": True},
+                                           "mode": "immediate", "transition": {"duration": 400}}],
+                        label=pd.to_datetime(frame.name).strftime('%d.%m %H:%M'),
+                        method="animate"
+                    ) for frame in frames]
+                )]
+            )
             
             # Save mobile visualization
             output_path = get_output_path('flight_paths_mobile_professional.html')

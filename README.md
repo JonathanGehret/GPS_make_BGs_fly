@@ -1,34 +1,71 @@
-# Bearded Vulture GPS Flight Path Visualization
+# 🦅 Bearded Vulture GPS Flight Path Visualization
 
-This project visualizes 3D GPS flight paths of bearded vultures, including multiple individuals, using Python. It supports both 2D and 3D visualizations for visually appealing analysis.
+A comprehensive Python toolkit for visualizing GPS flight paths of bearded vultures with real-world mapping, advanced behavioral analysis, and professional-grade performance optimization.
 
-## Project Structure
-- `data/` — Store GPS datasets (CSV, JSON, etc.)
-- `scripts/` — Python scripts for data processing and visualization
-- `visualizations/` — Output plots and animations
+## 🌟 Features
 
-## Setup
-1. Install Python 3.8+
-2. Clone this repository:
-   ```bash
-   git clone https://github.com/JonathanGehret/GPS_make_BGs_fly.git
-   cd GPS_make_BGs_fly
-   ```
-3. Install required packages:
-   ```bash
-   pip install -r requirements.txt
-   ```
-4. Place your GPS data files in the `data/` folder
+### 🗺️ Interactive Visualizations
+- **Live Map Integration**: Real-time OpenStreetMap tiles with authentic geographic context
+- **Flight Path Animation**: Smooth animated tracking of vulture movements over time
+- **Multi-Vulture Support**: Simultaneous visualization of multiple birds with color coding
+- **Real Geographic Data**: Königssee, Berchtesgaden National Park coordinates
 
-## Usage
-- Run scripts in the `scripts/` folder to generate visualizations:
-    - `plot_2d.py`: Static 2D flight path plot
-    - `plot_3d.py`: Interactive 3D flight path plot
-    - `animate_2d.py`: Animated 2D flight path video (MP4)
-    - `animate_3d.py`: Animated 3D flight path (synthetic data)
-    - `animate_3d_from_csv.py`: Animated 3D flight path (loads from CSV files)
-    - `export_test_data.py`: Export synthetic data to CSV format
-- Outputs will be saved in `visualizations/`
+### ⚡ Performance Optimization
+- **Configurable Time Steps**: Choose from 1 second to 60 minutes for optimal performance
+- **Smart Data Filtering**: Intelligent reduction for older computers (e.g., 80 → 31 points)
+- **Mobile Optimization**: Touch-friendly controls and responsive design
+
+### 🔍 Advanced Analysis
+- **Proximity Detection**: Identify when vultures are in close proximity
+- **Behavioral Analysis**: Statistical analysis of flight patterns
+- **Multiple Export Formats**: JSON, CSV, and HTML visualizations
+- **Comprehensive Reports**: Timeline, map, and dashboard views
+
+### 🛠️ Professional Architecture
+- **Type Safety**: Full type hints throughout codebase
+- **Error Handling**: Comprehensive error management and logging
+- **Modular Design**: Clean separation of concerns with `gps_utils.py`
+- **Best Practices**: Following Python coding standards and conventions
+
+## 🚀 Quick Start
+
+### Step 1: Install Dependencies
+```bash
+pip install -r requirements.txt
+```
+
+### Step 2: Run Professional Scripts
+
+#### 🖥️ Desktop Version (Recommended)
+```bash
+python3 scripts/animate_live_map_professional.py
+```
+**Features:**
+- Guided workflow with performance optimization
+- Interactive map with real-time tile loading
+- Professional data processing with type safety
+- Configurable time-step filtering (1s to 60m)
+- Responsive design for all screen sizes
+
+#### 📱 Mobile Version
+```bash
+python3 scripts/animate_mobile_map_professional.py
+```
+**Features:**
+- Touch-friendly controls and larger markers
+- Mobile-optimized interface and performance
+- Landscape mode support with pinch-to-zoom
+- Compact design for smaller screens
+
+#### 🔍 Advanced Analysis
+```bash
+python3 scripts/proximity_analysis_professional.py
+```
+**Features:**
+- Behavioral analysis and proximity detection
+- Statistical analysis with comprehensive exports
+- Multiple visualization types (timeline, map, dashboard)
+- JSON and CSV exports for further analysis
 
 ## CSV Data Format
 To use your own GPS data, place CSV files in the `data/` folder with this format:
