@@ -54,13 +54,13 @@ from typing import List, Optional
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from gps_utils import (
+    get_numbered_output_path, ensure_output_directories, logger,
+    DataLoadError, 
     DataLoader, PerformanceOptimizer, VisualizationHelper, UserInterface,
-    get_output_path, get_numbered_output_path, ensure_output_directories, logger,
-    DataLoadError, format_height_display
+    format_height_display
 )
 import pandas as pd
 import plotly.express as px
-import plotly.graph_objects as go
 
 
 class LiveMapAnimator:
@@ -79,6 +79,7 @@ class LiveMapAnimator:
         
         # Configuration
         self.selected_time_step: Optional[int] = None
+        self.trail_length_minutes: Optional[int] = None
         self.dataframes: List[pd.DataFrame] = []
         self.combined_data: Optional[pd.DataFrame] = None
     
@@ -207,6 +208,118 @@ class LiveMapAnimator:
             
             self.ui.print_error("Invalid choice. Please enter a valid option (e.g., '1m', '5m', '10m')")
     
+    def select_trail_length(self) -> Optional[int]:
+        """Let user choose trail length for animation"""
+        self.ui.print_header("🎯 Trail Length Configuration")
+        print("Configure how much flight history to show in the animation:")
+        print()
+        
+        options = {
+            "all": {"minutes": None, "label": "Show complete flight path (no trail limit)"},
+            "30m": {"minutes": 30, "label": "30 minutes trail"},
+            "1h": {"minutes": 60, "label": "1 hour trail"},
+            "2h": {"minutes": 120, "label": "2 hours trail"},
+            "4h": {"minutes": 240, "label": "4 hours trail"},
+            "6h": {"minutes": 360, "label": "6 hours trail"},
+            "12h": {"minutes": 720, "label": "12 hours trail"},
+            "1d": {"minutes": 1440, "label": "1 day trail"},
+        }
+        
+        for key, option in options.items():
+            print(f"  {key:>4}: {option['label']}")
+        
+        return self._get_user_trail_length_choice(options)
+    
+    def _get_user_trail_length_choice(self, options: dict) -> Optional[int]:
+        """Get and validate user's trail length choice"""
+        while True:
+            choice = input("\nEnter your choice (30m, 1h, 2h, all, etc.) or 'q' to quit: ").strip().lower()
+            
+            if choice == 'q':
+                self.ui.print_info("Operation cancelled by user")
+                return False
+            
+            if choice in options:
+                selected = options[choice]
+                self.ui.print_success(f"Selected: {selected['label']}")
+                
+                if selected["minutes"] is None:
+                    print("📊 Will show complete flight path without trail limitation")
+                else:
+                    print(f"📊 Will show moving trail of {selected['minutes']} minutes")
+                    
+                return selected["minutes"]
+            
+            self.ui.print_error("Invalid choice. Please enter a valid option (e.g., '30m', '1h', 'all')")
+    
+    def _create_frames_with_trail(self, df, vulture_ids, color_map, unique_times):
+        """Create animation frames with trail length support"""
+        import plotly.graph_objects as go
+        import pandas as pd
+        
+        frames = []
+        
+        for time_str in unique_times:
+            frame_data = []
+            current_time = pd.to_datetime(time_str, format='%d.%m.%Y %H:%M:%S')
+            
+            for vulture_id in vulture_ids:
+                vulture_data = df[df['vulture_id'] == vulture_id]
+                
+                if self.trail_length_minutes is None:
+                    # Show complete flight path (no trail limit)
+                    trail_data = vulture_data[vulture_data['timestamp_str'] <= time_str]
+                else:
+                    # Apply trail length filter
+                    trail_start = current_time - pd.Timedelta(minutes=self.trail_length_minutes)
+                    trail_data = vulture_data[
+                        (vulture_data['Timestamp [UTC]'] >= trail_start) & 
+                        (vulture_data['timestamp_str'] <= time_str)
+                    ]
+                
+                if len(trail_data) > 0:
+                    # Prepare custom data for hover
+                    customdata = []
+                    for _, row in trail_data.iterrows():
+                        height_display = format_height_display(row['Height'])
+                        customdata.append([row['timestamp_display'], height_display])
+                    
+                    frame_data.append(
+                        go.Scattermap(
+                            lat=trail_data['Latitude'].tolist(),
+                            lon=trail_data['Longitude'].tolist(),
+                            mode='lines+markers',
+                            name=vulture_id,
+                            line=dict(color=color_map[vulture_id], width=3),
+                            marker=dict(color=color_map[vulture_id], size=6),
+                            customdata=customdata,
+                            hovertemplate=(
+                                f"<b>{vulture_id}</b><br>"
+                                "Time: %{customdata[0]}<br>"
+                                "Lat: %{lat:.6f}°<br>"
+                                "Lon: %{lon:.6f}°<br>"
+                                "Alt: %{customdata[1]}"
+                                "<extra></extra>"
+                            )
+                        )
+                    )
+                else:
+                    # Empty trace for vultures with no data in the trail window
+                    frame_data.append(
+                        go.Scattermap(
+                            lat=[],
+                            lon=[],
+                            mode='lines+markers',
+                            name=vulture_id,
+                            line=dict(color=color_map[vulture_id], width=3),
+                            marker=dict(color=color_map[vulture_id], size=6)
+                        )
+                    )
+            
+            frames.append(go.Frame(data=frame_data, name=time_str))
+        
+        return frames
+    
     def process_data(self) -> bool:
         """
         Process and filter data according to selected time step
@@ -324,58 +437,8 @@ class LiveMapAnimator:
                     )
                 )
             
-            # Create animation frames (simplified approach)
-            frames = []
-            unique_times = sorted(df['timestamp_str'].unique())
-            
-            for time_str in unique_times:
-                frame_data = []
-                
-                for vulture_id in vulture_ids:
-                    # Get cumulative data up to this time for each vulture
-                    vulture_data = df[df['vulture_id'] == vulture_id]
-                    cumulative_data = vulture_data[vulture_data['timestamp_str'] <= time_str]
-                    
-                    if len(cumulative_data) > 0:
-                        # Prepare custom data for hover
-                        customdata = []
-                        for _, row in cumulative_data.iterrows():
-                            height_display = format_height_display(row['Height'])
-                            customdata.append([row['timestamp_display'], height_display])
-                        
-                        frame_data.append(
-                            go.Scattermap(  # Updated from Scattermapbox for MapLibre compatibility
-                                lat=cumulative_data['Latitude'].tolist(),
-                                lon=cumulative_data['Longitude'].tolist(),
-                                mode='lines+markers',
-                                name=vulture_id,
-                                line=dict(color=color_map[vulture_id], width=3),
-                                marker=dict(color=color_map[vulture_id], size=6),
-                                customdata=customdata,
-                                hovertemplate=(
-                                    f"<b>{vulture_id}</b><br>"
-                                    "Time: %{customdata[0]}<br>"
-                                    "Lat: %{lat:.6f}°<br>"
-                                    "Lon: %{lon:.6f}°<br>"
-                                    "Alt: %{customdata[1]}"
-                                    "<extra></extra>"
-                                )
-                            )
-                        )
-                    else:
-                        # Empty trace for vultures with no data at this time (MapLibre compatible)
-                        frame_data.append(
-                            go.Scattermap(  # Updated from Scattermapbox for MapLibre compatibility
-                                lat=[],
-                                lon=[],
-                                mode='lines+markers',
-                                name=vulture_id,
-                                line=dict(color=color_map[vulture_id], width=3),
-                                marker=dict(color=color_map[vulture_id], size=8)
-                            )
-                        )
-                
-                frames.append(go.Frame(data=frame_data, name=time_str))
+            # Create animation frames with trail length support
+            frames = self._create_frames_with_trail(df, vulture_ids, color_map, sorted(df['timestamp_str'].unique()))
             
             fig.frames = frames
             
@@ -516,7 +579,10 @@ class LiveMapAnimator:
                 fig.layout.updatemenus[0].buttons[0].args[1]["transition"]["duration"] = 300
             
             # Save the visualization with consecutive numbering
-            output_path = get_numbered_output_path('flight_paths_live_map_professional')
+            if self.trail_length_minutes is not None:
+                output_path = get_numbered_output_path(f'live_map_animation_trail_{self.trail_length_minutes}m')
+            else:
+                output_path = get_numbered_output_path('live_map_animation_full_path')
             
             print("💾 Saving visualization...")
             
@@ -818,6 +884,11 @@ class LiveMapAnimator:
             # Performance configuration
             self.selected_time_step = self.display_performance_options()
             if self.selected_time_step is None:
+                return False
+            
+            # Trail length configuration
+            self.trail_length_minutes = self.select_trail_length()
+            if self.trail_length_minutes is False:  # User cancelled (returned None from select_trail_length)
                 return False
             
             # Data processing
