@@ -2,7 +2,42 @@
 
 ## Professional Graphical Interface for GPS Proximity Analysis
 
-This GUI application makes vulture GPS proximity analysis accessible to non-technical users through an intuitive graphical interface.
+This GU## 📊 Data Format
+
+### Expected CSV Format
+Your GPS data files should contain columns like:
+- **Timestamp**: Date/time in UTC
+- **Latitude**: Decimal degrees
+- **Longitude**: Decimal degrees
+- **Vulture ID**: Identifier for each individual
+- **Altitude/Height**: Optional elevation data
+
+### Supported Variations
+The application automatically handles common column name variations:
+- `TIMESTAMP`, `TIME`, `Timestamp [UTC]`
+- `LAT`, `LATITUDE`, `Latitude`
+- `LON`, `LONGITUDE`, `Longitude`
+- `VULTURE_ID`, `vulture_id`, etc.
+
+## 🌐 Language Settings
+
+### Switching Languages
+- Click "🌐 Language/Sprache" at top-right corner
+- Choose between Deutsch and English
+- Settings are automatically saved
+- All UI elements update immediately
+
+### Default Language
+- **German** is the default language (for German-speaking colleagues)
+- First startup shows German interface
+- Your language choice is remembered for future sessionskes vulture GPS proximity analysis accessible to non-technical users through an intuitive graphical interface.
+
+## 🌐 Multilingual Support
+
+The application supports **German** (default) and **English**:
+- **Default Language**: German (for German-speaking colleagues)
+- **Language Switching**: Click "🌐 Language/Sprache" at top-right
+- **Auto-Save**: Your language preference is remembered
 
 ## 🚀 Quick Start
 

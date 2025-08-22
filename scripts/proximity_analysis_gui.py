@@ -24,6 +24,7 @@ from core.proximity_engine import ProximityEngine
 from visualization.proximity_plots import ProximityVisualizer
 from animate_live_map import LiveMapAnimator
 from proximity_analysis import group_proximity_events, parse_time_step
+from i18n import get_translator, t
 
 
 class ProximityAnalysisGUI:
@@ -31,7 +32,11 @@ class ProximityAnalysisGUI:
     
     def __init__(self, root):
         self.root = root
-        self.root.title("🦅 Vulture Proximity Analysis - Professional Edition")
+        
+        # Initialize translator
+        self.translator = get_translator()
+        
+        self.root.title(self.translator.t("app_title"))
         self.root.geometry("900x700")
         self.root.configure(bg='#f0f0f0')
         
@@ -71,10 +76,19 @@ class ProximityAnalysisGUI:
         self.root.rowconfigure(0, weight=1)
         main_frame.columnconfigure(1, weight=1)
         
-        # Title
-        title_label = ttk.Label(main_frame, text="🦅 Vulture Proximity Analysis", 
-                               font=('Arial', 16, 'bold'))
-        title_label.grid(row=0, column=0, columnspan=2, pady=(0, 20))
+        # Title with language switcher
+        title_frame = ttk.Frame(main_frame)
+        title_frame.grid(row=0, column=0, columnspan=2, pady=(0, 20), sticky=(tk.W, tk.E))
+        title_frame.columnconfigure(0, weight=1)
+        
+        self.title_label = ttk.Label(title_frame, text=self.translator.t("app_title"), 
+                                    font=('Arial', 16, 'bold'))
+        self.title_label.grid(row=0, column=0)
+        
+        # Language switcher button
+        self.language_button = ttk.Button(title_frame, text=self.translator.t("btn_language"), 
+                                         command=self.switch_language)
+        self.language_button.grid(row=0, column=1, sticky=tk.E)
         
         # Create notebook for tabbed interface
         self.notebook = ttk.Notebook(main_frame)
@@ -107,19 +121,123 @@ class ProximityAnalysisGUI:
                   command=self.show_help).pack(side=tk.LEFT)
         
         # Status bar
-        self.status_var = tk.StringVar(value="Ready to analyze vulture GPS data")
+        self.status_var = tk.StringVar(value=self.translator.t("status_ready"))
         status_bar = ttk.Label(main_frame, textvariable=self.status_var, 
                               relief=tk.SUNKEN, anchor=tk.W)
         status_bar.grid(row=3, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(10, 0))
         
+    def switch_language(self):
+        """Switch between German and English"""
+        current_lang = self.translator.get_current_language()
+        new_lang = "en" if current_lang == "de" else "de"
+        
+        self.translator.set_language(new_lang)
+        self.translator.save_language_preference(new_lang)
+        
+        # Update all UI text
+        self.update_ui_text()
+        
+    def update_ui_text(self):
+        """Update all UI elements with current language"""
+        try:
+            # Update window title
+            self.root.title(self.translator.t("app_title"))
+            
+            # Update main title and button
+            self.title_label.config(text=self.translator.t("app_title"))
+            self.language_button.config(text=self.translator.t("btn_language"))
+            
+            # Update tab names
+            self.notebook.tab(0, text=self.translator.t("tab_data"))
+            self.notebook.tab(1, text=self.translator.t("tab_analysis"))
+            self.notebook.tab(2, text=self.translator.t("tab_animation"))
+            self.notebook.tab(3, text=self.translator.t("tab_results"))
+            self.notebook.tab(4, text=self.translator.t("tab_log"))
+            
+            # Update button texts
+            self.run_button.config(text=self.translator.t("btn_run"))
+            self.stop_button.config(text=self.translator.t("btn_stop"))
+            
+            # Update status
+            current_status = self.status_var.get()
+            if "Ready" in current_status or "Bereit" in current_status:
+                self.status_var.set(self.translator.t("status_ready"))
+            elif "Running" in current_status or "Führe" in current_status:
+                self.status_var.set(self.translator.t("status_running"))
+            elif "completed" in current_status or "abgeschlossen" in current_status:
+                self.status_var.set(self.translator.t("status_completed"))
+            
+            # Update other UI elements
+            self.update_data_tab_text()
+            self.update_analysis_tab_text()
+            self.update_animation_tab_text()
+            self.update_results_tab_text()
+            self.update_log_tab_text()
+            self.update_button_texts()
+            
+        except Exception:
+            pass  # Gracefully handle any UI update errors
+    
+    def update_data_tab_text(self):
+        """Update data tab text elements"""
+        try:
+            self.data_folder_label.config(text=self.translator.t("label_data_folder"))
+            self.browse_button.config(text=self.translator.t("btn_browse"))
+            self.data_preview_label.config(text=self.translator.t("label_data_preview"))
+            self.refresh_button.config(text=self.translator.t("btn_refresh"))
+        except Exception:
+            pass
+    
+    def update_analysis_tab_text(self):
+        """Update analysis tab text elements"""
+        try:
+            self.analysis_params_label.config(text=self.translator.t("label_analysis_params"))
+            self.param_frame.config(text=self.translator.t("group_detection_params"))
+            self.proximity_threshold_label.config(text=self.translator.t("label_proximity_threshold"))
+            self.time_threshold_label.config(text=self.translator.t("label_time_threshold"))
+            self.options_frame.config(text=self.translator.t("group_analysis_options"))
+            self.animations_checkbox.config(text=self.translator.t("check_generate_animations"))
+            self.help_frame.config(text=self.translator.t("group_parameter_guide"))
+            
+            # Update help text
+            help_text = f"""
+        {self.translator.t("help_proximity")}
+        {self.translator.t("help_time")}
+        {self.translator.t("help_animations")}
+        """
+            self.help_text_label.config(text=help_text)
+        except Exception:
+            pass
+    
+    def update_animation_tab_text(self):
+        """Update animation tab text elements"""
+        # This will be implemented when we update the animation tab
+        pass
+    
+    def update_results_tab_text(self):
+        """Update results tab text elements"""
+        # This will be implemented when we update the results tab
+        pass
+    
+    def update_log_tab_text(self):
+        """Update log tab text elements"""
+        # This will be implemented when we update the log tab
+        pass
+    
+    def update_button_texts(self):
+        """Update button texts"""
+        # This will be implemented for additional buttons
+        pass
+        
     def setup_data_tab(self):
         """Setup data configuration tab"""
         data_frame = ttk.Frame(self.notebook, padding="20")
-        self.notebook.add(data_frame, text="📁 Data")
+        self.notebook.add(data_frame, text=self.translator.t("tab_data"))
         
         # Data folder selection
-        ttk.Label(data_frame, text="GPS Data Folder:", font=('Arial', 11, 'bold')).grid(
-            row=0, column=0, sticky=tk.W, pady=(0, 5))
+        self.data_folder_label = ttk.Label(data_frame, text=self.translator.t("label_data_folder"), 
+                                          font=('Arial', 11, 'bold'))
+        self.data_folder_label.grid(row=0, column=0, sticky=tk.W, pady=(0, 5))
         
         folder_frame = ttk.Frame(data_frame)
         folder_frame.grid(row=1, column=0, sticky=(tk.W, tk.E), pady=(0, 15))
@@ -128,71 +246,77 @@ class ProximityAnalysisGUI:
         self.folder_entry = ttk.Entry(folder_frame, textvariable=self.data_folder, width=50)
         self.folder_entry.grid(row=0, column=0, sticky=(tk.W, tk.E), padx=(0, 10))
         
-        ttk.Button(folder_frame, text="Browse...", 
-                  command=self.browse_folder).grid(row=0, column=1)
+        self.browse_button = ttk.Button(folder_frame, text=self.translator.t("btn_browse"), 
+                                       command=self.browse_folder)
+        self.browse_button.grid(row=0, column=1)
         
         # Data preview
-        ttk.Label(data_frame, text="Data Preview:", font=('Arial', 11, 'bold')).grid(
-            row=2, column=0, sticky=tk.W, pady=(15, 5))
+        self.data_preview_label = ttk.Label(data_frame, text=self.translator.t("label_data_preview"), 
+                                           font=('Arial', 11, 'bold'))
+        self.data_preview_label.grid(row=2, column=0, sticky=tk.W, pady=(15, 5))
         
         self.data_preview = scrolledtext.ScrolledText(data_frame, height=15, width=70)
         self.data_preview.grid(row=3, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), pady=(0, 10))
         data_frame.rowconfigure(3, weight=1)
         data_frame.columnconfigure(0, weight=1)
         
-        ttk.Button(data_frame, text="🔄 Refresh Data Preview", 
-                  command=self.refresh_data_preview).grid(row=4, column=0, pady=(10, 0))
+        self.refresh_button = ttk.Button(data_frame, text=self.translator.t("btn_refresh"), 
+                                        command=self.refresh_data_preview)
+        self.refresh_button.grid(row=4, column=0, pady=(10, 0))
         
     def setup_analysis_tab(self):
         """Setup analysis parameters tab"""
         analysis_frame = ttk.Frame(self.notebook, padding="20")
-        self.notebook.add(analysis_frame, text="⚙️ Analysis")
+        self.notebook.add(analysis_frame, text=self.translator.t("tab_analysis"))
         
         # Proximity threshold
-        ttk.Label(analysis_frame, text="Proximity Analysis Parameters:", 
-                 font=('Arial', 11, 'bold')).grid(row=0, column=0, sticky=tk.W, pady=(0, 15))
+        self.analysis_params_label = ttk.Label(analysis_frame, text=self.translator.t("label_analysis_params"), 
+                                              font=('Arial', 11, 'bold'))
+        self.analysis_params_label.grid(row=0, column=0, sticky=tk.W, pady=(0, 15))
         
-        param_frame = ttk.LabelFrame(analysis_frame, text="Detection Parameters", padding="15")
-        param_frame.grid(row=1, column=0, sticky=(tk.W, tk.E), pady=(0, 20))
+        self.param_frame = ttk.LabelFrame(analysis_frame, text=self.translator.t("group_detection_params"), padding="15")
+        self.param_frame.grid(row=1, column=0, sticky=(tk.W, tk.E), pady=(0, 20))
         
-        ttk.Label(param_frame, text="Proximity Threshold (km):").grid(
-            row=0, column=0, sticky=tk.W, pady=(0, 10))
-        proximity_scale = ttk.Scale(param_frame, from_=0.1, to=10.0, 
+        self.proximity_threshold_label = ttk.Label(self.param_frame, text=self.translator.t("label_proximity_threshold"))
+        self.proximity_threshold_label.grid(row=0, column=0, sticky=tk.W, pady=(0, 10))
+        proximity_scale = ttk.Scale(self.param_frame, from_=0.1, to=10.0, 
                                    variable=self.proximity_threshold, orient=tk.HORIZONTAL)
         proximity_scale.grid(row=0, column=1, sticky=(tk.W, tk.E), padx=(10, 10), pady=(0, 10))
-        self.proximity_label = ttk.Label(param_frame, text="2.0 km")
+        self.proximity_label = ttk.Label(self.param_frame, text="2.0 km")
         self.proximity_label.grid(row=0, column=2, pady=(0, 10))
         proximity_scale.configure(command=self.update_proximity_label)
         
-        ttk.Label(param_frame, text="Time Threshold (minutes):").grid(
-            row=1, column=0, sticky=tk.W)
-        time_scale = ttk.Scale(param_frame, from_=1, to=60, 
+        self.time_threshold_label = ttk.Label(self.param_frame, text=self.translator.t("label_time_threshold"))
+        self.time_threshold_label.grid(row=1, column=0, sticky=tk.W)
+        time_scale = ttk.Scale(self.param_frame, from_=1, to=60, 
                               variable=self.time_threshold, orient=tk.HORIZONTAL)
         time_scale.grid(row=1, column=1, sticky=(tk.W, tk.E), padx=(10, 10))
-        self.time_label = ttk.Label(param_frame, text="5 min")
+        self.time_label = ttk.Label(self.param_frame, text="5 min")
         self.time_label.grid(row=1, column=2)
         time_scale.configure(command=self.update_time_label)
         
-        param_frame.columnconfigure(1, weight=1)
+        self.param_frame.columnconfigure(1, weight=1)
         
         # Analysis options
-        options_frame = ttk.LabelFrame(analysis_frame, text="Analysis Options", padding="15")
-        options_frame.grid(row=2, column=0, sticky=(tk.W, tk.E), pady=(0, 20))
+        self.options_frame = ttk.LabelFrame(analysis_frame, text=self.translator.t("group_analysis_options"), padding="15")
+        self.options_frame.grid(row=2, column=0, sticky=(tk.W, tk.E), pady=(0, 20))
         
-        ttk.Checkbutton(options_frame, text="Generate encounter animations", 
-                       variable=self.generate_animations,
-                       command=self.toggle_animation_options).grid(row=0, column=0, sticky=tk.W)
+        self.animations_checkbox = ttk.Checkbutton(self.options_frame, text=self.translator.t("check_generate_animations"), 
+                                                  variable=self.generate_animations,
+                                                  command=self.toggle_animation_options)
+        self.animations_checkbox.grid(row=0, column=0, sticky=tk.W)
         
         # Help text
-        help_frame = ttk.LabelFrame(analysis_frame, text="Parameter Guide", padding="15")
-        help_frame.grid(row=3, column=0, sticky=(tk.W, tk.E))
+        self.help_frame = ttk.LabelFrame(analysis_frame, text=self.translator.t("group_parameter_guide"), padding="15")
+        self.help_frame.grid(row=3, column=0, sticky=(tk.W, tk.E))
         
-        help_text = """
-        • Proximity Threshold: Maximum distance between vultures to count as a proximity event
-        • Time Threshold: Minimum duration for a proximity event to be recorded
-        • Encounter Animations: Creates interactive maps showing vulture interactions
+        help_text = f"""
+        {self.translator.t("help_proximity")}
+        {self.translator.t("help_time")}
+        {self.translator.t("help_animations")}
         """
-        ttk.Label(help_frame, text=help_text, justify=tk.LEFT).grid(row=0, column=0, sticky=tk.W)
+        self.help_text_label = ttk.Label(self.help_frame, text=help_text, justify=tk.LEFT)
+        self.help_text_label.grid(row=0, column=0, sticky=tk.W)
         
         analysis_frame.columnconfigure(0, weight=1)
         
@@ -359,17 +483,17 @@ class ProximityAnalysisGUI:
         try:
             folder = self.data_folder.get()
             if not os.path.exists(folder):
-                self.data_preview.insert(tk.END, f"❌ Folder not found: {folder}\n")
+                self.data_preview.insert(tk.END, self.translator.t("error_no_data", folder) + "\n")
                 return
                 
             csv_files = list(Path(folder).glob("*.csv"))
             
             if not csv_files:
-                self.data_preview.insert(tk.END, f"⚠️ No CSV files found in: {folder}\n")
+                self.data_preview.insert(tk.END, self.translator.t("error_no_csv", folder) + "\n")
                 return
                 
-            self.data_preview.insert(tk.END, f"📁 Data Folder: {folder}\n")
-            self.data_preview.insert(tk.END, f"📄 Found {len(csv_files)} CSV file(s):\n\n")
+            self.data_preview.insert(tk.END, self.translator.t("preview_folder", folder) + "\n")
+            self.data_preview.insert(tk.END, self.translator.t("preview_found_files", len(csv_files)) + "\n\n")
             
             total_points = 0
             for csv_file in csv_files:
@@ -377,17 +501,17 @@ class ProximityAnalysisGUI:
                     df = pd.read_csv(csv_file)
                     points = len(df)
                     total_points += points
-                    self.data_preview.insert(tk.END, f"  ✅ {csv_file.name:<30} ({points:,} GPS points)\n")
+                    self.data_preview.insert(tk.END, self.translator.t("preview_file_ok", csv_file.name, points) + "\n")
                 except Exception as e:
-                    self.data_preview.insert(tk.END, f"  ❌ {csv_file.name:<30} (Error: {e})\n")
+                    self.data_preview.insert(tk.END, self.translator.t("preview_file_error", csv_file.name, e) + "\n")
             
-            self.data_preview.insert(tk.END, f"\n📊 Total GPS points: {total_points:,}\n")
+            self.data_preview.insert(tk.END, f"\n{self.translator.t('preview_total_points', total_points)}\n")
             
             if total_points > 100000:
-                self.data_preview.insert(tk.END, "\n⚠️  Large dataset detected. Consider using larger time steps for animations.\n")
+                self.data_preview.insert(tk.END, f"\n{self.translator.t('error_large_dataset')}\n")
                 
         except Exception as e:
-            self.data_preview.insert(tk.END, f"❌ Error reading data folder: {e}\n")
+            self.data_preview.insert(tk.END, self.translator.t("error_reading_folder", e) + "\n")
             
     def log(self, message):
         """Add message to log queue"""
