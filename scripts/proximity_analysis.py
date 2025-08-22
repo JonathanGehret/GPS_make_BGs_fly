@@ -138,13 +138,56 @@ def create_encounter_animations(events, gps_data, ui):
         
         ui.print_info(f"Found {len(encounters)} encounter group(s) to animate")
         
-        # Get time buffer for animations
-        print("\n⏱️  How much GPS data should be included around each encounter?")
+        # Configure animation parameters
+        print("\n⚙️  Configure encounter animation settings:")
+        
+        # 1. Time buffer for GPS data
         time_buffer = ui.get_user_input(
-            "Time buffer in hours (before/after encounter)", 
-            "1.0", 
+            "Time buffer in hours (GPS data before/after encounter)", 
+            "2.0", 
             float
         )
+        
+        # 2. Trail length configuration
+        print("\n🎭 Trail Configuration:")
+        print("Trail length determines how long the flight path remains visible")
+        trail_length = ui.get_user_input(
+            "Trail length in hours (how long paths stay visible)", 
+            "2.0", 
+            float
+        )
+        
+        # 3. Time step configuration  
+        print("\n⏱️  Animation Time Step:")
+        print("Smaller values = smoother animation, larger values = faster processing")
+        print("Options: 1s, 5s, 10s, 30s, 1m, 2m, 5m, 10m, 30m, 1h")
+        time_step_input = ui.get_user_input(
+            "Time step for animation (e.g., '1m', '30s', '5m')", 
+            "1m", 
+            str
+        ).strip().lower()
+        
+        # Convert time step to seconds
+        time_step_seconds = parse_time_step(time_step_input)
+        if time_step_seconds is None:
+            ui.print_warning("Invalid time step, using default 1 minute (60s)")
+            time_step_seconds = 60
+        
+        # Performance warning for large datasets
+        if len(encounters) > 10:
+            print(f"\n⚠️  Performance Note: Processing {len(encounters)} encounters")
+            print("This may take some time. Consider using larger time steps for faster processing.")
+            
+            # Option to limit encounters for testing
+            limit_encounters = ui.get_user_input(
+                "Limit to first N encounters? (0 = process all)", 
+                "0", 
+                int
+            )
+            
+            if limit_encounters > 0 and limit_encounters < len(encounters):
+                encounters = encounters[:limit_encounters]
+                ui.print_info(f"Limited to first {limit_encounters} encounters for faster processing")
         
         animated_count = 0
         
@@ -166,9 +209,9 @@ def create_encounter_animations(events, gps_data, ui):
                 animator.dataframes = encounter_data
                 animator.combined_data = pd.concat(encounter_data, ignore_index=True)
                 
-                # Configure for encounter animation
-                animator.selected_time_step = 30  # 30 second intervals for detail
-                animator.trail_system.trail_length_minutes = 10  # 10 minute trails
+                # Configure for encounter animation with user settings
+                animator.selected_time_step = time_step_seconds
+                animator.trail_system.trail_length_minutes = trail_length * 60  # Convert hours to minutes
                 
                 # Create the visualization
                 success = animator.create_visualization()
@@ -181,6 +224,10 @@ def create_encounter_animations(events, gps_data, ui):
                 else:
                     ui.print_warning(f"Failed to animate encounter {i}")
                     
+            except KeyboardInterrupt:
+                ui.print_warning(f"\n⚠️  Animation interrupted by user at encounter {i}")
+                ui.print_info(f"Successfully created {animated_count} animations before interruption")
+                return animated_count > 0
             except Exception as e:
                 ui.print_error(f"Error animating encounter {i}: {e}")
                 continue
@@ -195,6 +242,39 @@ def create_encounter_animations(events, gps_data, ui):
     except Exception as e:
         ui.print_error(f"Encounter animation failed: {e}")
         return False
+
+
+def parse_time_step(time_step_str):
+    """
+    Parse time step string into seconds
+    
+    Args:
+        time_step_str: String like '1m', '30s', '5m', '1h'
+        
+    Returns:
+        int: Time step in seconds, or None if invalid
+    """
+    time_step_str = time_step_str.strip().lower()
+    
+    # Extract number and unit
+    import re
+    match = re.match(r'^(\d+(?:\.\d+)?)\s*([smh]?)$', time_step_str)
+    
+    if not match:
+        return None
+    
+    value = float(match.group(1))
+    unit = match.group(2) or 's'  # Default to seconds if no unit
+    
+    # Convert to seconds
+    if unit == 's':
+        return int(value)
+    elif unit == 'm':
+        return int(value * 60)
+    elif unit == 'h':
+        return int(value * 3600)
+    
+    return None
 
 
 def group_proximity_events(events, gap_threshold_minutes=60):
