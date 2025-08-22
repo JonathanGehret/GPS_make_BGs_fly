@@ -138,7 +138,15 @@ class Animation3DEngine:
             self._apply_3d_layout(fig, df, animation_type)
             
             # Save visualization
-            filename = '3d_flight_animation' if animation_type == 'full' else '3d_flight_paths'
+            vulture_ids = df['vulture_id'].unique()
+            # Generate filename with bird names
+            if len(vulture_ids) <= 3:
+                birds_filename = "_".join(sorted(vulture_ids))
+            else:
+                birds_filename = f"{'_'.join(sorted(vulture_ids)[:3])}_and_{len(vulture_ids)-3}_more"
+            
+            base_filename = '3d_flight_animation' if animation_type == 'full' else '3d_flight_paths'
+            filename = f'{base_filename}_{birds_filename}'
             output_path = get_numbered_output_path(filename)
             fig.write_html(output_path)
             
@@ -207,6 +215,7 @@ class Animation3DEngine:
                     name=vulture_id,
                     line=dict(color=colors[i], width=self.line_width),
                     marker=dict(color=colors[i], size=self.marker_size),
+                    showlegend=True,  # Ensure all birds always show in legend
                     hovertemplate=(
                         f"<b>{vulture_id}</b><br>"
                         "Time: %{customdata[0]}<br>"

@@ -711,8 +711,11 @@ class ProximityAnalysisGUI:
                     animator.selected_time_step = time_step_seconds
                     animator.trail_system.trail_length_minutes = self.trail_length.get() * 60
                     
+                    # Create encounter-specific filename
+                    base_name = f'encounter_{i}'
+                    
                     # Create the visualization
-                    success = animator.create_visualization()
+                    success = animator.create_visualization(base_name=base_name)
                     
                     if success:
                         animated_count += 1

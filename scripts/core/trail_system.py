@@ -128,9 +128,24 @@ class TrailSystem:
         
         return frames
     
-    def get_output_filename(self, base_name: str = 'live_map_animation') -> str:
-        """Generate appropriate filename based on trail configuration"""
+    def get_output_filename(self, base_name: str = 'live_map_animation', bird_names: list = None) -> str:
+        """Generate appropriate filename based on trail configuration and bird names"""
+        filename = base_name
+        
+        # Add bird names to filename if provided
+        if bird_names and len(bird_names) > 0:
+            # Sort bird names for consistent ordering
+            sorted_birds = sorted(bird_names)
+            if len(sorted_birds) <= 3:
+                # Include all bird names if 3 or fewer
+                birds_str = "_".join(sorted_birds)
+            else:
+                # Include first 3 birds + count if more
+                birds_str = "_".join(sorted_birds[:3]) + f"_and_{len(sorted_birds)-3}_more"
+            filename = f'{base_name}_{birds_str}'
+        
+        # Add trail configuration
         if self.trail_length_minutes is not None:
-            return f'{base_name}_trail_{self.trail_length_minutes}m'
+            return f'{filename}_trail_{self.trail_length_minutes}m'
         else:
-            return f'{base_name}_full_path'
+            return f'{filename}_full_path'

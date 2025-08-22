@@ -60,6 +60,13 @@ class ProximityVisualizer:
         """Create timeline visualization of proximity events"""
         print("   📅 Creating timeline visualization...")
         
+        # Get all unique vulture names from events
+        all_vultures = set()
+        for event in events:
+            all_vultures.add(event.vulture1)
+            all_vultures.add(event.vulture2)
+        all_vultures = sorted(list(all_vultures))
+        
         # Prepare data for timeline
         timeline_data = []
         for event in events:
@@ -101,13 +108,22 @@ class ProximityVisualizer:
             title_font_size=16
         )
         
-        output_path = get_numbered_output_path('proximity_timeline')
+        # Generate filename with bird names
+        birds_filename = "_".join(all_vultures) if len(all_vultures) <= 3 else f"{'_'.join(all_vultures[:3])}_and_{len(all_vultures)-3}_more"
+        output_path = get_numbered_output_path(f'proximity_timeline_{birds_filename}')
         fig.write_html(output_path)
         print(f"      💾 Timeline saved to: {output_path}")
     
     def _create_map_visualization(self, events: List[ProximityEvent]) -> None:
         """Create map visualization of proximity events"""
         print("   🗺️  Creating map visualization...")
+        
+        # Get all unique vulture names from events
+        all_vultures = set()
+        for event in events:
+            all_vultures.add(event.vulture1)
+            all_vultures.add(event.vulture2)
+        all_vultures = sorted(list(all_vultures))
         
         # Prepare map data - create midpoints between vultures
         map_data = []
@@ -147,7 +163,9 @@ class ProximityVisualizer:
             font=dict(size=12)
         )
         
-        output_path = get_numbered_output_path('proximity_map')
+        # Generate filename with bird names
+        birds_filename = "_".join(all_vultures) if len(all_vultures) <= 3 else f"{'_'.join(all_vultures[:3])}_and_{len(all_vultures)-3}_more"
+        output_path = get_numbered_output_path(f'proximity_map_{birds_filename}')
         fig.write_html(output_path)
         print(f"      💾 Map saved to: {output_path}")
     
@@ -155,6 +173,13 @@ class ProximityVisualizer:
                          statistics: ProximityStatistics) -> None:
         """Create comprehensive dashboard visualization"""
         print("   📊 Creating analysis dashboard...")
+        
+        # Get all unique vulture names from events
+        all_vultures = set()
+        for event in events:
+            all_vultures.add(event.vulture1)
+            all_vultures.add(event.vulture2)
+        all_vultures = sorted(list(all_vultures))
         
         # Prepare events dataframe
         events_data = []
@@ -265,7 +290,9 @@ class ProximityVisualizer:
             font=dict(size=10)
         )
         
-        output_path = get_numbered_output_path('proximity_dashboard')
+        # Generate filename with bird names
+        birds_filename = "_".join(all_vultures) if len(all_vultures) <= 3 else f"{'_'.join(all_vultures[:3])}_and_{len(all_vultures)-3}_more"
+        output_path = get_numbered_output_path(f'proximity_dashboard_{birds_filename}')
         fig.write_html(output_path)
         print(f"      💾 Dashboard saved to: {output_path}")
     

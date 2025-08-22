@@ -74,7 +74,14 @@ class MobileAnimationEngine:
             self._apply_mobile_layout(fig, df)
             
             # Save visualization
-            output_path = get_numbered_output_path('mobile_live_map')
+            vulture_ids = df['vulture_id'].unique()
+            # Generate filename with bird names
+            if len(vulture_ids) <= 3:
+                birds_filename = "_".join(sorted(vulture_ids))
+            else:
+                birds_filename = f"{'_'.join(sorted(vulture_ids)[:3])}_and_{len(vulture_ids)-3}_more"
+            
+            output_path = get_numbered_output_path(f'mobile_live_map_{birds_filename}')
             fig.write_html(output_path)
             
             print(f"📱 Mobile visualization saved: {output_path}")
@@ -116,6 +123,7 @@ class MobileAnimationEngine:
                     name=vulture_id,
                     line=dict(color=color_map[vulture_id], width=4),  # Thicker for mobile
                     marker=dict(color=color_map[vulture_id], size=self.mobile_marker_size),
+                    showlegend=True,  # Ensure all birds always show in legend
                     hovertemplate=(
                         f"<b>{vulture_id}</b><br>"
                         "Time: %{customdata[0]}<br>"

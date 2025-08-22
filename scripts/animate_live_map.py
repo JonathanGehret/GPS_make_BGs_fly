@@ -232,7 +232,7 @@ class LiveMapAnimator:
             self.ui.print_error(f"Failed to process data: {e}")
             return False
     
-    def create_visualization(self) -> bool:
+    def create_visualization(self, base_name: str = 'live_map_animation') -> bool:
         """Create the live map visualization"""
         if self.combined_data is None or len(self.combined_data) == 0:
             return False
@@ -261,7 +261,8 @@ class LiveMapAnimator:
                     go.Scattermap(
                         lat=[], lon=[], mode='lines+markers', name=vulture_id,
                         line=dict(color=color_map[vulture_id], width=3),
-                        marker=dict(color=color_map[vulture_id], size=8)
+                        marker=dict(color=color_map[vulture_id], size=8),
+                        showlegend=True  # Ensure all birds always show in legend
                     )
                 )
             
@@ -300,7 +301,7 @@ class LiveMapAnimator:
             )
             
             # Save visualization
-            filename = self.trail_system.get_output_filename()
+            filename = self.trail_system.get_output_filename(base_name=base_name, bird_names=list(vulture_ids))
             output_path = get_numbered_output_path(filename)
             fig.write_html(output_path)
             

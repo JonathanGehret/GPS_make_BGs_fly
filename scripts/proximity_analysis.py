@@ -213,8 +213,12 @@ def create_encounter_animations(events, gps_data, ui):
                 animator.selected_time_step = time_step_seconds
                 animator.trail_system.trail_length_minutes = trail_length * 60  # Convert hours to minutes
                 
+                # Create encounter-specific filename
+                encounter_vultures = sorted(encounter['vultures'])
+                base_name = f'encounter_{i}'
+                
                 # Create the visualization
-                success = animator.create_visualization()
+                success = animator.create_visualization(base_name=base_name)
                 
                 if success:
                     animated_count += 1
