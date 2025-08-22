@@ -1,0 +1,10 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Vulture Proximity Analysis
+Comment=Analyze GPS tracking data to identify vulture proximity events
+Exec=python3 /home/jonathan/development/GPS_make_BGs_fly/scripts/proximity_analysis_gui.py
+Icon=applications-science
+Terminal=false
+Categories=Science;Education;
+Keywords=GPS;Analysis;Vulture;Proximity;Tracking;
