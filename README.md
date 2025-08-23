@@ -14,20 +14,23 @@ Professional GPS proximity analysis and visualization system for bearded vulture
 
 ## 🚀 Quick Start
 
-### For Non-Technical Users (German Interface)
-1. **Double-click `launch_gui.py`** to start the GUI application
-2. **Select your GPS data folder** in the Data tab
-3. **Configure analysis parameters** in the Analysis tab  
-4. **Enable animations** for encounter mapping (optional)
-5. **Run analysis** and view results
+### Easy Launch (Recommended)
+**Windows Users:**
+- Double-click `GPS_Analysis_Suite.bat`
 
-### For Technical Users
+**Linux/Mac Users:**
+- Double-click `GPS_Analysis_Suite.sh` or `GPS_Analysis_Suite.desktop`
+
+**Alternative (All Platforms):**
+- Double-click `main.py` 
+
+### Manual Launch
 ```bash
 # Install minimal required dependencies
 pip install -r requirements.txt
 
-# Run proximity analysis
-python3 scripts/proximity_analysis.py
+# Launch the complete GUI suite
+python3 main.py
 
 # Launch bilingual GUI application  
 python3 scripts/proximity_analysis_gui.py

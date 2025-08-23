@@ -1,26 +1,57 @@
 #!/usr/bin/env python3
 """
-Main GPS Analysis Launcher
-Entry point for the GPS Analysis Suite
+GPS Analysis Suite - Main Launcher
+
+🦅 Bearded Vulture GPS Analysis Suite
+Double-click this file to launch the complete GPS analysis application.
+
+Features:
+- 2D Live Map Visualization
+- 3D Terrain Visualization  
+- Proximity Analysis
+- Bilingual Interface (German/English)
 """
 
-import subprocess
 import sys
 import os
+import subprocess
 
 def main():
-    """Launch the main GPS analysis mode selector"""
-    script_path = os.path.join(os.path.dirname(__file__), "gui", "analysis_mode_selector.py")
-    
-    if not os.path.exists(script_path):
-        print(f"Error: Main GUI not found at {script_path}")
-        return 1
-    
+    """Launch the GPS Analysis Suite"""
     try:
-        subprocess.run([sys.executable, script_path])
+        # Get the directory containing this script
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        gui_script = os.path.join(script_dir, 'gui', 'analysis_mode_selector.py')
+        
+        # Check if GUI script exists
+        if not os.path.exists(gui_script):
+            print("❌ Error: Main GUI script not found!")
+            print(f"Looking for: {gui_script}")
+            print("\n🔧 Please ensure all project files are present.")
+            input("Press Enter to exit...")
+            return 1
+        
+        print("🦅 Launching GPS Analysis Suite...")
+        print("📁 Loading application...")
+        
+        # Launch the GUI
+        if sys.platform.startswith('win'):
+            # Windows - create new console window
+            subprocess.run([sys.executable, gui_script], creationflags=subprocess.CREATE_NEW_CONSOLE)
+        else:
+            # Linux/Mac
+            subprocess.run([sys.executable, gui_script])
+            
         return 0
+        
     except Exception as e:
-        print(f"Error launching GPS Analysis Suite: {str(e)}")
+        print(f"❌ Failed to launch GPS Analysis Suite: {e}")
+        print("\n🔧 Troubleshooting:")
+        print("1. Make sure Python 3.8+ is installed")
+        print("2. Make sure you're in the GPS_make_BGs_fly directory")
+        print("3. Check that all required files are present")
+        print("4. Try running: python3 main.py")
+        input("\nPress Enter to exit...")
         return 1
 
 if __name__ == "__main__":

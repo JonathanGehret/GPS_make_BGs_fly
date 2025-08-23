@@ -1,0 +1,12 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=GPS Analysis Suite
+Comment=Bearded Vulture GPS Tracking Analysis Suite
+GenericName=GPS Analysis
+Exec=sh -c 'cd "%k/.." && python3 main.py'
+Icon=applications-science
+Terminal=true
+Categories=Science;Geography;DataVisualization;
+Keywords=GPS;tracking;vulture;analysis;visualization;
+StartupNotify=true
