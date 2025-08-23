@@ -23,7 +23,7 @@ class LiveMap2DGUI:
     def __init__(self):
         self.root = tk.Tk()
         self.root.title("2D Live Map - Configuration")
-        self.root.geometry("750x600")
+        self.root.geometry("700x550")  # Reduced size
         self.root.resizable(True, True)
         
         # Language setting
@@ -31,6 +31,7 @@ class LiveMap2DGUI:
         
         # Configuration variables
         self.data_folder = tk.StringVar(value=os.path.join(os.path.dirname(__file__), "..", "data"))
+        self.output_folder = tk.StringVar(value=os.path.join(os.path.dirname(__file__), "..", "visualizations"))
         
         # Animation controls will be created in setup_ui
         self.animation_controls = None
@@ -44,93 +45,128 @@ class LiveMap2DGUI:
         style = ttk.Style()
         style.theme_use('clam')
         
-        # Main frame
-        main_frame = ttk.Frame(self.root, padding="20")
+        # Main frame with scrollable content
+        main_frame = ttk.Frame(self.root, padding="15")  # Reduced padding
         main_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
         
         # Configure grid weights
         self.root.columnconfigure(0, weight=1)
         self.root.rowconfigure(0, weight=1)
         main_frame.columnconfigure(0, weight=1)
-        main_frame.rowconfigure(2, weight=1)
         
-        # Title and language
-        header_frame = ttk.Frame(main_frame)
-        header_frame.grid(row=0, column=0, sticky=(tk.W, tk.E), pady=(0, 20))
+        # Create a scrollable frame
+        canvas = tk.Canvas(main_frame)
+        scrollbar = ttk.Scrollbar(main_frame, orient="vertical", command=canvas.yview)
+        scrollable_frame = ttk.Frame(canvas)
+        
+        scrollable_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        )
+        
+        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+        
+        # Title and language (more compact)
+        header_frame = ttk.Frame(scrollable_frame)
+        header_frame.grid(row=0, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
         header_frame.columnconfigure(0, weight=1)
         
         # Title
-        title_label = ttk.Label(header_frame, text="🗺️ 2D Live Map Configuration", 
-                               font=("Arial", 16, "bold"))
+        title_label = ttk.Label(header_frame, text="🗺️ 2D Live Map", 
+                               font=("Arial", 14, "bold"))  # Smaller font
         title_label.grid(row=0, column=0, sticky=tk.W)
         
         # Language selection
         lang_frame = ttk.Frame(header_frame)
         lang_frame.grid(row=0, column=1, sticky=tk.E)
         
-        ttk.Label(lang_frame, text="🌐 Language/Sprache:").grid(row=0, column=0, padx=(0, 5))
+        ttk.Label(lang_frame, text="🌐", font=("Arial", 12)).grid(row=0, column=0, padx=(0, 3))
         
         self.lang_var = tk.StringVar(value="en")
         lang_combo = ttk.Combobox(lang_frame, textvariable=self.lang_var, 
-                                 values=["en", "de"], state="readonly", width=8)
+                                 values=["en", "de"], state="readonly", width=6)
         lang_combo.grid(row=0, column=1)
         lang_combo.bind("<<ComboboxSelected>>", self.change_language)
         
-        # Data folder selection
-        data_frame = ttk.LabelFrame(main_frame, text="📁 GPS Data", padding="15")
-        data_frame.grid(row=1, column=0, sticky=(tk.W, tk.E), pady=(0, 20))
-        data_frame.columnconfigure(1, weight=1)
+        # Data and Output folders (compact)
+        folders_frame = ttk.LabelFrame(scrollable_frame, text="📁 Folders", padding="10")
+        folders_frame.grid(row=1, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
+        folders_frame.columnconfigure(1, weight=1)
         
-        ttk.Label(data_frame, text="Data Directory:").grid(row=0, column=0, sticky=tk.W, pady=5)
-        ttk.Entry(data_frame, textvariable=self.data_folder, width=50).grid(row=0, column=1, sticky=(tk.W, tk.E), pady=5, padx=(10, 5))
-        ttk.Button(data_frame, text="📁 Browse", command=self.browse_data_folder).grid(row=0, column=2, pady=5)
+        # Data folder
+        ttk.Label(folders_frame, text="Data:").grid(row=0, column=0, sticky=tk.W, pady=2)
+        ttk.Entry(folders_frame, textvariable=self.data_folder, width=40).grid(row=0, column=1, sticky=(tk.W, tk.E), pady=2, padx=(5, 3))
+        ttk.Button(folders_frame, text="📁", command=self.browse_data_folder, width=3).grid(row=0, column=2, pady=2)
         
-        # Data preview
-        self.data_preview = scrolledtext.ScrolledText(data_frame, height=4, width=70)
-        self.data_preview.grid(row=1, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=(10, 5))
+        # Output folder
+        ttk.Label(folders_frame, text="Output:").grid(row=1, column=0, sticky=tk.W, pady=2)
+        ttk.Entry(folders_frame, textvariable=self.output_folder, width=40).grid(row=1, column=1, sticky=(tk.W, tk.E), pady=2, padx=(5, 3))
+        ttk.Button(folders_frame, text="📁", command=self.browse_output_folder, width=3).grid(row=1, column=2, pady=2)
         
-        ttk.Button(data_frame, text="🔄 Refresh Preview", 
-                  command=self.refresh_data_preview).grid(row=2, column=0, pady=(5, 0))
+        # Data preview (smaller)
+        preview_frame = ttk.LabelFrame(scrollable_frame, text="📊 Data Preview", padding="8")
+        preview_frame.grid(row=2, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
+        preview_frame.columnconfigure(0, weight=1)
         
-        # Animation controls frame (using the shared component)
-        animation_outer_frame = ttk.LabelFrame(main_frame, text="🎬 Animation Settings", padding="15")
-        animation_outer_frame.grid(row=2, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), pady=(0, 20))
-        animation_outer_frame.columnconfigure(0, weight=1)
+        self.data_preview = tk.Text(preview_frame, height=3, width=60, wrap=tk.WORD, font=("Arial", 8))
+        self.data_preview.grid(row=0, column=0, sticky=(tk.W, tk.E), pady=(0, 5))
+        
+        ttk.Button(preview_frame, text="🔄 Refresh", 
+                  command=self.refresh_data_preview).grid(row=1, column=0, sticky=tk.W)
+        
+        # Animation controls frame (more compact)
+        animation_frame = ttk.LabelFrame(scrollable_frame, text="🎬 Animation Settings", padding="10")
+        animation_frame.grid(row=3, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
+        animation_frame.columnconfigure(0, weight=1)
         
         # Create the shared animation controls (without time buffer, without encounter limit)
         if AnimationControlsFrame:
             self.animation_controls = AnimationControlsFrame(
-                animation_outer_frame, 
+                animation_frame, 
                 include_time_buffer=False,  # 2D maps don't need time buffer
                 include_encounter_limit=False  # 2D maps don't limit encounters
             )
         else:
             # Fallback: create basic controls manually
-            self.create_fallback_animation_controls(animation_outer_frame)
+            self.create_fallback_animation_controls(animation_frame)
         
-        # Status and buttons
+        # Status and buttons (fixed at bottom)
+        canvas.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        scrollbar.grid(row=0, column=1, sticky=(tk.N, tk.S))
+        
+        # Bottom frame (outside scroll area)
         bottom_frame = ttk.Frame(main_frame)
-        bottom_frame.grid(row=3, column=0, sticky=(tk.W, tk.E))
+        bottom_frame.grid(row=1, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(10, 0))
         bottom_frame.columnconfigure(0, weight=1)
         
         # Status bar
         self.status_var = tk.StringVar(value="Ready / Bereit")
         status_bar = ttk.Label(bottom_frame, textvariable=self.status_var, 
-                              relief=tk.SUNKEN, anchor=tk.W)
-        status_bar.grid(row=0, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=(0, 10))
+                              relief=tk.SUNKEN, anchor=tk.W, font=("Arial", 8))
+        status_bar.grid(row=0, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=(0, 5))
         
         # Buttons
         button_frame = ttk.Frame(bottom_frame)
-        button_frame.grid(row=1, column=0)
+        button_frame.grid(row=1, column=1)
         
-        self.launch_btn = ttk.Button(button_frame, text="🚀 Launch 2D Live Map", 
+        self.launch_btn = ttk.Button(button_frame, text="🚀 Launch 2D Map", 
                                     command=self.launch_map, style="Launch.TButton")
-        self.launch_btn.pack(side=tk.LEFT, padx=(0, 10))
+        self.launch_btn.pack(side=tk.LEFT, padx=(0, 8))
         
         ttk.Button(button_frame, text="❌ Cancel", command=self.root.destroy).pack(side=tk.LEFT)
         
         # Configure button style
-        style.configure("Launch.TButton", font=("Arial", 12, "bold"), padding=10)
+        style.configure("Launch.TButton", font=("Arial", 11, "bold"), padding=8)
+        
+        # Configure scrolling
+        main_frame.rowconfigure(0, weight=1)
+        scrollable_frame.columnconfigure(0, weight=1)
+        
+        # Bind mousewheel to canvas
+        def _on_mousewheel(event):
+            canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+        canvas.bind_all("<MouseWheel>", _on_mousewheel)
         
         # Initial data preview
         self.refresh_data_preview()
@@ -163,6 +199,15 @@ class LiveMap2DGUI:
         if directory:
             self.data_folder.set(directory)
             self.refresh_data_preview()
+    
+    def browse_output_folder(self):
+        """Browse for output directory"""
+        directory = filedialog.askdirectory(
+            title="Select Output Directory" if self.language == "en" else "Ausgabeordner auswählen",
+            initialdir=self.output_folder.get()
+        )
+        if directory:
+            self.output_folder.set(directory)
     
     def refresh_data_preview(self):
         """Refresh the data preview"""
@@ -254,6 +299,16 @@ class LiveMap2DGUI:
                 messagebox.showerror("Error", "Data directory does not exist!")
             return
         
+        # Create output directory if it doesn't exist
+        try:
+            os.makedirs(self.output_folder.get(), exist_ok=True)
+        except Exception as e:
+            if self.language == "de":
+                messagebox.showerror("Fehler", f"Ausgabeordner kann nicht erstellt werden: {e}")
+            else:
+                messagebox.showerror("Error", f"Cannot create output directory: {e}")
+            return
+        
         script_path = os.path.join(os.path.dirname(__file__), "..", "scripts", "animate_live_map.py")
         if not os.path.exists(script_path):
             if self.language == "de":
@@ -276,6 +331,7 @@ class LiveMap2DGUI:
             # Set environment variables for configuration
             env = os.environ.copy()
             env['GPS_DATA_DIR'] = self.data_folder.get()
+            env['OUTPUT_DIR'] = self.output_folder.get()
             env['TRAIL_LENGTH_HOURS'] = str(config['trail_length'])
             env['TIME_STEP'] = config['time_step']
             
@@ -283,9 +339,9 @@ class LiveMap2DGUI:
             subprocess.Popen([sys.executable, script_path], env=env)
             
             if self.language == "de":
-                messagebox.showinfo("Erfolg", "2D Live Karte erfolgreich gestartet!")
+                messagebox.showinfo("Erfolg", f"2D Live Karte gestartet!\nAusgabe: {self.output_folder.get()}")
             else:
-                messagebox.showinfo("Success", "2D Live Map launched successfully!")
+                messagebox.showinfo("Success", f"2D Live Map launched!\nOutput: {self.output_folder.get()}")
             
             self.root.destroy()
             

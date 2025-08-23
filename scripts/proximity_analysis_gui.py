@@ -46,6 +46,7 @@ class ProximityAnalysisGUI:
         
         # Analysis state
         self.data_folder = tk.StringVar(value="data")
+        self.output_folder = tk.StringVar(value="visualizations")
         self.proximity_threshold = tk.DoubleVar(value=2.0)
         self.time_threshold = tk.IntVar(value=5)
         self.generate_animations = tk.BooleanVar(value=False)
@@ -250,19 +251,35 @@ class ProximityAnalysisGUI:
                                        command=self.browse_folder)
         self.browse_button.grid(row=0, column=1)
         
+        # Output folder selection
+        self.output_folder_label = ttk.Label(data_frame, text="Output Folder:", 
+                                           font=('Arial', 11, 'bold'))
+        self.output_folder_label.grid(row=2, column=0, sticky=tk.W, pady=(15, 5))
+        
+        output_folder_frame = ttk.Frame(data_frame)
+        output_folder_frame.grid(row=3, column=0, sticky=(tk.W, tk.E), pady=(0, 15))
+        output_folder_frame.columnconfigure(0, weight=1)
+        
+        self.output_folder_entry = ttk.Entry(output_folder_frame, textvariable=self.output_folder, width=50)
+        self.output_folder_entry.grid(row=0, column=0, sticky=(tk.W, tk.E), padx=(0, 10))
+        
+        self.browse_output_button = ttk.Button(output_folder_frame, text="📁 Browse", 
+                                              command=self.browse_output_folder)
+        self.browse_output_button.grid(row=0, column=1)
+        
         # Data preview
         self.data_preview_label = ttk.Label(data_frame, text=self.translator.t("label_data_preview"), 
                                            font=('Arial', 11, 'bold'))
-        self.data_preview_label.grid(row=2, column=0, sticky=tk.W, pady=(15, 5))
+        self.data_preview_label.grid(row=4, column=0, sticky=tk.W, pady=(15, 5))
         
         self.data_preview = scrolledtext.ScrolledText(data_frame, height=15, width=70)
-        self.data_preview.grid(row=3, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), pady=(0, 10))
-        data_frame.rowconfigure(3, weight=1)
+        self.data_preview.grid(row=5, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), pady=(0, 10))
+        data_frame.rowconfigure(5, weight=1)
         data_frame.columnconfigure(0, weight=1)
         
         self.refresh_button = ttk.Button(data_frame, text=self.translator.t("btn_refresh"), 
                                         command=self.refresh_data_preview)
-        self.refresh_button.grid(row=4, column=0, pady=(10, 0))
+        self.refresh_button.grid(row=6, column=0, pady=(10, 0))
         
     def setup_analysis_tab(self):
         """Setup analysis parameters tab"""
@@ -475,6 +492,13 @@ class ProximityAnalysisGUI:
         if folder:
             self.data_folder.set(folder)
             self.refresh_data_preview()
+    
+    def browse_output_folder(self):
+        """Browse for output folder"""
+        folder = filedialog.askdirectory(title="Select Output Folder", 
+                                        initialdir=self.output_folder.get())
+        if folder:
+            self.output_folder.set(folder)
             
     def refresh_data_preview(self):
         """Refresh the data preview"""

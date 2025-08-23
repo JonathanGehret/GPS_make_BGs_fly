@@ -31,6 +31,7 @@ class Visualization3DGUI:
         
         # Configuration variables
         self.data_folder = tk.StringVar(value=os.path.join(os.path.dirname(__file__), "..", "data"))
+        self.output_folder = tk.StringVar(value=os.path.join(os.path.dirname(__file__), "..", "visualizations"))
         self.terrain_quality = tk.StringVar(value="medium")
         self.show_elevation = tk.BooleanVar(value=True)
         self.show_markers = tk.BooleanVar(value=True)
@@ -42,172 +43,220 @@ class Visualization3DGUI:
         self.center_window()
     
     def setup_ui(self):
-        """Set up the user interface"""
-        # Main frame
-        main_frame = ttk.Frame(self.root, padding="20")
+        """Set up the user interface with animation controls"""
+        # Configure style
+        style = ttk.Style()
+        style.theme_use('clam')
+        
+        # Main frame with scrollable content
+        main_frame = ttk.Frame(self.root, padding="15")  # Reduced padding
         main_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
         
         # Configure grid weights
         self.root.columnconfigure(0, weight=1)
         self.root.rowconfigure(0, weight=1)
-        main_frame.columnconfigure(1, weight=1)
+        main_frame.columnconfigure(0, weight=1)
+        
+        # Create a scrollable frame
+        canvas = tk.Canvas(main_frame)
+        scrollbar = ttk.Scrollbar(main_frame, orient="vertical", command=canvas.yview)
+        scrollable_frame = ttk.Frame(canvas)
+        
+        scrollable_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        )
+        
+        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+        
+        # Title and language (more compact)
+        header_frame = ttk.Frame(scrollable_frame)
+        header_frame.grid(row=0, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
+        header_frame.columnconfigure(0, weight=1)
         
         # Title
-        title_label = ttk.Label(main_frame, text="🎯 3D Visualization Configuration", 
-                               font=("Arial", 16, "bold"))
-        title_label.grid(row=0, column=0, columnspan=3, pady=(0, 20))
+        title_label = ttk.Label(header_frame, text="🎯 3D Visualization", 
+                               font=("Arial", 14, "bold"))  # Smaller font
+        title_label.grid(row=0, column=0, sticky=tk.W)
         
         # Language selection
-        lang_frame = ttk.Frame(main_frame)
-        lang_frame.grid(row=1, column=0, columnspan=3, pady=(0, 20), sticky=(tk.W, tk.E))
+        lang_frame = ttk.Frame(header_frame)
+        lang_frame.grid(row=0, column=1, sticky=tk.E)
         
-        ttk.Label(lang_frame, text="Language / Sprache:").grid(row=0, column=0, padx=(0, 10))
+        ttk.Label(lang_frame, text="🌐", font=("Arial", 12)).grid(row=0, column=0, padx=(0, 3))
         
         self.lang_var = tk.StringVar(value="en")
         lang_combo = ttk.Combobox(lang_frame, textvariable=self.lang_var, 
-                                 values=["en", "de"], state="readonly", width=10)
+                                 values=["en", "de"], state="readonly", width=6)
         lang_combo.grid(row=0, column=1)
         lang_combo.bind("<<ComboboxSelected>>", self.change_language)
         
-        # Configuration section
-        config_frame = ttk.LabelFrame(main_frame, text="Configuration", padding="10")
-        config_frame.grid(row=2, column=0, columnspan=3, pady=10, sticky=(tk.W, tk.E, tk.N, tk.S))
-        config_frame.columnconfigure(1, weight=1)
+        # Data and Output folders (compact)
+        folders_frame = ttk.LabelFrame(scrollable_frame, text="📁 Folders", padding="10")
+        folders_frame.grid(row=1, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
+        folders_frame.columnconfigure(1, weight=1)
         
-        # Data directory selection
-        ttk.Label(config_frame, text="Data Directory:").grid(row=0, column=0, sticky=tk.W, pady=5)
-        ttk.Entry(config_frame, textvariable=self.data_dir, width=50).grid(row=0, column=1, sticky=(tk.W, tk.E), pady=5, padx=(10, 5))
-        ttk.Button(config_frame, text="Browse", command=self.browse_data_dir).grid(row=0, column=2, pady=5)
+        # Data folder
+        ttk.Label(folders_frame, text="Data:").grid(row=0, column=0, sticky=tk.W, pady=2)
+        ttk.Entry(folders_frame, textvariable=self.data_folder, width=40).grid(row=0, column=1, sticky=(tk.W, tk.E), pady=2, padx=(5, 3))
+        ttk.Button(folders_frame, text="📁", command=self.browse_data_folder, width=3).grid(row=0, column=2, pady=2)
+        
+        # Output folder
+        ttk.Label(folders_frame, text="Output:").grid(row=1, column=0, sticky=tk.W, pady=2)
+        ttk.Entry(folders_frame, textvariable=self.output_folder, width=40).grid(row=1, column=1, sticky=(tk.W, tk.E), pady=2, padx=(5, 3))
+        ttk.Button(folders_frame, text="📁", command=self.browse_output_folder, width=3).grid(row=1, column=2, pady=2)
+        
+        # 3D Settings
+        settings_frame = ttk.LabelFrame(scrollable_frame, text="🎯 3D Settings", padding="10")
+        settings_frame.grid(row=2, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
+        settings_frame.columnconfigure(1, weight=1)
         
         # Terrain quality
-        ttk.Label(config_frame, text="Terrain Quality:").grid(row=1, column=0, sticky=tk.W, pady=5)
-        quality_combo = ttk.Combobox(config_frame, textvariable=self.terrain_quality, 
-                                   values=["low", "medium", "high"], state="readonly")
-        quality_combo.grid(row=1, column=1, sticky=(tk.W, tk.E), pady=5, padx=(10, 0))
-        
-        # Animation speed
-        ttk.Label(config_frame, text="Animation Speed (ms):").grid(row=2, column=0, sticky=tk.W, pady=5)
-        speed_frame = ttk.Frame(config_frame)
-        speed_frame.grid(row=2, column=1, sticky=(tk.W, tk.E), pady=5, padx=(10, 0))
-        ttk.Scale(speed_frame, from_=50, to=500, variable=self.animation_speed, orient=tk.HORIZONTAL).pack(side=tk.LEFT, fill=tk.X, expand=True)
-        ttk.Label(speed_frame, textvariable=self.animation_speed).pack(side=tk.RIGHT, padx=(10, 0))
+        ttk.Label(settings_frame, text="Terrain Quality:").grid(row=0, column=0, sticky=tk.W, pady=2)
+        quality_combo = ttk.Combobox(settings_frame, textvariable=self.terrain_quality, 
+                                   values=["low", "medium", "high"], state="readonly", width=15)
+        quality_combo.grid(row=0, column=1, sticky=tk.W, padx=(5, 0), pady=2)
         
         # Options
-        options_frame = ttk.LabelFrame(config_frame, text="Options", padding="5")
-        options_frame.grid(row=3, column=0, columnspan=3, pady=10, sticky=(tk.W, tk.E))
+        options_frame = ttk.LabelFrame(scrollable_frame, text="🔧 Display Options", padding="10")
+        options_frame.grid(row=3, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
         
-        ttk.Checkbutton(options_frame, text="Show Elevation Data", variable=self.show_elevation).grid(row=0, column=0, sticky=tk.W, pady=2)
-        ttk.Checkbutton(options_frame, text="Show Position Markers", variable=self.show_markers).grid(row=1, column=0, sticky=tk.W, pady=2)
+        ttk.Checkbutton(options_frame, text="Show Elevation Data", 
+                       variable=self.show_elevation).grid(row=0, column=0, sticky=tk.W, pady=2)
+        ttk.Checkbutton(options_frame, text="Show Position Markers", 
+                       variable=self.show_markers).grid(row=1, column=0, sticky=tk.W, pady=2)
         
-        # Description
-        desc_frame = ttk.LabelFrame(main_frame, text="Description", padding="10")
-        desc_frame.grid(row=3, column=0, columnspan=3, pady=10, sticky=(tk.W, tk.E, tk.N, tk.S))
+        # Animation controls frame (more compact)
+        animation_frame = ttk.LabelFrame(scrollable_frame, text="🎬 Animation Settings", padding="10")
+        animation_frame.grid(row=4, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
+        animation_frame.columnconfigure(0, weight=1)
         
-        self.desc_text = tk.Text(desc_frame, height=7, wrap=tk.WORD, state=tk.DISABLED)
-        self.desc_text.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
-        desc_frame.columnconfigure(0, weight=1)
-        desc_frame.rowconfigure(0, weight=1)
+        # Create the shared animation controls (without time buffer, without encounter limit)
+        if AnimationControlsFrame:
+            self.animation_controls = AnimationControlsFrame(
+                animation_frame, 
+                include_time_buffer=False,  # 3D visualization don't need time buffer
+                include_encounter_limit=False  # 3D visualization don't limit encounters
+            )
+        else:
+            # Fallback: create basic controls manually
+            self.create_fallback_animation_controls(animation_frame)
         
-        # Scrollbar for description
-        desc_scroll = ttk.Scrollbar(desc_frame, orient=tk.VERTICAL, command=self.desc_text.yview)
-        desc_scroll.grid(row=0, column=1, sticky=(tk.N, tk.S))
-        self.desc_text.configure(yscrollcommand=desc_scroll.set)
+        # Canvas and scrollbar setup
+        canvas.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        scrollbar.grid(row=0, column=1, sticky=(tk.N, tk.S))
+        
+        # Bottom frame (outside scroll area)
+        bottom_frame = ttk.Frame(main_frame)
+        bottom_frame.grid(row=1, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(10, 0))
+        bottom_frame.columnconfigure(0, weight=1)
+        
+        # Status bar
+        self.status_var = tk.StringVar(value="Ready / Bereit")
+        status_bar = ttk.Label(bottom_frame, textvariable=self.status_var, 
+                              relief=tk.SUNKEN, anchor=tk.W, font=("Arial", 8))
+        status_bar.grid(row=0, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=(0, 5))
         
         # Buttons
-        button_frame = ttk.Frame(main_frame)
-        button_frame.grid(row=4, column=0, columnspan=3, pady=20)
+        button_frame = ttk.Frame(bottom_frame)
+        button_frame.grid(row=1, column=1)
         
-        self.launch_btn = ttk.Button(button_frame, text="🚀 Launch 3D Visualization", 
-                                    command=self.launch_visualization, style="Large.TButton")
-        self.launch_btn.pack(side=tk.LEFT, padx=(0, 10))
+        self.launch_btn = ttk.Button(button_frame, text="🚀 Launch 3D Viz", 
+                                    command=self.launch_visualization, style="Launch.TButton")
+        self.launch_btn.pack(side=tk.LEFT, padx=(0, 8))
         
-        ttk.Button(button_frame, text="Cancel", command=self.root.destroy).pack(side=tk.LEFT)
+        ttk.Button(button_frame, text="❌ Cancel", command=self.root.destroy).pack(side=tk.LEFT)
         
         # Configure button style
-        style = ttk.Style()
-        style.configure("Large.TButton", font=("Arial", 11, "bold"), padding=10)
+        style.configure("Launch.TButton", font=("Arial", 11, "bold"), padding=8)
         
-        # Set initial description
-        self.update_description()
+        # Configure scrolling
+        main_frame.rowconfigure(0, weight=1)
+        scrollable_frame.columnconfigure(0, weight=1)
         
-        # Configure grid weights for resizing
-        main_frame.rowconfigure(3, weight=1)
+        # Bind mousewheel to canvas
+        def _on_mousewheel(event):
+            canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+        canvas.bind_all("<MouseWheel>", _on_mousewheel)
+        
+        # Set initial texts
+        self.update_texts()
     
     def change_language(self, event=None):
         """Change the interface language"""
         self.language = self.lang_var.get()
         self.update_texts()
-        self.update_description()
     
     def update_texts(self):
         """Update all texts based on selected language"""
         if self.language == "de":
             self.root.title("3D Visualisierung - Konfiguration")
-            self.launch_btn.config(text="🚀 3D Visualisierung starten")
+            self.launch_btn.config(text="🚀 3D Viz starten")
+            self.status_var.set("Bereit")
         else:
             self.root.title("3D Visualization - Configuration")
-            self.launch_btn.config(text="🚀 Launch 3D Visualization")
+            self.launch_btn.config(text="🚀 Launch 3D Viz")
+            self.status_var.set("Ready")
     
-    def update_description(self):
-        """Update the description text"""
-        if self.language == "de":
-            description = """🎯 3D Terrain Visualisierung
-
-Diese Anwendung erstellt eine immersive 3D-Visualisierung von Geierflugpfaden mit realen Geländedaten.
-
-Funktionen:
-• 3D-Flugpfad-Visualisierung mit Höhendaten
-• Realistische Geländedarstellung
-• Interaktive 3D-Navigation (Zoomen, Drehen, Neigen)
-• Konfigurierbare Geländequalität
-• Animierte Flugsequenzen
-• Höhenprofile und Positionsmarker
-
-Konfiguration:
-• Datenverzeichnis: Ordner mit GPS CSV-Dateien
-• Geländequalität: Low/Medium/High (beeinflusst Ladezeit)
-• Animationsgeschwindigkeit: Verzögerung zwischen Frames
-• Optionen: Höhendaten und Positionsmarker ein-/ausschalten
-
-Systemanforderungen:
-• WebGL-fähiger Browser für optimale Darstellung
-• Internetverbindung für Geländedaten"""
-        else:
-            description = """🎯 3D Terrain Visualization
-
-This application creates an immersive 3D visualization of vulture flight paths with real terrain data.
-
-Features:
-• 3D flight path visualization with elevation data
-• Realistic terrain rendering
-• Interactive 3D navigation (zoom, rotate, tilt)
-• Configurable terrain quality
-• Animated flight sequences
-• Elevation profiles and position markers
-
-Configuration:
-• Data Directory: Folder containing GPS CSV files
-• Terrain Quality: Low/Medium/High (affects loading time)
-• Animation Speed: Delay between frames in milliseconds
-• Options: Toggle elevation data and position markers
-
-System Requirements:
-• WebGL-capable browser for optimal rendering
-• Internet connection for terrain data"""
-        
-        self.desc_text.config(state=tk.NORMAL)
-        self.desc_text.delete(1.0, tk.END)
-        self.desc_text.insert(1.0, description)
-        self.desc_text.config(state=tk.DISABLED)
-    
-    def browse_data_dir(self):
+    def browse_data_folder(self):
         """Browse for data directory"""
         directory = filedialog.askdirectory(
             title="Select GPS Data Directory" if self.language == "en" else "GPS-Datenverzeichnis auswählen",
-            initialdir=self.data_dir.get()
+            initialdir=self.data_folder.get()
         )
         if directory:
-            self.data_dir.set(directory)
+            self.data_folder.set(directory)
+    
+    def browse_output_folder(self):
+        """Browse for output directory"""
+        directory = filedialog.askdirectory(
+            title="Select Output Directory" if self.language == "en" else "Ausgabeordner auswählen",
+            initialdir=self.output_folder.get()
+        )
+        if directory:
+            self.output_folder.set(directory)
+    
+    def create_fallback_animation_controls(self, parent_frame):
+        """Create simple animation controls if shared component not available"""
+        # Simple fallback variables
+        self.trail_length = tk.DoubleVar(value=2.0)
+        self.time_step = tk.StringVar(value="1m")
+        
+        # Trail length
+        ttk.Label(parent_frame, text="Trail Length (hours):").grid(row=0, column=0, sticky=tk.W, pady=10)
+        trail_scale = ttk.Scale(parent_frame, from_=0.1, to=6.0, 
+                               variable=self.trail_length, orient=tk.HORIZONTAL)
+        trail_scale.grid(row=0, column=1, sticky=(tk.W, tk.E), padx=(10, 10), pady=10)
+        self.trail_label = ttk.Label(parent_frame, text="2.0 hours")
+        self.trail_label.grid(row=0, column=2, pady=10)
+        trail_scale.configure(command=self.update_trail_label_fallback)
+        
+        # Time step
+        ttk.Label(parent_frame, text="Time Step:").grid(row=1, column=0, sticky=tk.W, pady=10)
+        time_step_combo = ttk.Combobox(parent_frame, textvariable=self.time_step, 
+                                      values=['1s', '5s', '10s', '30s', '1m', '2m', '5m', '10m', '30m', '1h'],
+                                      state='readonly', width=10)
+        time_step_combo.grid(row=1, column=1, sticky=tk.W, padx=(10, 0), pady=10)
+        
+        parent_frame.columnconfigure(1, weight=1)
+        
+        # Create a simple config object for compatibility
+        class SimpleConfig:
+            def get_config(self):
+                return {
+                    'trail_length': self.trail_length.get(),
+                    'time_step': self.time_step.get()
+                }
+        
+        self.animation_controls = SimpleConfig()
+        self.animation_controls.trail_length = self.trail_length
+        self.animation_controls.time_step = self.time_step
+    
+    def update_trail_label_fallback(self, value):
+        """Update trail length label for fallback controls"""
+        if hasattr(self, 'trail_label'):
+            self.trail_label.config(text=f"{float(value):.1f} hours")
     
     def center_window(self):
         """Center the window on the screen"""
@@ -220,11 +269,21 @@ System Requirements:
     
     def launch_visualization(self):
         """Launch the 3D visualization with configuration"""
-        if not os.path.exists(self.data_dir.get()):
+        if not os.path.exists(self.data_folder.get()):
             if self.language == "de":
                 messagebox.showerror("Fehler", "Datenverzeichnis existiert nicht!")
             else:
                 messagebox.showerror("Error", "Data directory does not exist!")
+            return
+        
+        # Create output directory if it doesn't exist
+        try:
+            os.makedirs(self.output_folder.get(), exist_ok=True)
+        except Exception as e:
+            if self.language == "de":
+                messagebox.showerror("Fehler", f"Ausgabeordner kann nicht erstellt werden: {e}")
+            else:
+                messagebox.showerror("Error", f"Cannot create output directory: {e}")
             return
         
         script_path = os.path.join(os.path.dirname(__file__), "..", "scripts", "animation_3d.py")
@@ -236,11 +295,23 @@ System Requirements:
             return
         
         try:
+            # Get animation configuration
+            if hasattr(self.animation_controls, 'get_config'):
+                config = self.animation_controls.get_config()
+            else:
+                # Fallback for simple config
+                config = {
+                    'trail_length': self.trail_length.get(),
+                    'time_step': self.time_step.get()
+                }
+            
             # Set environment variables for configuration
             env = os.environ.copy()
-            env['GPS_DATA_DIR'] = self.data_dir.get()
+            env['GPS_DATA_DIR'] = self.data_folder.get()
+            env['OUTPUT_DIR'] = self.output_folder.get()
             env['TERRAIN_QUALITY'] = self.terrain_quality.get()
-            env['ANIMATION_SPEED'] = str(self.animation_speed.get())
+            env['TRAIL_LENGTH_HOURS'] = str(config['trail_length'])
+            env['TIME_STEP'] = config['time_step']
             env['SHOW_ELEVATION'] = str(self.show_elevation.get())
             env['SHOW_MARKERS'] = str(self.show_markers.get())
             
@@ -248,9 +319,9 @@ System Requirements:
             subprocess.Popen([sys.executable, script_path], env=env)
             
             if self.language == "de":
-                messagebox.showinfo("Erfolg", "3D Visualisierung erfolgreich gestartet!")
+                messagebox.showinfo("Erfolg", f"3D Visualisierung gestartet!\nAusgabe: {self.output_folder.get()}")
             else:
-                messagebox.showinfo("Success", "3D Visualization launched successfully!")
+                messagebox.showinfo("Success", f"3D Visualization launched!\nOutput: {self.output_folder.get()}")
             
             self.root.destroy()
             
