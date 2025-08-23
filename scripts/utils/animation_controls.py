@@ -156,6 +156,9 @@ class AnimationControlsFrame:
                                           font=('Arial', 9), foreground='blue')
         self.point_count_label.grid(row=1, column=0, columnspan=2, sticky=tk.W, pady=(5, 10))
         
+        # Initial point count calculation
+        self.after_widget_creation()
+        
         ttk.Label(step_frame, text="Quality Guide:", font=('Arial', 9, 'italic')).grid(
             row=2, column=0, columnspan=2, sticky=tk.W, pady=(10, 5))
         ttk.Label(step_frame, text="• 1s-30s: Ultra-smooth (slower processing)", 
@@ -181,6 +184,13 @@ class AnimationControlsFrame:
             perf_frame.columnconfigure(1, weight=1)
         
         animation_frame.columnconfigure(0, weight=1)
+    
+    def after_widget_creation(self):
+        """Called after widget creation to trigger initial calculations"""
+        # Schedule initial point count calculation
+        if self.point_count_label:
+            # Use after_idle to ensure all widgets are properly created
+            self.point_count_label.after_idle(self.update_point_count)
     
     def update_buffer_label(self, value):
         """Update time buffer label"""

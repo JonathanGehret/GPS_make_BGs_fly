@@ -19,6 +19,11 @@ import pandas as pd
 # Add the scripts directory to the Python path
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
+try:
+    from utils.animation_controls import AnimationControlsFrame
+except ImportError:
+    AnimationControlsFrame = None  # Fallback if import fails
+
 from gps_utils import DataLoader
 from core.proximity_engine import ProximityEngine
 from visualization.proximity_plots import ProximityVisualizer
@@ -338,70 +343,60 @@ class ProximityAnalysisGUI:
         analysis_frame.columnconfigure(0, weight=1)
         
     def setup_animation_tab(self):
-        """Setup animation parameters tab"""
+        """Setup animation parameters tab using shared controls"""
         animation_frame = ttk.Frame(self.notebook, padding="20")
         self.notebook.add(animation_frame, text="🎬 Animation")
         
-        # Animation settings
+        # Animation settings header
         ttk.Label(animation_frame, text="Animation Configuration:", 
                  font=('Arial', 11, 'bold')).grid(row=0, column=0, sticky=tk.W, pady=(0, 15))
         
-        # Time buffer
-        buffer_frame = ttk.LabelFrame(animation_frame, text="Data Range", padding="15")
-        buffer_frame.grid(row=1, column=0, sticky=(tk.W, tk.E), pady=(0, 15))
+        # Create shared animation controls with all options
+        if AnimationControlsFrame:
+            self.animation_controls = AnimationControlsFrame(
+                animation_frame, 
+                include_time_buffer=True,  # Proximity analysis needs time buffer
+                include_encounter_limit=True,  # Proximity analysis needs encounter limiting
+                data_folder=self.data_folder  # Pass data folder for point count calculations
+            )
+            
+            # Set initial values to match our variables
+            self.animation_controls.time_buffer.set(self.time_buffer.get())
+            self.animation_controls.trail_length.set(self.trail_length.get())
+            self.animation_controls.time_step.set(self.time_step.get())
+            self.animation_controls.limit_encounters.set(self.limit_encounters.get())
+            
+            # Create bindings to keep our variables synchronized
+            self.animation_controls.time_buffer.trace('w', self._sync_time_buffer)
+            self.animation_controls.trail_length.trace('w', self._sync_trail_length)
+            self.animation_controls.time_step.trace('w', self._sync_time_step)
+            self.animation_controls.limit_encounters.trace('w', self._sync_limit_encounters)
+            
+        else:
+            # Fallback: create basic controls manually if import failed
+            self.create_fallback_animation_controls(animation_frame)
         
-        ttk.Label(buffer_frame, text="Time Buffer (hours):").grid(row=0, column=0, sticky=tk.W, pady=(0, 10))
-        buffer_scale = ttk.Scale(buffer_frame, from_=0.5, to=12.0, 
-                                variable=self.time_buffer, orient=tk.HORIZONTAL)
-        buffer_scale.grid(row=0, column=1, sticky=(tk.W, tk.E), padx=(10, 10), pady=(0, 10))
-        self.buffer_label = ttk.Label(buffer_frame, text="2.0 hours")
-        self.buffer_label.grid(row=0, column=2, pady=(0, 10))
-        buffer_scale.configure(command=self.update_buffer_label)
-        
-        # Trail length
-        ttk.Label(buffer_frame, text="Trail Length (hours):").grid(row=1, column=0, sticky=tk.W)
-        trail_scale = ttk.Scale(buffer_frame, from_=0.1, to=6.0, 
-                               variable=self.trail_length, orient=tk.HORIZONTAL)
-        trail_scale.grid(row=1, column=1, sticky=(tk.W, tk.E), padx=(10, 10))
-        self.trail_label = ttk.Label(buffer_frame, text="2.0 hours")
-        self.trail_label.grid(row=1, column=2)
-        trail_scale.configure(command=self.update_trail_label)
-        
-        buffer_frame.columnconfigure(1, weight=1)
-        
-        # Time step
-        step_frame = ttk.LabelFrame(animation_frame, text="Animation Quality", padding="15")
-        step_frame.grid(row=2, column=0, sticky=(tk.W, tk.E), pady=(0, 15))
-        
-        ttk.Label(step_frame, text="Time Step:").grid(row=0, column=0, sticky=tk.W, pady=(0, 10))
-        time_step_combo = ttk.Combobox(step_frame, textvariable=self.time_step, 
-                                      values=['1s', '5s', '10s', '30s', '1m', '2m', '5m', '10m', '30m', '1h'],
-                                      state='readonly', width=10)
-        time_step_combo.grid(row=0, column=1, sticky=tk.W, padx=(10, 0), pady=(0, 10))
-        
-        ttk.Label(step_frame, text="Quality Guide:", font=('Arial', 9, 'italic')).grid(
-            row=1, column=0, columnspan=2, sticky=tk.W, pady=(10, 5))
-        ttk.Label(step_frame, text="• 1s-30s: Ultra-smooth (slower processing)", 
-                 font=('Arial', 8)).grid(row=2, column=0, columnspan=2, sticky=tk.W)
-        ttk.Label(step_frame, text="• 1m-5m: Balanced quality and speed", 
-                 font=('Arial', 8)).grid(row=3, column=0, columnspan=2, sticky=tk.W)
-        ttk.Label(step_frame, text="• 10m-1h: Fast processing (less detail)", 
-                 font=('Arial', 8)).grid(row=4, column=0, columnspan=2, sticky=tk.W)
-        
-        # Performance options
-        perf_frame = ttk.LabelFrame(animation_frame, text="Performance Options", padding="15")
-        perf_frame.grid(row=3, column=0, sticky=(tk.W, tk.E))
-        
-        ttk.Label(perf_frame, text="Limit Encounters (0 = all):").grid(row=0, column=0, sticky=tk.W)
-        limit_scale = ttk.Scale(perf_frame, from_=0, to=50, 
-                               variable=self.limit_encounters, orient=tk.HORIZONTAL)
-        limit_scale.grid(row=0, column=1, sticky=(tk.W, tk.E), padx=(10, 10))
-        self.limit_label = ttk.Label(perf_frame, text="No limit")
-        self.limit_label.grid(row=0, column=2)
-        limit_scale.configure(command=self.update_limit_label)
-        
-        perf_frame.columnconfigure(1, weight=1)
         animation_frame.columnconfigure(0, weight=1)
+    
+    def _sync_time_buffer(self, *args):
+        """Sync time buffer variable with animation controls"""
+        if hasattr(self, 'animation_controls'):
+            self.time_buffer.set(self.animation_controls.time_buffer.get())
+    
+    def _sync_trail_length(self, *args):
+        """Sync trail length variable with animation controls"""
+        if hasattr(self, 'animation_controls'):
+            self.trail_length.set(self.animation_controls.trail_length.get())
+    
+    def _sync_time_step(self, *args):
+        """Sync time step variable with animation controls"""
+        if hasattr(self, 'animation_controls'):
+            self.time_step.set(self.animation_controls.time_step.get())
+    
+    def _sync_limit_encounters(self, *args):
+        """Sync limit encounters variable with animation controls"""
+        if hasattr(self, 'animation_controls'):
+            self.limit_encounters.set(self.animation_controls.limit_encounters.get())
         
     def setup_results_tab(self):
         """Setup results display tab"""
@@ -492,6 +487,9 @@ class ProximityAnalysisGUI:
         if folder:
             self.data_folder.set(folder)
             self.refresh_data_preview()
+            # Update point count in animation controls
+            if hasattr(self, 'animation_controls'):
+                self.animation_controls.update_data_folder(self.data_folder)
     
     def browse_output_folder(self):
         """Browse for output folder"""
