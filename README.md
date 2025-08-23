@@ -1,51 +1,133 @@
-# Documentation Index
+# 🦅 GPS Bearded Vulture Flight Analysis
 
-This folder contains comprehensive documentation for the GPS Vulture Tracking & Analysis System.
+Professional GPS proximity analysis and visualization system for bearded vulture research. This is the **clean, optimized version** with enhanced legends, bird names in filenames, and comprehensive bilingual support.
 
-## 📚 Available Documentation
+## 🌟 Features
 
-### **Implementation Guides**
-- `ENCOUNTER_MAPPING_IMPLEMENTATION.md` - Proximity analysis and encounter mapping
-- `MAPLIBRE_MIGRATION.md` - Migration from Mapbox to MapLibre
-- `PERFORMANCE_OPTIMIZATION_GUIDE.md` - System performance optimization
-- `PROXIMITY_ANALYSIS_GUIDE.md` - Comprehensive proximity analysis guide
+- **📊 Proximity Analysis**: Detect when vultures come close to each other
+- **🎬 Interactive Animations**: Live map animations with enhanced legends and bird names
+- **🌐 Bilingual GUI**: German/English interface with German as default
+- **📱 Mobile Optimized**: Touch-friendly visualizations for field work
+- **🏔️ 3D Terrain**: Real elevation data for accurate flight path analysis
+- **📈 Statistical Reports**: Comprehensive analysis with professional visualizations
+- **🏷️ Enhanced Output**: Bird names in filenames and comprehensive legend displays
 
-### **Technical Documentation**
-- `3D_SYSTEM_COMPLETE.md` - 3D visualization system documentation
-- `3D_FIXES_COMPLETE.md` - 3D system fixes and improvements
-- `SMART_BOUNDS.md` - Smart bounds calculation system
-- `2D_MAP_ENHANCEMENTS.md` - 2D mapping enhancements
+## 🚀 Quick Start
 
-### **Development Notes**
-- `CODE_OPTIMIZATION_SUMMARY.md` - Code optimization and refactoring
-- `FIXES_AND_CLEANUP.md` - Bug fixes and code cleanup
-- `VISUALIZATION_FIXES.md` - Visualization-specific fixes
-- `VISUALIZATION_OPTIONS.md` - Available visualization options
+### For Non-Technical Users (German Interface)
+1. **Double-click `launch_gui.py`** to start the GUI application
+2. **Select your GPS data folder** in the Data tab
+3. **Configure analysis parameters** in the Analysis tab  
+4. **Enable animations** for encounter mapping (optional)
+5. **Run analysis** and view results
 
-## 🎯 Quick Navigation
+### For Technical Users
+```bash
+# Install minimal required dependencies
+pip install -r requirements.txt
 
-### For New Users
-1. Start with the main `README.md` in the project root
-2. Review `PROXIMITY_ANALYSIS_GUIDE.md` for analysis workflows
-3. Check `PERFORMANCE_OPTIMIZATION_GUIDE.md` for best practices
+# Run proximity analysis
+python3 scripts/proximity_analysis.py
 
-### For Developers
-1. Read `CODE_OPTIMIZATION_SUMMARY.md` for architecture overview
-2. Review `MAPLIBRE_MIGRATION.md` for modern mapping implementation
-3. Check `3D_SYSTEM_COMPLETE.md` for 3D visualization details
+# Launch bilingual GUI application  
+python3 scripts/proximity_analysis_gui.py
+```
 
-### For Advanced Users
-1. `ENCOUNTER_MAPPING_IMPLEMENTATION.md` - Advanced proximity analysis
-2. `SMART_BOUNDS.md` - Geographic calculation algorithms
-3. `VISUALIZATION_OPTIONS.md` - Customization options
+## 📦 Dependencies
 
-## 📊 Documentation Status
+**Minimal requirements** for optimal performance:
+- **pandas**: Data processing and analysis
+- **numpy**: Numerical computations  
+- **plotly**: Interactive visualizations with MapLibre GL JS
+- **requests**: Elevation data fetching
+- **tkinter**: GUI interface (included with Python)
 
-- ✅ **Complete**: All major features documented
-- ✅ **Current**: Documentation matches latest codebase
-- ✅ **Organized**: Logical categorization and structure
-- ✅ **Searchable**: Clear titles and content organization
+*All unnecessary dependencies removed for cleaner installation.*
+
+## 📁 Project Structure
+
+```
+GPS_make_BGs_fly/
+├── launch_gui.py                    # GUI launcher
+├── VultureProximityAnalysis.desktop # Desktop shortcut
+├── scripts/
+│   ├── proximity_analysis.py        # Core analysis engine
+│   ├── proximity_analysis_gui.py    # Bilingual GUI application
+│   ├── animate_live_map.py          # Interactive map animations
+│   ├── mobile_animation.py          # Mobile-optimized animations
+│   ├── i18n.py                      # German/English translations
+│   ├── core/                        # Core analysis engines
+│   ├── utils/                       # Utility functions
+│   └── visualization/               # Visualization components
+├── data/                            # Place GPS CSV files here
+├── visualizations/                  # Generated maps and animations
+└── analysis/                        # Analysis results and reports
+```
+
+## 📊 Data Format
+
+Your GPS CSV files should contain:
+- **Timestamp**: Date/time in UTC
+- **Latitude**: Decimal degrees  
+- **Longitude**: Decimal degrees
+- **Vulture ID**: Identifier for each individual
+- **Altitude/Height**: Optional elevation data
+
+## 🎯 Analysis Types
+
+### 📍 Proximity Detection
+- Configurable distance thresholds
+- Time-based filtering
+- Statistical analysis of encounters
+
+### 🎬 Encounter Animations  
+- Interactive map visualizations
+- Trail effects showing flight paths
+- Mobile-optimized versions
+
+### 📊 Visualization Options
+- 2D interactive maps with OpenStreetMap
+- 3D terrain visualizations with real elevation
+- Statistical dashboards and timelines
+- Mobile-friendly touch interfaces
+
+## 🌐 Language Support
+
+- **Default**: German interface for German-speaking colleagues
+- **Alternative**: English for international collaboration
+- **Switching**: Click "🌐 Language/Sprache" at top-right
+- **Persistence**: Language choice remembered
+
+## 🧹 Project Maintenance
+
+### Keeping the Project Clean
+This project has been optimized and cleaned of deprecated files. To prevent VS Code or other editors from recreating unwanted files:
+
+- **✅ Enhanced `.gitignore`**: Prevents restoration of deprecated scripts
+- **✅ Modular Architecture**: Only essential files remain
+- **✅ Protected File Patterns**: Auto-generated files are ignored
+- **⚠️ VS Code Settings**: Disable auto-recovery features if files keep reappearing
+
+### If Unwanted Files Reappear:
+```bash
+# Quick cleanup of deprecated patterns
+find scripts/ -name "*_professional.py" -delete
+find scripts/ -name "*_optimized.py" -delete  
+find scripts/ -name "animate_2d.py" -delete
+find scripts/ -name "plot_*.py" -delete
+```
+
+## 🆘 Support
+
+For detailed documentation:
+- **GUI Guide**: `README_GUI.md` (English) / `README_GUI_DE.md` (German)
+- **Documentation**: `docs/` folder
+- **Examples**: Check `data/` folder for sample datasets
+
+## 📜 License
+
+Research use - GPS tracking data analysis for bearded vulture conservation.
 
 ---
 
-**Need help?** Start with the main README.md or create an issue on GitHub!
+🦅 **Professional GPS analysis for vulture research** - Making proximity analysis accessible to researchers worldwide.

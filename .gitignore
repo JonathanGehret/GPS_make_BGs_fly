@@ -24,6 +24,7 @@ encounters/
 *.json
 !requirements.txt
 !package.json
+!cleanup_deprecated.sh
 
 # CSV outputs (keep sample data but ignore generated analysis)
 *_events.csv
@@ -44,8 +45,26 @@ old_working_scripts/
 *.ipynb_checkpoints
 *.ipynb
 
-# VS Code
+# VS Code - Prevent auto-restoration of deleted files
 .vscode/
+*.code-workspace
+.history/
+.vscode-server/
+
+# Editor auto-recovery and session files
+*~
+.#*
+#*#
+.*.swp
+.*.swo
+*.recovery
+*.autosave
+Session.vim
+
+# Prevent VS Code extension auto-generation
+.pylint.d/
+.mypy_cache/
+.pytest_cache/
 
 # OS files
 .DS_Store
@@ -66,3 +85,18 @@ Thumbs.db
 *_OPTIMIZATION*.md
 *_MIGRATION.md
 *_OPTIONS.md
+
+# Deprecated script patterns - prevent VS Code auto-restoration
+animate_*_professional.py
+animate_*_optimized.py
+animate_2d.py
+animate_3d.py
+animate_3d_*.py
+plot_*.py
+demo_*.py
+export_test_data.py
+proximity_analysis_professional.py
+main_scripts/
+*_old.py
+*_backup.py
+*_deprecated.py

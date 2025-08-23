@@ -2,9 +2,11 @@
 Version=1.0
 Type=Application
 Name=Vulture Proximity Analysis
-Comment=Analyze GPS tracking data to identify vulture proximity events
-Exec=python3 /home/jonathan/development/GPS_make_BGs_fly/scripts/proximity_analysis_gui.py
+Name[de]=Geier Näherungs-Analyse
+Comment=Professional GPS Proximity Analysis for Vultures
+Comment[de]=Professionelle GPS-Näherungsanalyse für Geier
+Exec=python3 %k/launch_gui.py
 Icon=applications-science
 Terminal=false
 Categories=Science;Education;
-Keywords=GPS;Analysis;Vulture;Proximity;Tracking;
+StartupNotify=true
