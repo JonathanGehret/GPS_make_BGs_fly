@@ -31,7 +31,15 @@ class LiveMapAnimator:
     
     def __init__(self):
         self.ui = UserInterface()
-        self.data_loader = DataLoader()
+        
+        # Use custom data directory from GUI if available
+        custom_data_dir = os.environ.get('GPS_DATA_DIR')
+        if custom_data_dir and os.path.exists(custom_data_dir):
+            self.data_loader = DataLoader(custom_data_dir)
+            self.ui.print_success(f"Using GUI data directory: {custom_data_dir}")
+        else:
+            self.data_loader = DataLoader()
+        
         self.optimizer = PerformanceOptimizer()
         self.viz_helper = VisualizationHelper()
         self.trail_system = TrailSystem(self.ui)
@@ -40,6 +48,27 @@ class LiveMapAnimator:
         self.selected_time_step: Optional[int] = None
         self.dataframes: List[pd.DataFrame] = []
         self.combined_data: Optional[pd.DataFrame] = None
+    
+    def _parse_time_step_from_gui(self, time_step_str: str) -> int:
+        """Parse time step from GUI format to seconds"""
+        time_step_str = time_step_str.lower().strip()
+        
+        # Handle different GUI formats
+        if time_step_str.endswith('seconds') or time_step_str.endswith('second'):
+            return int(time_step_str.split()[0])
+        elif time_step_str.endswith('minutes') or time_step_str.endswith('minute'):
+            return int(time_step_str.split()[0]) * 60
+        elif time_step_str.endswith('hours') or time_step_str.endswith('hour'):
+            return int(time_step_str.split()[0]) * 3600
+        elif time_step_str.endswith('s'):
+            return int(time_step_str[:-1])
+        elif time_step_str.endswith('m'):
+            return int(time_step_str[:-1]) * 60
+        elif time_step_str.endswith('h'):
+            return int(time_step_str[:-1]) * 3600
+        else:
+            # Default to seconds if no unit specified
+            return int(time_step_str)
     
     def run(self) -> bool:
         """Main execution workflow"""
@@ -126,6 +155,17 @@ class LiveMapAnimator:
     
     def configure_performance(self) -> bool:
         """Configure performance optimization"""
+        # Check if running from GUI (environment variable set)
+        time_step_env = os.environ.get('TIME_STEP')
+        if time_step_env:
+            try:
+                # Convert from GUI format (e.g., "5 minutes") to seconds
+                self.selected_time_step = self._parse_time_step_from_gui(time_step_env)
+                self.ui.print_success(f"Using GUI time step: {time_step_env} ({self.selected_time_step}s)")
+                return True
+            except Exception as e:
+                self.ui.print_warning(f"Invalid time step from GUI: {time_step_env}, falling back to manual selection")
+        
         self.ui.print_section("⚡ PERFORMANCE CONFIGURATION")
         print("Choose time step resolution for optimal performance:")
         print("(Larger time steps = faster loading, fewer details)")

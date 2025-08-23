@@ -541,7 +541,12 @@ def get_numbered_output_path(base_filename: str, output_type: str = 'visualizati
     Returns:
         Full path to the numbered output file
     """
-    if output_type == 'visualizations':
+    # Check for custom output directory from GUI
+    custom_output_dir = os.environ.get('OUTPUT_DIR')
+    if custom_output_dir and os.path.exists(custom_output_dir):
+        base_dir = custom_output_dir
+        extension = '.html'
+    elif output_type == 'visualizations':
         base_dir = VISUALIZATIONS_DIR
         extension = '.html'
     elif output_type == 'analysis':
@@ -551,6 +556,10 @@ def get_numbered_output_path(base_filename: str, output_type: str = 'visualizati
         raise ValueError(f"Unknown output_type: {output_type}")
     
     ensure_output_directories()
+    
+    # Ensure custom directory exists if specified
+    if custom_output_dir and not os.path.exists(base_dir):
+        os.makedirs(base_dir, exist_ok=True)
     
     # Find the next available number
     existing_numbers = []

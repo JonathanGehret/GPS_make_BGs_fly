@@ -4,6 +4,7 @@ Trail System Module
 Handles trail length configuration and animation frame creation with trail effects.
 """
 
+import os
 import pandas as pd
 import plotly.graph_objects as go
 from typing import Optional, Dict, List
@@ -31,6 +32,17 @@ class TrailSystem:
     
     def select_trail_length(self) -> Optional[int]:
         """Let user choose trail length for animation"""
+        # Check if running from GUI (environment variable set)
+        trail_length_env = os.environ.get('TRAIL_LENGTH_HOURS')
+        if trail_length_env:
+            try:
+                trail_hours = float(trail_length_env)
+                trail_minutes = int(trail_hours * 60)
+                self.ui.print_success(f"Using GUI trail length: {trail_hours} hours ({trail_minutes} minutes)")
+                return trail_minutes
+            except Exception as e:
+                self.ui.print_warning(f"Invalid trail length from GUI: {trail_length_env}, falling back to manual selection")
+        
         self.ui.print_header("🎯 Trail Length Configuration")
         print("Configure how much flight history to show in the animation:")
         print()
