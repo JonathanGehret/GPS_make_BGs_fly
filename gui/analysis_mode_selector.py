@@ -150,7 +150,7 @@ class AnalysisModeSelector:
         self.update_status("Launching Proximity Analysis..." if self.language == "en" 
                           else "Starte Näherungsanalyse...")
         
-        script_path = os.path.join(os.path.dirname(__file__), "scripts", "proximity_analysis_gui.py")
+        script_path = os.path.join(os.path.dirname(__file__), "..", "scripts", "proximity_analysis_gui.py")
         if os.path.exists(script_path):
             try:
                 subprocess.Popen([sys.executable, script_path])

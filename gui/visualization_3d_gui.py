@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-2D Live Map GUI Launcher
-GUI wrapper for the 2D live map visualization
+3D Visualization GUI Launcher
+GUI wrapper for the 3D terrain visualization
 """
 
 import tkinter as tk
@@ -10,11 +10,11 @@ import subprocess
 import sys
 import os
 
-class LiveMap2DGUI:
+class Visualization3DGUI:
     def __init__(self):
         self.root = tk.Tk()
-        self.root.title("2D Live Map - Configuration")
-        self.root.geometry("600x400")
+        self.root.title("3D Visualization - Configuration")
+        self.root.geometry("600x450")
         self.root.resizable(True, True)
         
         # Language setting
@@ -22,8 +22,10 @@ class LiveMap2DGUI:
         
         # Configuration variables
         self.data_dir = tk.StringVar(value=os.path.join(os.path.dirname(__file__), "..", "data"))
-        self.trail_length = tk.IntVar(value=50)
+        self.terrain_quality = tk.StringVar(value="medium")
         self.animation_speed = tk.IntVar(value=100)
+        self.show_elevation = tk.BooleanVar(value=True)
+        self.show_markers = tk.BooleanVar(value=True)
         
         self.setup_ui()
         self.center_window()
@@ -40,7 +42,7 @@ class LiveMap2DGUI:
         main_frame.columnconfigure(1, weight=1)
         
         # Title
-        title_label = ttk.Label(main_frame, text="🗺️ 2D Live Map Configuration", 
+        title_label = ttk.Label(main_frame, text="🎯 3D Visualization Configuration", 
                                font=("Arial", 16, "bold"))
         title_label.grid(row=0, column=0, columnspan=3, pady=(0, 20))
         
@@ -66,12 +68,11 @@ class LiveMap2DGUI:
         ttk.Entry(config_frame, textvariable=self.data_dir, width=50).grid(row=0, column=1, sticky=(tk.W, tk.E), pady=5, padx=(10, 5))
         ttk.Button(config_frame, text="Browse", command=self.browse_data_dir).grid(row=0, column=2, pady=5)
         
-        # Trail length
-        ttk.Label(config_frame, text="Trail Length:").grid(row=1, column=0, sticky=tk.W, pady=5)
-        trail_frame = ttk.Frame(config_frame)
-        trail_frame.grid(row=1, column=1, sticky=(tk.W, tk.E), pady=5, padx=(10, 0))
-        ttk.Scale(trail_frame, from_=10, to=200, variable=self.trail_length, orient=tk.HORIZONTAL).pack(side=tk.LEFT, fill=tk.X, expand=True)
-        ttk.Label(trail_frame, textvariable=self.trail_length).pack(side=tk.RIGHT, padx=(10, 0))
+        # Terrain quality
+        ttk.Label(config_frame, text="Terrain Quality:").grid(row=1, column=0, sticky=tk.W, pady=5)
+        quality_combo = ttk.Combobox(config_frame, textvariable=self.terrain_quality, 
+                                   values=["low", "medium", "high"], state="readonly")
+        quality_combo.grid(row=1, column=1, sticky=(tk.W, tk.E), pady=5, padx=(10, 0))
         
         # Animation speed
         ttk.Label(config_frame, text="Animation Speed (ms):").grid(row=2, column=0, sticky=tk.W, pady=5)
@@ -80,11 +81,18 @@ class LiveMap2DGUI:
         ttk.Scale(speed_frame, from_=50, to=500, variable=self.animation_speed, orient=tk.HORIZONTAL).pack(side=tk.LEFT, fill=tk.X, expand=True)
         ttk.Label(speed_frame, textvariable=self.animation_speed).pack(side=tk.RIGHT, padx=(10, 0))
         
+        # Options
+        options_frame = ttk.LabelFrame(config_frame, text="Options", padding="5")
+        options_frame.grid(row=3, column=0, columnspan=3, pady=10, sticky=(tk.W, tk.E))
+        
+        ttk.Checkbutton(options_frame, text="Show Elevation Data", variable=self.show_elevation).grid(row=0, column=0, sticky=tk.W, pady=2)
+        ttk.Checkbutton(options_frame, text="Show Position Markers", variable=self.show_markers).grid(row=1, column=0, sticky=tk.W, pady=2)
+        
         # Description
         desc_frame = ttk.LabelFrame(main_frame, text="Description", padding="10")
         desc_frame.grid(row=3, column=0, columnspan=3, pady=10, sticky=(tk.W, tk.E, tk.N, tk.S))
         
-        self.desc_text = tk.Text(desc_frame, height=6, wrap=tk.WORD, state=tk.DISABLED)
+        self.desc_text = tk.Text(desc_frame, height=7, wrap=tk.WORD, state=tk.DISABLED)
         self.desc_text.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
         desc_frame.columnconfigure(0, weight=1)
         desc_frame.rowconfigure(0, weight=1)
@@ -98,8 +106,8 @@ class LiveMap2DGUI:
         button_frame = ttk.Frame(main_frame)
         button_frame.grid(row=4, column=0, columnspan=3, pady=20)
         
-        self.launch_btn = ttk.Button(button_frame, text="🚀 Launch 2D Live Map", 
-                                    command=self.launch_map, style="Large.TButton")
+        self.launch_btn = ttk.Button(button_frame, text="🚀 Launch 3D Visualization", 
+                                    command=self.launch_visualization, style="Large.TButton")
         self.launch_btn.pack(side=tk.LEFT, padx=(0, 10))
         
         ttk.Button(button_frame, text="Cancel", command=self.root.destroy).pack(side=tk.LEFT)
@@ -123,46 +131,58 @@ class LiveMap2DGUI:
     def update_texts(self):
         """Update all texts based on selected language"""
         if self.language == "de":
-            self.root.title("2D Live Karte - Konfiguration")
-            self.launch_btn.config(text="🚀 2D Live Karte starten")
+            self.root.title("3D Visualisierung - Konfiguration")
+            self.launch_btn.config(text="🚀 3D Visualisierung starten")
         else:
-            self.root.title("2D Live Map - Configuration")
-            self.launch_btn.config(text="🚀 Launch 2D Live Map")
+            self.root.title("3D Visualization - Configuration")
+            self.launch_btn.config(text="🚀 Launch 3D Visualization")
     
     def update_description(self):
         """Update the description text"""
         if self.language == "de":
-            description = """🗺️ 2D Live Karte Visualisierung
+            description = """🎯 3D Terrain Visualisierung
 
-Diese Anwendung erstellt eine interaktive 2D-Karte, die GPS-Verfolgungsdaten von Geiern in Echtzeit anzeigt.
+Diese Anwendung erstellt eine immersive 3D-Visualisierung von Geierflugpfaden mit realen Geländedaten.
 
 Funktionen:
-• Interaktive Kartenvisualisierung mit OpenStreetMap
-• Konfigurierbare Spurlänge für Flugpfade
-• Echtzeit-Animation der Geierbewegungen
-• Professionelle Datenverarbeitung
-• Responsive Design für alle Bildschirmgrößen
+• 3D-Flugpfad-Visualisierung mit Höhendaten
+• Realistische Geländedarstellung
+• Interaktive 3D-Navigation (Zoomen, Drehen, Neigen)
+• Konfigurierbare Geländequalität
+• Animierte Flugsequenzen
+• Höhenprofile und Positionsmarker
 
 Konfiguration:
 • Datenverzeichnis: Ordner mit GPS CSV-Dateien
-• Spurlänge: Anzahl der Punkte im Flugpfad (10-200)
-• Animationsgeschwindigkeit: Verzögerung zwischen Frames in Millisekunden"""
-        else:
-            description = """🗺️ 2D Live Map Visualization
+• Geländequalität: Low/Medium/High (beeinflusst Ladezeit)
+• Animationsgeschwindigkeit: Verzögerung zwischen Frames
+• Optionen: Höhendaten und Positionsmarker ein-/ausschalten
 
-This application creates an interactive 2D map showing real-time GPS tracking data of vultures.
+Systemanforderungen:
+• WebGL-fähiger Browser für optimale Darstellung
+• Internetverbindung für Geländedaten"""
+        else:
+            description = """🎯 3D Terrain Visualization
+
+This application creates an immersive 3D visualization of vulture flight paths with real terrain data.
 
 Features:
-• Interactive map visualization with OpenStreetMap
-• Configurable trail length for flight paths
-• Real-time animation of vulture movements
-• Professional-grade data processing
-• Responsive design for all screen sizes
+• 3D flight path visualization with elevation data
+• Realistic terrain rendering
+• Interactive 3D navigation (zoom, rotate, tilt)
+• Configurable terrain quality
+• Animated flight sequences
+• Elevation profiles and position markers
 
 Configuration:
 • Data Directory: Folder containing GPS CSV files
-• Trail Length: Number of points in flight path (10-200)
-• Animation Speed: Delay between frames in milliseconds"""
+• Terrain Quality: Low/Medium/High (affects loading time)
+• Animation Speed: Delay between frames in milliseconds
+• Options: Toggle elevation data and position markers
+
+System Requirements:
+• WebGL-capable browser for optimal rendering
+• Internet connection for terrain data"""
         
         self.desc_text.config(state=tk.NORMAL)
         self.desc_text.delete(1.0, tk.END)
@@ -187,8 +207,8 @@ Configuration:
         y = (self.root.winfo_screenheight() // 2) - (height // 2)
         self.root.geometry(f"{width}x{height}+{x}+{y}")
     
-    def launch_map(self):
-        """Launch the 2D live map with configuration"""
+    def launch_visualization(self):
+        """Launch the 3D visualization with configuration"""
         if not os.path.exists(self.data_dir.get()):
             if self.language == "de":
                 messagebox.showerror("Fehler", "Datenverzeichnis existiert nicht!")
@@ -196,7 +216,7 @@ Configuration:
                 messagebox.showerror("Error", "Data directory does not exist!")
             return
         
-        script_path = os.path.join(os.path.dirname(__file__), "animate_live_map.py")
+        script_path = os.path.join(os.path.dirname(__file__), "..", "scripts", "animation_3d.py")
         if not os.path.exists(script_path):
             if self.language == "de":
                 messagebox.showerror("Fehler", f"Skript nicht gefunden: {script_path}")
@@ -208,16 +228,18 @@ Configuration:
             # Set environment variables for configuration
             env = os.environ.copy()
             env['GPS_DATA_DIR'] = self.data_dir.get()
-            env['TRAIL_LENGTH'] = str(self.trail_length.get())
+            env['TERRAIN_QUALITY'] = self.terrain_quality.get()
             env['ANIMATION_SPEED'] = str(self.animation_speed.get())
+            env['SHOW_ELEVATION'] = str(self.show_elevation.get())
+            env['SHOW_MARKERS'] = str(self.show_markers.get())
             
             # Launch the script
             subprocess.Popen([sys.executable, script_path], env=env)
             
             if self.language == "de":
-                messagebox.showinfo("Erfolg", "2D Live Karte erfolgreich gestartet!")
+                messagebox.showinfo("Erfolg", "3D Visualisierung erfolgreich gestartet!")
             else:
-                messagebox.showinfo("Success", "2D Live Map launched successfully!")
+                messagebox.showinfo("Success", "3D Visualization launched successfully!")
             
             self.root.destroy()
             
@@ -233,7 +255,7 @@ Configuration:
 
 def main():
     """Main function"""
-    app = LiveMap2DGUI()
+    app = Visualization3DGUI()
     app.run()
 
 if __name__ == "__main__":
