@@ -119,11 +119,11 @@ class ProximityAnalysisGUI:
         button_frame = ttk.Frame(main_frame)
         button_frame.grid(row=2, column=0, columnspan=2, pady=(10, 0))
         
-        self.run_button = ttk.Button(button_frame, text="🚀 Run Analysis", 
+        self.run_button = ttk.Button(button_frame, text=self.translator.t("btn_run"), 
                                     command=self.run_analysis, style='Accent.TButton')
         self.run_button.pack(side=tk.LEFT, padx=(0, 10))
         
-        self.stop_button = ttk.Button(button_frame, text="⏹ Stop", 
+        self.stop_button = ttk.Button(button_frame, text=self.translator.t("btn_stop"), 
                                      command=self.stop_analysis, state=tk.DISABLED)
         self.stop_button.pack(side=tk.LEFT, padx=(0, 10))
         
@@ -246,13 +246,22 @@ class ProximityAnalysisGUI:
     
     def update_results_tab_text(self):
         """Update results tab text elements"""
-        # This will be implemented when we update the results tab
-        pass
-    
+        try:
+            self.results_title_label.config(text=self.translator.t("label_analysis_results"))
+            self.files_frame.config(text=self.translator.t("group_generated_files"))
+            self.open_file_button.config(text=self.translator.t("btn_open"))
+            self.show_folder_button.config(text=self.translator.t("btn_show_folder"))
+        except Exception:
+            pass
+
     def update_log_tab_text(self):
         """Update log tab text elements"""
-        # This will be implemented when we update the log tab
-        pass
+        try:
+            self.log_title_label.config(text=self.translator.t("label_analysis_log"))
+            self.clear_log_button.config(text=self.translator.t("btn_clear_log"))
+            self.save_log_button.config(text=self.translator.t("btn_save_log"))
+        except Exception:
+            pass
     
     def update_button_texts(self):
         """Update button texts"""
@@ -428,29 +437,32 @@ class ProximityAnalysisGUI:
         self.notebook.add(results_frame, text="📊 Results")
         
         # Results summary
-        ttk.Label(results_frame, text="Analysis Results:", 
-                 font=('Arial', 11, 'bold')).grid(row=0, column=0, sticky=tk.W, pady=(0, 15))
+        self.results_title_label = ttk.Label(results_frame, text="Analysis Results:", 
+                 font=('Arial', 11, 'bold'))
+        self.results_title_label.grid(row=0, column=0, sticky=tk.W, pady=(0, 15))
         
         self.results_text = scrolledtext.ScrolledText(results_frame, height=20, width=70)
         self.results_text.grid(row=1, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), pady=(0, 15))
         
         # Output files
-        files_frame = ttk.LabelFrame(results_frame, text="Generated Files", padding="10")
-        files_frame.grid(row=2, column=0, sticky=(tk.W, tk.E))
+        self.files_frame = ttk.LabelFrame(results_frame, text="Generated Files", padding="10")
+        self.files_frame.grid(row=2, column=0, sticky=(tk.W, tk.E))
         
-        self.files_listbox = tk.Listbox(files_frame, height=6)
+        self.files_listbox = tk.Listbox(self.files_frame, height=6)
         self.files_listbox.grid(row=0, column=0, sticky=(tk.W, tk.E), padx=(0, 10))
         self.files_listbox.bind('<Double-1>', self.open_selected_file)
         
-        files_buttons = ttk.Frame(files_frame)
+        files_buttons = ttk.Frame(self.files_frame)
         files_buttons.grid(row=0, column=1, sticky=(tk.N))
         
-        ttk.Button(files_buttons, text="📂 Open", 
-                  command=self.open_selected_file).pack(pady=(0, 5))
-        ttk.Button(files_buttons, text="📁 Show in Folder", 
-                  command=self.show_in_folder).pack()
+        self.open_file_button = ttk.Button(files_buttons, text="📂 Open", 
+                  command=self.open_selected_file)
+        self.open_file_button.pack(pady=(0, 5))
+        self.show_folder_button = ttk.Button(files_buttons, text="📁 Show in Folder", 
+                  command=self.show_in_folder)
+        self.show_folder_button.pack()
         
-        files_frame.columnconfigure(0, weight=1)
+        self.files_frame.columnconfigure(0, weight=1)
         results_frame.columnconfigure(0, weight=1)
         results_frame.rowconfigure(1, weight=1)
         
@@ -459,8 +471,9 @@ class ProximityAnalysisGUI:
         log_frame = ttk.Frame(self.notebook, padding="20")
         self.notebook.add(log_frame, text="📝 Log")
         
-        ttk.Label(log_frame, text="Analysis Log:", 
-                 font=('Arial', 11, 'bold')).grid(row=0, column=0, sticky=tk.W, pady=(0, 10))
+        self.log_title_label = ttk.Label(log_frame, text="Analysis Log:", 
+                 font=('Arial', 11, 'bold'))
+        self.log_title_label.grid(row=0, column=0, sticky=tk.W, pady=(0, 10))
         
         self.log_text = scrolledtext.ScrolledText(log_frame, height=25, width=80)
         self.log_text.grid(row=1, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
@@ -468,10 +481,12 @@ class ProximityAnalysisGUI:
         log_buttons = ttk.Frame(log_frame)
         log_buttons.grid(row=2, column=0, pady=(10, 0))
         
-        ttk.Button(log_buttons, text="🗑 Clear Log", 
-                  command=self.clear_log).pack(side=tk.LEFT, padx=(0, 10))
-        ttk.Button(log_buttons, text="💾 Save Log", 
-                  command=self.save_log).pack(side=tk.LEFT)
+        self.clear_log_button = ttk.Button(log_buttons, text="🗑 Clear Log", 
+                  command=self.clear_log)
+        self.clear_log_button.pack(side=tk.LEFT, padx=(0, 10))
+        self.save_log_button = ttk.Button(log_buttons, text="💾 Save Log", 
+                  command=self.save_log)
+        self.save_log_button.pack(side=tk.LEFT)
         
         log_frame.columnconfigure(0, weight=1)
         log_frame.rowconfigure(1, weight=1)
