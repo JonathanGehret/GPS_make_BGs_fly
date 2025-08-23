@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-Vulture Proximity Analysis - GUI Launcher
+GPS Analysis Suite - GUI Launcher
 
-Double-click this file to launch the Vulture Proximity Analysis GUI application.
+Double-click this file to launch the GPS Analysis Suite with all visualization modes.
 """
 
 import sys
@@ -14,16 +14,16 @@ def main():
     try:
         # Get the directory containing this script
         script_dir = os.path.dirname(os.path.abspath(__file__))
-        gui_script = os.path.join(script_dir, 'scripts', 'proximity_analysis_gui.py')
+        gui_script = os.path.join(script_dir, 'gui', 'analysis_mode_selector.py')
         
         # Check if GUI script exists
         if not os.path.exists(gui_script):
-            print("❌ Error: GUI script not found!")
+            print("❌ Error: Main GUI script not found!")
             print(f"Looking for: {gui_script}")
             input("Press Enter to exit...")
             return
         
-        print("🦅 Launching Vulture Proximity Analysis GUI...")
+        print("🦅 Launching GPS Analysis Suite...")
         print("📁 Loading application...")
         
         # Launch the GUI
