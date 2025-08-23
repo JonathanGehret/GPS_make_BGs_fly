@@ -1,31 +1,42 @@
 #!/usr/bin/env python3
 """
 3D Visualization GUI Launcher
-GUI wrapper for the 3D terrain visualization
+GUI wrapper for the 3D terrain visualization with animation controls
 """
 
 import tkinter as tk
-from tkinter import ttk, filedialog, messagebox
+from tkinter import ttk, filedialog, messagebox, scrolledtext
 import subprocess
 import sys
 import os
+from pathlib import Path
+
+# Import shared animation controls
+sys.path.append(os.path.join(os.path.dirname(__file__), "..", "scripts"))
+try:
+    from utils.animation_controls import AnimationControlsFrame
+except ImportError:
+    # Fallback if the shared component doesn't exist yet
+    AnimationControlsFrame = None
 
 class Visualization3DGUI:
     def __init__(self):
         self.root = tk.Tk()
         self.root.title("3D Visualization - Configuration")
-        self.root.geometry("600x450")
+        self.root.geometry("750x650")
         self.root.resizable(True, True)
         
         # Language setting
         self.language = "en"  # Default to English
         
         # Configuration variables
-        self.data_dir = tk.StringVar(value=os.path.join(os.path.dirname(__file__), "..", "data"))
+        self.data_folder = tk.StringVar(value=os.path.join(os.path.dirname(__file__), "..", "data"))
         self.terrain_quality = tk.StringVar(value="medium")
-        self.animation_speed = tk.IntVar(value=100)
         self.show_elevation = tk.BooleanVar(value=True)
         self.show_markers = tk.BooleanVar(value=True)
+        
+        # Animation controls will be created in setup_ui
+        self.animation_controls = None
         
         self.setup_ui()
         self.center_window()

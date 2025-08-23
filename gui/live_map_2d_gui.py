@@ -1,35 +1,49 @@
 #!/usr/bin/env python3
 """
 2D Live Map GUI Launcher
-GUI wrapper for the 2D live map visualization
+GUI wrapper for the 2D live map visualization with animation controls
 """
 
 import tkinter as tk
-from tkinter import ttk, filedialog, messagebox
+from tkinter import ttk, filedialog, messagebox, scrolledtext
 import subprocess
 import sys
 import os
+from pathlib import Path
+
+# Import shared animation controls
+sys.path.append(os.path.join(os.path.dirname(__file__), "..", "scripts"))
+try:
+    from utils.animation_controls import AnimationControlsFrame
+except ImportError:
+    # Fallback if the shared component doesn't exist yet
+    AnimationControlsFrame = None
 
 class LiveMap2DGUI:
     def __init__(self):
         self.root = tk.Tk()
         self.root.title("2D Live Map - Configuration")
-        self.root.geometry("600x400")
+        self.root.geometry("750x600")
         self.root.resizable(True, True)
         
         # Language setting
         self.language = "en"  # Default to English
         
         # Configuration variables
-        self.data_dir = tk.StringVar(value=os.path.join(os.path.dirname(__file__), "..", "data"))
-        self.trail_length = tk.IntVar(value=50)
-        self.animation_speed = tk.IntVar(value=100)
+        self.data_folder = tk.StringVar(value=os.path.join(os.path.dirname(__file__), "..", "data"))
+        
+        # Animation controls will be created in setup_ui
+        self.animation_controls = None
         
         self.setup_ui()
         self.center_window()
     
     def setup_ui(self):
-        """Set up the user interface"""
+        """Set up the user interface with animation controls"""
+        # Configure style
+        style = ttk.Style()
+        style.theme_use('clam')
+        
         # Main frame
         main_frame = ttk.Frame(self.root, padding="20")
         main_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
@@ -37,146 +51,190 @@ class LiveMap2DGUI:
         # Configure grid weights
         self.root.columnconfigure(0, weight=1)
         self.root.rowconfigure(0, weight=1)
-        main_frame.columnconfigure(1, weight=1)
+        main_frame.columnconfigure(0, weight=1)
+        main_frame.rowconfigure(2, weight=1)
+        
+        # Title and language
+        header_frame = ttk.Frame(main_frame)
+        header_frame.grid(row=0, column=0, sticky=(tk.W, tk.E), pady=(0, 20))
+        header_frame.columnconfigure(0, weight=1)
         
         # Title
-        title_label = ttk.Label(main_frame, text="🗺️ 2D Live Map Configuration", 
+        title_label = ttk.Label(header_frame, text="🗺️ 2D Live Map Configuration", 
                                font=("Arial", 16, "bold"))
-        title_label.grid(row=0, column=0, columnspan=3, pady=(0, 20))
+        title_label.grid(row=0, column=0, sticky=tk.W)
         
         # Language selection
-        lang_frame = ttk.Frame(main_frame)
-        lang_frame.grid(row=1, column=0, columnspan=3, pady=(0, 20), sticky=(tk.W, tk.E))
+        lang_frame = ttk.Frame(header_frame)
+        lang_frame.grid(row=0, column=1, sticky=tk.E)
         
-        ttk.Label(lang_frame, text="Language / Sprache:").grid(row=0, column=0, padx=(0, 10))
+        ttk.Label(lang_frame, text="🌐 Language/Sprache:").grid(row=0, column=0, padx=(0, 5))
         
         self.lang_var = tk.StringVar(value="en")
         lang_combo = ttk.Combobox(lang_frame, textvariable=self.lang_var, 
-                                 values=["en", "de"], state="readonly", width=10)
+                                 values=["en", "de"], state="readonly", width=8)
         lang_combo.grid(row=0, column=1)
         lang_combo.bind("<<ComboboxSelected>>", self.change_language)
         
-        # Configuration section
-        config_frame = ttk.LabelFrame(main_frame, text="Configuration", padding="10")
-        config_frame.grid(row=2, column=0, columnspan=3, pady=10, sticky=(tk.W, tk.E, tk.N, tk.S))
-        config_frame.columnconfigure(1, weight=1)
+        # Data folder selection
+        data_frame = ttk.LabelFrame(main_frame, text="📁 GPS Data", padding="15")
+        data_frame.grid(row=1, column=0, sticky=(tk.W, tk.E), pady=(0, 20))
+        data_frame.columnconfigure(1, weight=1)
         
-        # Data directory selection
-        ttk.Label(config_frame, text="Data Directory:").grid(row=0, column=0, sticky=tk.W, pady=5)
-        ttk.Entry(config_frame, textvariable=self.data_dir, width=50).grid(row=0, column=1, sticky=(tk.W, tk.E), pady=5, padx=(10, 5))
-        ttk.Button(config_frame, text="Browse", command=self.browse_data_dir).grid(row=0, column=2, pady=5)
+        ttk.Label(data_frame, text="Data Directory:").grid(row=0, column=0, sticky=tk.W, pady=5)
+        ttk.Entry(data_frame, textvariable=self.data_folder, width=50).grid(row=0, column=1, sticky=(tk.W, tk.E), pady=5, padx=(10, 5))
+        ttk.Button(data_frame, text="📁 Browse", command=self.browse_data_folder).grid(row=0, column=2, pady=5)
         
-        # Trail length
-        ttk.Label(config_frame, text="Trail Length:").grid(row=1, column=0, sticky=tk.W, pady=5)
-        trail_frame = ttk.Frame(config_frame)
-        trail_frame.grid(row=1, column=1, sticky=(tk.W, tk.E), pady=5, padx=(10, 0))
-        ttk.Scale(trail_frame, from_=10, to=200, variable=self.trail_length, orient=tk.HORIZONTAL).pack(side=tk.LEFT, fill=tk.X, expand=True)
-        ttk.Label(trail_frame, textvariable=self.trail_length).pack(side=tk.RIGHT, padx=(10, 0))
+        # Data preview
+        self.data_preview = scrolledtext.ScrolledText(data_frame, height=4, width=70)
+        self.data_preview.grid(row=1, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=(10, 5))
         
-        # Animation speed
-        ttk.Label(config_frame, text="Animation Speed (ms):").grid(row=2, column=0, sticky=tk.W, pady=5)
-        speed_frame = ttk.Frame(config_frame)
-        speed_frame.grid(row=2, column=1, sticky=(tk.W, tk.E), pady=5, padx=(10, 0))
-        ttk.Scale(speed_frame, from_=50, to=500, variable=self.animation_speed, orient=tk.HORIZONTAL).pack(side=tk.LEFT, fill=tk.X, expand=True)
-        ttk.Label(speed_frame, textvariable=self.animation_speed).pack(side=tk.RIGHT, padx=(10, 0))
+        ttk.Button(data_frame, text="🔄 Refresh Preview", 
+                  command=self.refresh_data_preview).grid(row=2, column=0, pady=(5, 0))
         
-        # Description
-        desc_frame = ttk.LabelFrame(main_frame, text="Description", padding="10")
-        desc_frame.grid(row=3, column=0, columnspan=3, pady=10, sticky=(tk.W, tk.E, tk.N, tk.S))
+        # Animation controls frame (using the shared component)
+        animation_outer_frame = ttk.LabelFrame(main_frame, text="🎬 Animation Settings", padding="15")
+        animation_outer_frame.grid(row=2, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), pady=(0, 20))
+        animation_outer_frame.columnconfigure(0, weight=1)
         
-        self.desc_text = tk.Text(desc_frame, height=6, wrap=tk.WORD, state=tk.DISABLED)
-        self.desc_text.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
-        desc_frame.columnconfigure(0, weight=1)
-        desc_frame.rowconfigure(0, weight=1)
+        # Create the shared animation controls (without time buffer, without encounter limit)
+        if AnimationControlsFrame:
+            self.animation_controls = AnimationControlsFrame(
+                animation_outer_frame, 
+                include_time_buffer=False,  # 2D maps don't need time buffer
+                include_encounter_limit=False  # 2D maps don't limit encounters
+            )
+        else:
+            # Fallback: create basic controls manually
+            self.create_fallback_animation_controls(animation_outer_frame)
         
-        # Scrollbar for description
-        desc_scroll = ttk.Scrollbar(desc_frame, orient=tk.VERTICAL, command=self.desc_text.yview)
-        desc_scroll.grid(row=0, column=1, sticky=(tk.N, tk.S))
-        self.desc_text.configure(yscrollcommand=desc_scroll.set)
+        # Status and buttons
+        bottom_frame = ttk.Frame(main_frame)
+        bottom_frame.grid(row=3, column=0, sticky=(tk.W, tk.E))
+        bottom_frame.columnconfigure(0, weight=1)
+        
+        # Status bar
+        self.status_var = tk.StringVar(value="Ready / Bereit")
+        status_bar = ttk.Label(bottom_frame, textvariable=self.status_var, 
+                              relief=tk.SUNKEN, anchor=tk.W)
+        status_bar.grid(row=0, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=(0, 10))
         
         # Buttons
-        button_frame = ttk.Frame(main_frame)
-        button_frame.grid(row=4, column=0, columnspan=3, pady=20)
+        button_frame = ttk.Frame(bottom_frame)
+        button_frame.grid(row=1, column=0)
         
         self.launch_btn = ttk.Button(button_frame, text="🚀 Launch 2D Live Map", 
-                                    command=self.launch_map, style="Large.TButton")
+                                    command=self.launch_map, style="Launch.TButton")
         self.launch_btn.pack(side=tk.LEFT, padx=(0, 10))
         
-        ttk.Button(button_frame, text="Cancel", command=self.root.destroy).pack(side=tk.LEFT)
+        ttk.Button(button_frame, text="❌ Cancel", command=self.root.destroy).pack(side=tk.LEFT)
         
         # Configure button style
-        style = ttk.Style()
-        style.configure("Large.TButton", font=("Arial", 11, "bold"), padding=10)
+        style.configure("Launch.TButton", font=("Arial", 12, "bold"), padding=10)
         
-        # Set initial description
-        self.update_description()
+        # Initial data preview
+        self.refresh_data_preview()
         
-        # Configure grid weights for resizing
-        main_frame.rowconfigure(3, weight=1)
+        # Set initial texts
+        self.update_texts()
     
     def change_language(self, event=None):
         """Change the interface language"""
         self.language = self.lang_var.get()
         self.update_texts()
-        self.update_description()
     
     def update_texts(self):
         """Update all texts based on selected language"""
         if self.language == "de":
             self.root.title("2D Live Karte - Konfiguration")
             self.launch_btn.config(text="🚀 2D Live Karte starten")
+            self.status_var.set("Bereit")
         else:
             self.root.title("2D Live Map - Configuration")
             self.launch_btn.config(text="🚀 Launch 2D Live Map")
+            self.status_var.set("Ready")
     
-    def update_description(self):
-        """Update the description text"""
-        if self.language == "de":
-            description = """🗺️ 2D Live Karte Visualisierung
-
-Diese Anwendung erstellt eine interaktive 2D-Karte, die GPS-Verfolgungsdaten von Geiern in Echtzeit anzeigt.
-
-Funktionen:
-• Interaktive Kartenvisualisierung mit OpenStreetMap
-• Konfigurierbare Spurlänge für Flugpfade
-• Echtzeit-Animation der Geierbewegungen
-• Professionelle Datenverarbeitung
-• Responsive Design für alle Bildschirmgrößen
-
-Konfiguration:
-• Datenverzeichnis: Ordner mit GPS CSV-Dateien
-• Spurlänge: Anzahl der Punkte im Flugpfad (10-200)
-• Animationsgeschwindigkeit: Verzögerung zwischen Frames in Millisekunden"""
-        else:
-            description = """🗺️ 2D Live Map Visualization
-
-This application creates an interactive 2D map showing real-time GPS tracking data of vultures.
-
-Features:
-• Interactive map visualization with OpenStreetMap
-• Configurable trail length for flight paths
-• Real-time animation of vulture movements
-• Professional-grade data processing
-• Responsive design for all screen sizes
-
-Configuration:
-• Data Directory: Folder containing GPS CSV files
-• Trail Length: Number of points in flight path (10-200)
-• Animation Speed: Delay between frames in milliseconds"""
-        
-        self.desc_text.config(state=tk.NORMAL)
-        self.desc_text.delete(1.0, tk.END)
-        self.desc_text.insert(1.0, description)
-        self.desc_text.config(state=tk.DISABLED)
-    
-    def browse_data_dir(self):
+    def browse_data_folder(self):
         """Browse for data directory"""
         directory = filedialog.askdirectory(
             title="Select GPS Data Directory" if self.language == "en" else "GPS-Datenverzeichnis auswählen",
-            initialdir=self.data_dir.get()
+            initialdir=self.data_folder.get()
         )
         if directory:
-            self.data_dir.set(directory)
+            self.data_folder.set(directory)
+            self.refresh_data_preview()
+    
+    def refresh_data_preview(self):
+        """Refresh the data preview"""
+        self.data_preview.delete(1.0, tk.END)
+        
+        try:
+            folder = self.data_folder.get()
+            if not os.path.exists(folder):
+                self.data_preview.insert(tk.END, f"❌ Folder not found: {folder}\n")
+                return
+                
+            csv_files = list(Path(folder).glob("*.csv"))
+            
+            if not csv_files:
+                self.data_preview.insert(tk.END, f"⚠️  No CSV files found in: {folder}\n")
+                return
+                
+            self.data_preview.insert(tk.END, f"📁 Data folder: {folder}\n")
+            self.data_preview.insert(tk.END, f"📊 Found {len(csv_files)} CSV file(s)\n\n")
+            
+            for csv_file in csv_files:
+                try:
+                    # Try to read basic info without importing pandas
+                    with open(csv_file, 'r') as f:
+                        lines = sum(1 for _ in f) - 1  # Subtract header
+                    self.data_preview.insert(tk.END, f"✅ {csv_file.name}: ~{lines} data points\n")
+                except Exception as e:
+                    self.data_preview.insert(tk.END, f"❌ {csv_file.name}: Error reading file\n")
+                    
+        except Exception as e:
+            self.data_preview.insert(tk.END, f"❌ Error reading folder: {e}\n")
+    
+    def create_fallback_animation_controls(self, parent_frame):
+        """Create simple animation controls if shared component not available"""
+        # Simple fallback variables
+        self.trail_length = tk.DoubleVar(value=2.0)
+        self.time_step = tk.StringVar(value="1m")
+        
+        # Trail length
+        ttk.Label(parent_frame, text="Trail Length (hours):").grid(row=0, column=0, sticky=tk.W, pady=10)
+        trail_scale = ttk.Scale(parent_frame, from_=0.1, to=6.0, 
+                               variable=self.trail_length, orient=tk.HORIZONTAL)
+        trail_scale.grid(row=0, column=1, sticky=(tk.W, tk.E), padx=(10, 10), pady=10)
+        self.trail_label = ttk.Label(parent_frame, text="2.0 hours")
+        self.trail_label.grid(row=0, column=2, pady=10)
+        trail_scale.configure(command=self.update_trail_label_fallback)
+        
+        # Time step
+        ttk.Label(parent_frame, text="Time Step:").grid(row=1, column=0, sticky=tk.W, pady=10)
+        time_step_combo = ttk.Combobox(parent_frame, textvariable=self.time_step, 
+                                      values=['1s', '5s', '10s', '30s', '1m', '2m', '5m', '10m', '30m', '1h'],
+                                      state='readonly', width=10)
+        time_step_combo.grid(row=1, column=1, sticky=tk.W, padx=(10, 0), pady=10)
+        
+        parent_frame.columnconfigure(1, weight=1)
+        
+        # Create a simple config object for compatibility
+        class SimpleConfig:
+            def get_config(self):
+                return {
+                    'trail_length': self.trail_length.get(),
+                    'time_step': self.time_step.get()
+                }
+        
+        self.animation_controls = SimpleConfig()
+        self.animation_controls.trail_length = self.trail_length
+        self.animation_controls.time_step = self.time_step
+    
+    def update_trail_label_fallback(self, value):
+        """Update trail length label for fallback controls"""
+        if hasattr(self, 'trail_label'):
+            self.trail_label.config(text=f"{float(value):.1f} hours")
     
     def center_window(self):
         """Center the window on the screen"""
@@ -189,7 +247,7 @@ Configuration:
     
     def launch_map(self):
         """Launch the 2D live map with configuration"""
-        if not os.path.exists(self.data_dir.get()):
+        if not os.path.exists(self.data_folder.get()):
             if self.language == "de":
                 messagebox.showerror("Fehler", "Datenverzeichnis existiert nicht!")
             else:
@@ -205,11 +263,21 @@ Configuration:
             return
         
         try:
+            # Get animation configuration
+            if hasattr(self.animation_controls, 'get_config'):
+                config = self.animation_controls.get_config()
+            else:
+                # Fallback for simple config
+                config = {
+                    'trail_length': self.trail_length.get(),
+                    'time_step': self.time_step.get()
+                }
+            
             # Set environment variables for configuration
             env = os.environ.copy()
-            env['GPS_DATA_DIR'] = self.data_dir.get()
-            env['TRAIL_LENGTH'] = str(self.trail_length.get())
-            env['ANIMATION_SPEED'] = str(self.animation_speed.get())
+            env['GPS_DATA_DIR'] = self.data_folder.get()
+            env['TRAIL_LENGTH_HOURS'] = str(config['trail_length'])
+            env['TIME_STEP'] = config['time_step']
             
             # Launch the script
             subprocess.Popen([sys.executable, script_path], env=env)
