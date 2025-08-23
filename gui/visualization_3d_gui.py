@@ -137,7 +137,8 @@ class Visualization3DGUI:
             self.animation_controls = AnimationControlsFrame(
                 animation_frame, 
                 include_time_buffer=False,  # 3D visualization don't need time buffer
-                include_encounter_limit=False  # 3D visualization don't limit encounters
+                include_encounter_limit=False,  # 3D visualization don't limit encounters
+                data_folder=self.data_folder  # Pass data folder for point count calculations
             )
         else:
             # Fallback: create basic controls manually
@@ -207,6 +208,9 @@ class Visualization3DGUI:
         )
         if directory:
             self.data_folder.set(directory)
+            # Update point count in animation controls
+            if hasattr(self, 'animation_controls'):
+                self.animation_controls.update_data_folder(self.data_folder)
     
     def browse_output_folder(self):
         """Browse for output directory"""

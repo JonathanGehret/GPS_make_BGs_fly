@@ -81,17 +81,31 @@ def main():
         ui.print_section("🗺️ TERRAIN REGION SELECTION")
         elevation_manager.list_available_regions()
         
-        # Get region selection - could be made configurable in GUI later
-        region_choice = ui.get_user_input(
-            "Select region (berchtesgaden_full recommended)", 
-            "berchtesgaden_full", 
-            str
-        )
+        # Get region selection - use default for GUI mode
+        if os.environ.get('OUTPUT_DIR'):  # GUI mode
+            region_choice = "berchtesgaden_full"  # Default recommended region for GUI
+            ui.print_success(f"Using default region for GUI mode: {region_choice}")
+        else:
+            # Get region selection from user
+            region_choice = ui.get_user_input(
+                "Select region (berchtesgaden_full recommended)", 
+                "berchtesgaden_full", 
+                str
+            )
         
         # Get terrain resolution - use GUI value if available
         try:
-            resolution_choice = int(terrain_quality_env)
-            ui.print_success(f"Using GUI terrain quality: {resolution_choice}")
+            terrain_quality_str = terrain_quality_env.lower()
+            # Convert quality string to resolution number
+            if terrain_quality_str == "low":
+                resolution_choice = 150
+            elif terrain_quality_str == "medium":
+                resolution_choice = 100
+            elif terrain_quality_str == "high":
+                resolution_choice = 50
+            else:
+                resolution_choice = int(terrain_quality_env)
+            ui.print_success(f"Using GUI terrain quality: {terrain_quality_str} ({resolution_choice})")
         except (ValueError, TypeError):
             resolution_choice = ui.get_user_input(
                 "Terrain resolution (higher = more detail, slower download)", 
