@@ -127,11 +127,13 @@ class ProximityAnalysisGUI:
                                      command=self.stop_analysis, state=tk.DISABLED)
         self.stop_button.pack(side=tk.LEFT, padx=(0, 10))
         
-        ttk.Button(button_frame, text="📁 Open Results Folder", 
-                  command=self.open_results_folder).pack(side=tk.LEFT, padx=(0, 10))
+        self.open_results_button = ttk.Button(button_frame, text=self.translator.t("btn_open_results"), 
+                                             command=self.open_results_folder)
+        self.open_results_button.pack(side=tk.LEFT, padx=(0, 10))
         
-        ttk.Button(button_frame, text="❓ Help", 
-                  command=self.show_help).pack(side=tk.LEFT)
+        self.help_button = ttk.Button(button_frame, text=self.translator.t("btn_help"), 
+                                     command=self.show_help)
+        self.help_button.pack(side=tk.LEFT)
         
         # Status bar
         self.status_var = tk.StringVar(value=self.translator.t("status_ready"))
@@ -179,6 +181,8 @@ class ProximityAnalysisGUI:
             # Update button texts
             self.run_button.config(text=self.translator.t("btn_run"))
             self.stop_button.config(text=self.translator.t("btn_stop"))
+            self.open_results_button.config(text=self.translator.t("btn_open_results"))
+            self.help_button.config(text=self.translator.t("btn_help"))
             
             # Update status
             current_status = self.status_var.get()
@@ -196,6 +200,10 @@ class ProximityAnalysisGUI:
             self.update_results_tab_text()
             self.update_log_tab_text()
             self.update_button_texts()
+            
+            # Update additional browse button
+            if hasattr(self, 'browse_output_button'):
+                self.browse_output_button.config(text=self.translator.t("btn_browse"))
             
         except Exception:
             pass  # Gracefully handle any UI update errors
@@ -284,7 +292,7 @@ class ProximityAnalysisGUI:
         self.output_folder_entry = ttk.Entry(output_folder_frame, textvariable=self.output_folder, width=50)
         self.output_folder_entry.grid(row=0, column=0, sticky=(tk.W, tk.E), padx=(0, 10))
         
-        self.browse_output_button = ttk.Button(output_folder_frame, text="📁 Browse", 
+        self.browse_output_button = ttk.Button(output_folder_frame, text=self.translator.t("btn_browse"), 
                                               command=self.browse_output_folder)
         self.browse_output_button.grid(row=0, column=1)
         
@@ -849,7 +857,7 @@ class ProximityAnalysisGUI:
                 file_path = self.output_files[index]
                 try:
                     folder_path = os.path.dirname(file_path)
-                    webbrowser.open(f"file://{folder_path}")
+                    self._open_file_manager(folder_path)
                 except Exception as e:
                     messagebox.showerror("Error", f"Failed to open folder: {e}")
                     
@@ -858,9 +866,26 @@ class ProximityAnalysisGUI:
         try:
             results_folder = os.path.join(os.path.dirname(__file__), '..', 'visualizations')
             results_folder = os.path.abspath(results_folder)
-            webbrowser.open(f"file://{results_folder}")
+            self._open_file_manager(results_folder)
         except Exception as e:
             messagebox.showerror("Error", f"Failed to open results folder: {e}")
+    
+    def _open_file_manager(self, path):
+        """Open system file manager at the specified path"""
+        import platform
+        import subprocess
+        
+        system = platform.system()
+        try:
+            if system == "Windows":
+                subprocess.run(['explorer', path])
+            elif system == "Darwin":  # macOS
+                subprocess.run(['open', path])
+            else:  # Linux and other Unix-like systems
+                subprocess.run(['xdg-open', path])
+        except Exception:
+            # Fallback to webbrowser if system file manager fails
+            webbrowser.open(f"file://{path}")
             
     def show_help(self):
         """Show help dialog"""

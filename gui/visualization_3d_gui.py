@@ -93,56 +93,63 @@ class Visualization3DGUI:
         lang_combo.bind("<<ComboboxSelected>>", self.change_language)
         
         # Data and Output folders (compact)
-        folders_frame = ttk.LabelFrame(scrollable_frame, text="📁 Folders", padding="10")
-        folders_frame.grid(row=1, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
-        folders_frame.columnconfigure(1, weight=1)
+        self.folders_frame = ttk.LabelFrame(scrollable_frame, text="📁 Folders", padding="10")
+        self.folders_frame.grid(row=1, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
+        self.folders_frame.columnconfigure(1, weight=1)
         
         # Data folder
-        ttk.Label(folders_frame, text="Data:").grid(row=0, column=0, sticky=tk.W, pady=2)
-        ttk.Entry(folders_frame, textvariable=self.data_folder, width=40).grid(row=0, column=1, sticky=(tk.W, tk.E), pady=2, padx=(5, 3))
-        ttk.Button(folders_frame, text="📁", command=self.browse_data_folder, width=3).grid(row=0, column=2, pady=2)
+        self.data_label = ttk.Label(self.folders_frame, text="Data:")
+        self.data_label.grid(row=0, column=0, sticky=tk.W, pady=2)
+        ttk.Entry(self.folders_frame, textvariable=self.data_folder, width=40).grid(row=0, column=1, sticky=(tk.W, tk.E), pady=2, padx=(5, 3))
+        self.browse_data_button = ttk.Button(self.folders_frame, text="📁", command=self.browse_data_folder, width=3)
+        self.browse_data_button.grid(row=0, column=2, pady=2)
         
         # Output folder
-        ttk.Label(folders_frame, text="Output:").grid(row=1, column=0, sticky=tk.W, pady=2)
-        ttk.Entry(folders_frame, textvariable=self.output_folder, width=40).grid(row=1, column=1, sticky=(tk.W, tk.E), pady=2, padx=(5, 3))
-        ttk.Button(folders_frame, text="📁", command=self.browse_output_folder, width=3).grid(row=1, column=2, pady=2)
+        self.output_label = ttk.Label(self.folders_frame, text="Output:")
+        self.output_label.grid(row=1, column=0, sticky=tk.W, pady=2)
+        ttk.Entry(self.folders_frame, textvariable=self.output_folder, width=40).grid(row=1, column=1, sticky=(tk.W, tk.E), pady=2, padx=(5, 3))
+        self.browse_output_button = ttk.Button(self.folders_frame, text="📁", command=self.browse_output_folder, width=3)
+        self.browse_output_button.grid(row=1, column=2, pady=2)
         
         # 3D Settings
-        settings_frame = ttk.LabelFrame(scrollable_frame, text="🎯 3D Settings", padding="10")
-        settings_frame.grid(row=2, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
-        settings_frame.columnconfigure(1, weight=1)
+        self.settings_frame = ttk.LabelFrame(scrollable_frame, text="🎯 3D Settings", padding="10")
+        self.settings_frame.grid(row=2, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
+        self.settings_frame.columnconfigure(1, weight=1)
         
         # Terrain quality
-        ttk.Label(settings_frame, text="Terrain Quality:").grid(row=0, column=0, sticky=tk.W, pady=2)
-        quality_combo = ttk.Combobox(settings_frame, textvariable=self.terrain_quality, 
+        self.terrain_label = ttk.Label(self.settings_frame, text="Terrain Quality:")
+        self.terrain_label.grid(row=0, column=0, sticky=tk.W, pady=2)
+        quality_combo = ttk.Combobox(self.settings_frame, textvariable=self.terrain_quality, 
                                    values=["low", "medium", "high"], state="readonly", width=15)
         quality_combo.grid(row=0, column=1, sticky=tk.W, padx=(5, 0), pady=2)
         
         # Options
-        options_frame = ttk.LabelFrame(scrollable_frame, text="🔧 Display Options", padding="10")
-        options_frame.grid(row=3, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
+        self.options_frame = ttk.LabelFrame(scrollable_frame, text="🔧 Display Options", padding="10")
+        self.options_frame.grid(row=3, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
         
-        ttk.Checkbutton(options_frame, text="Show Elevation Data", 
-                       variable=self.show_elevation).grid(row=0, column=0, sticky=tk.W, pady=2)
-        ttk.Checkbutton(options_frame, text="Show Position Markers", 
-                       variable=self.show_markers).grid(row=1, column=0, sticky=tk.W, pady=2)
+        self.elevation_check = ttk.Checkbutton(self.options_frame, text="Show Elevation Data", 
+                                              variable=self.show_elevation)
+        self.elevation_check.grid(row=0, column=0, sticky=tk.W, pady=2)
+        self.markers_check = ttk.Checkbutton(self.options_frame, text="Show Position Markers", 
+                                            variable=self.show_markers)
+        self.markers_check.grid(row=1, column=0, sticky=tk.W, pady=2)
         
         # Animation controls frame (more compact)
-        animation_frame = ttk.LabelFrame(scrollable_frame, text="🎬 Animation Settings", padding="10")
-        animation_frame.grid(row=4, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
-        animation_frame.columnconfigure(0, weight=1)
+        self.animation_frame = ttk.LabelFrame(scrollable_frame, text="🎬 Animation Settings", padding="10")
+        self.animation_frame.grid(row=4, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
+        self.animation_frame.columnconfigure(0, weight=1)
         
         # Create the shared animation controls (without time buffer, without encounter limit)
         if AnimationControlsFrame:
             self.animation_controls = AnimationControlsFrame(
-                animation_frame, 
+                self.animation_frame, 
                 include_time_buffer=False,  # 3D visualization don't need time buffer
                 include_encounter_limit=False,  # 3D visualization don't limit encounters
                 data_folder=self.data_folder  # Pass data folder for point count calculations
             )
         else:
             # Fallback: create basic controls manually
-            self.create_fallback_animation_controls(animation_frame)
+            self.create_fallback_animation_controls(self.animation_frame)
         
         # Canvas and scrollbar setup
         canvas.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
@@ -167,7 +174,8 @@ class Visualization3DGUI:
                                     command=self.launch_visualization, style="Launch.TButton")
         self.launch_btn.pack(side=tk.LEFT, padx=(0, 8))
         
-        ttk.Button(button_frame, text="❌ Cancel", command=self.root.destroy).pack(side=tk.LEFT)
+        self.cancel_btn = ttk.Button(button_frame, text="❌ Cancel", command=self.root.destroy)
+        self.cancel_btn.pack(side=tk.LEFT)
         
         # Configure button style
         style.configure("Launch.TButton", font=("Arial", 11, "bold"), padding=8)
@@ -194,99 +202,44 @@ class Visualization3DGUI:
         if self.language == "de":
             self.root.title("3D Visualisierung - Konfiguration")
             self.launch_btn.config(text="🚀 3D Viz starten")
+            self.cancel_btn.config(text="❌ Abbrechen")
             self.status_var.set("Bereit")
             
-            # Update other German texts
-            for child in self.root.winfo_children():
-                self._update_widget_texts_de(child)
+            # Update frame labels
+            self.folders_frame.config(text="📁 Ordner")
+            self.settings_frame.config(text="🎯 3D Einstellungen")
+            self.options_frame.config(text="🔧 Anzeigeoptionen")
+            self.animation_frame.config(text="🎬 Animation-Einstellungen")
+            
+            # Update field labels
+            self.data_label.config(text="Daten:")
+            self.output_label.config(text="Ausgabe:")
+            self.terrain_label.config(text="Gelände-Qualität:")
+            
+            # Update checkboxes
+            self.elevation_check.config(text="Höhendaten anzeigen")
+            self.markers_check.config(text="Positionsmarkierungen anzeigen")
+            
         else:
             self.root.title("3D Visualization - Configuration")
             self.launch_btn.config(text="🚀 Launch 3D Viz")
+            self.cancel_btn.config(text="❌ Cancel")
             self.status_var.set("Ready")
             
-            # Update other English texts
-            for child in self.root.winfo_children():
-                self._update_widget_texts_en(child)
-    
-    def _update_widget_texts_de(self, widget):
-        """Recursively update widget texts to German"""
-        try:
-            widget_class = widget.winfo_class()
-            if widget_class == "Label":
-                current_text = widget.cget("text")
-                # Update specific labels
-                if "Data:" in current_text:
-                    widget.config(text="Daten:")
-                elif "Output:" in current_text:
-                    widget.config(text="Ausgabe:")
-                elif "Terrain Quality:" in current_text:
-                    widget.config(text="Gelände-Qualität:")
-            elif widget_class == "Labelframe":
-                current_text = widget.cget("text")
-                if "📁 Folders" in current_text:
-                    widget.config(text="📁 Ordner")
-                elif "🎯 3D Settings" in current_text:
-                    widget.config(text="🎯 3D Einstellungen")
-                elif "🔧 Display Options" in current_text:
-                    widget.config(text="🔧 Anzeigeoptionen")
-                elif "🎬 Animation Settings" in current_text:
-                    widget.config(text="🎬 Animation-Einstellungen")
-            elif widget_class == "Button":
-                current_text = widget.cget("text")
-                if "❌ Cancel" in current_text:
-                    widget.config(text="❌ Abbrechen")
-            elif widget_class == "Checkbutton":
-                current_text = widget.cget("text")
-                if "Show Elevation Data" in current_text:
-                    widget.config(text="Höhendaten anzeigen")
-                elif "Show Position Markers" in current_text:
-                    widget.config(text="Positionsmarkierungen anzeigen")
+            # Update frame labels
+            self.folders_frame.config(text="📁 Folders")
+            self.settings_frame.config(text="🎯 3D Settings")
+            self.options_frame.config(text="🔧 Display Options")
+            self.animation_frame.config(text="🎬 Animation Settings")
             
-            # Recursively check children
-            for child in widget.winfo_children():
-                self._update_widget_texts_de(child)
-        except Exception:
-            pass
-    
-    def _update_widget_texts_en(self, widget):
-        """Recursively update widget texts to English"""
-        try:
-            widget_class = widget.winfo_class()
-            if widget_class == "Label":
-                current_text = widget.cget("text")
-                # Update specific labels
-                if "Daten:" in current_text:
-                    widget.config(text="Data:")
-                elif "Ausgabe:" in current_text:
-                    widget.config(text="Output:")
-                elif "Gelände-Qualität:" in current_text:
-                    widget.config(text="Terrain Quality:")
-            elif widget_class == "Labelframe":
-                current_text = widget.cget("text")
-                if "📁 Ordner" in current_text:
-                    widget.config(text="📁 Folders")
-                elif "🎯 3D Einstellungen" in current_text:
-                    widget.config(text="🎯 3D Settings")
-                elif "🔧 Anzeigeoptionen" in current_text:
-                    widget.config(text="🔧 Display Options")
-                elif "🎬 Animation-Einstellungen" in current_text:
-                    widget.config(text="🎬 Animation Settings")
-            elif widget_class == "Button":
-                current_text = widget.cget("text")
-                if "❌ Abbrechen" in current_text:
-                    widget.config(text="❌ Cancel")
-            elif widget_class == "Checkbutton":
-                current_text = widget.cget("text")
-                if "Höhendaten anzeigen" in current_text:
-                    widget.config(text="Show Elevation Data")
-                elif "Positionsmarkierungen anzeigen" in current_text:
-                    widget.config(text="Show Position Markers")
+            # Update field labels
+            self.data_label.config(text="Data:")
+            self.output_label.config(text="Output:")
+            self.terrain_label.config(text="Terrain Quality:")
             
-            # Recursively check children
-            for child in widget.winfo_children():
-                self._update_widget_texts_en(child)
-        except Exception:
-            pass
+            # Update checkboxes
+            self.elevation_check.config(text="Show Elevation Data")
+            self.markers_check.config(text="Show Position Markers")
     
     def browse_data_folder(self):
         """Browse for data directory"""

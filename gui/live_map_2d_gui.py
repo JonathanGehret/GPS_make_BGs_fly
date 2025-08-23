@@ -90,47 +90,52 @@ class LiveMap2DGUI:
         lang_combo.bind("<<ComboboxSelected>>", self.change_language)
         
         # Data and Output folders (compact)
-        folders_frame = ttk.LabelFrame(scrollable_frame, text="📁 Folders", padding="10")
-        folders_frame.grid(row=1, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
-        folders_frame.columnconfigure(1, weight=1)
+        self.folders_frame = ttk.LabelFrame(scrollable_frame, text="📁 Folders", padding="10")
+        self.folders_frame.grid(row=1, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
+        self.folders_frame.columnconfigure(1, weight=1)
         
-        # Data folder
-        ttk.Label(folders_frame, text="Data:").grid(row=0, column=0, sticky=tk.W, pady=2)
-        ttk.Entry(folders_frame, textvariable=self.data_folder, width=40).grid(row=0, column=1, sticky=(tk.W, tk.E), pady=2, padx=(5, 3))
-        ttk.Button(folders_frame, text="📁", command=self.browse_data_folder, width=3).grid(row=0, column=2, pady=2)
+        # Store labels for translation
+        self.data_label = ttk.Label(self.folders_frame, text="Data:")
+        self.data_label.grid(row=0, column=0, sticky=tk.W, pady=2)
+        ttk.Entry(self.folders_frame, textvariable=self.data_folder, width=40).grid(row=0, column=1, sticky=(tk.W, tk.E), pady=2, padx=(5, 3))
+        self.browse_data_button = ttk.Button(self.folders_frame, text="📁", command=self.browse_data_folder, width=3)
+        self.browse_data_button.grid(row=0, column=2, pady=2)
         
         # Output folder
-        ttk.Label(folders_frame, text="Output:").grid(row=1, column=0, sticky=tk.W, pady=2)
-        ttk.Entry(folders_frame, textvariable=self.output_folder, width=40).grid(row=1, column=1, sticky=(tk.W, tk.E), pady=2, padx=(5, 3))
-        ttk.Button(folders_frame, text="📁", command=self.browse_output_folder, width=3).grid(row=1, column=2, pady=2)
+        self.output_label = ttk.Label(self.folders_frame, text="Output:")
+        self.output_label.grid(row=1, column=0, sticky=tk.W, pady=2)
+        ttk.Entry(self.folders_frame, textvariable=self.output_folder, width=40).grid(row=1, column=1, sticky=(tk.W, tk.E), pady=2, padx=(5, 3))
+        self.browse_output_button = ttk.Button(self.folders_frame, text="📁", command=self.browse_output_folder, width=3)
+        self.browse_output_button.grid(row=1, column=2, pady=2)
         
         # Data preview (smaller)
-        preview_frame = ttk.LabelFrame(scrollable_frame, text="📊 Data Preview", padding="8")
-        preview_frame.grid(row=2, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
-        preview_frame.columnconfigure(0, weight=1)
+        self.preview_frame = ttk.LabelFrame(scrollable_frame, text="📊 Data Preview", padding="8")
+        self.preview_frame.grid(row=2, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
+        self.preview_frame.columnconfigure(0, weight=1)
         
-        self.data_preview = tk.Text(preview_frame, height=3, width=60, wrap=tk.WORD, font=("Arial", 8))
+        self.data_preview = tk.Text(self.preview_frame, height=3, width=60, wrap=tk.WORD, font=("Arial", 8))
         self.data_preview.grid(row=0, column=0, sticky=(tk.W, tk.E), pady=(0, 5))
         
-        ttk.Button(preview_frame, text="🔄 Refresh", 
-                  command=self.refresh_data_preview).grid(row=1, column=0, sticky=tk.W)
+        self.refresh_button = ttk.Button(self.preview_frame, text="🔄 Refresh", 
+                                        command=self.refresh_data_preview)
+        self.refresh_button.grid(row=1, column=0, sticky=tk.W)
         
         # Animation controls frame (more compact)
-        animation_frame = ttk.LabelFrame(scrollable_frame, text="🎬 Animation Settings", padding="10")
-        animation_frame.grid(row=3, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
-        animation_frame.columnconfigure(0, weight=1)
+        self.animation_frame = ttk.LabelFrame(scrollable_frame, text="🎬 Animation Settings", padding="10")
+        self.animation_frame.grid(row=3, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
+        self.animation_frame.columnconfigure(0, weight=1)
         
         # Create the shared animation controls (without time buffer, without encounter limit)
         if AnimationControlsFrame:
             self.animation_controls = AnimationControlsFrame(
-                animation_frame, 
+                self.animation_frame, 
                 include_time_buffer=False,  # 2D maps don't need time buffer
                 include_encounter_limit=False,  # 2D maps don't limit encounters
                 data_folder=self.data_folder  # Pass data folder for point count calculations
             )
         else:
             # Fallback: create basic controls manually
-            self.create_fallback_animation_controls(animation_frame)
+            self.create_fallback_animation_controls(self.animation_frame)
         
         # Status and buttons (fixed at bottom)
         canvas.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
@@ -155,7 +160,8 @@ class LiveMap2DGUI:
                                     command=self.launch_map, style="Launch.TButton")
         self.launch_btn.pack(side=tk.LEFT, padx=(0, 8))
         
-        ttk.Button(button_frame, text="❌ Cancel", command=self.root.destroy).pack(side=tk.LEFT)
+        self.cancel_btn = ttk.Button(button_frame, text="❌ Cancel", command=self.root.destroy)
+        self.cancel_btn.pack(side=tk.LEFT)
         
         # Configure button style
         style.configure("Launch.TButton", font=("Arial", 11, "bold"), padding=8)
@@ -185,19 +191,34 @@ class LiveMap2DGUI:
         if self.language == "de":
             self.root.title("2D Live Karte - Konfiguration")
             self.launch_btn.config(text="🚀 2D Live Karte starten")
+            self.cancel_btn.config(text="❌ Abbrechen")
             self.status_var.set("Bereit")
             
-            # Update other German texts
-            for child in self.root.winfo_children():
-                self._update_widget_texts_de(child)
+            # Update frame labels
+            self.folders_frame.config(text="📁 Ordner")
+            self.preview_frame.config(text="📊 Datenvorschau")
+            self.animation_frame.config(text="🎬 Animation-Einstellungen")
+            
+            # Update field labels
+            self.data_label.config(text="Daten:")
+            self.output_label.config(text="Ausgabe:")
+            self.refresh_button.config(text="🔄 Aktualisieren")
+            
         else:
             self.root.title("2D Live Map - Configuration")
             self.launch_btn.config(text="🚀 Launch 2D Live Map")
+            self.cancel_btn.config(text="❌ Cancel")
             self.status_var.set("Ready")
             
-            # Update other English texts
-            for child in self.root.winfo_children():
-                self._update_widget_texts_en(child)
+            # Update frame labels
+            self.folders_frame.config(text="📁 Folders")
+            self.preview_frame.config(text="📊 Data Preview")
+            self.animation_frame.config(text="🎬 Animation Settings")
+            
+            # Update field labels
+            self.data_label.config(text="Data:")
+            self.output_label.config(text="Output:")
+            self.refresh_button.config(text="🔄 Refresh")
     
     def _update_widget_texts_de(self, widget):
         """Recursively update widget texts to German"""

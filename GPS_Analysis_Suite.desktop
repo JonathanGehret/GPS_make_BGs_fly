@@ -2,11 +2,15 @@
 Version=1.0
 Type=Application
 Name=GPS Analysis Suite
+Name[de]=GPS Analyse Suite
 Comment=Bearded Vulture GPS Tracking Analysis Suite
+Comment[de]=Bartgeier GPS-Tracking Analyse Suite
 GenericName=GPS Analysis
+GenericName[de]=GPS Analyse
 Exec=sh -c 'cd "%k/.." && python3 main.py'
 Icon=applications-science
 Terminal=true
 Categories=Science;Geography;DataVisualization;
 Keywords=GPS;tracking;vulture;analysis;visualization;
+Keywords[de]=GPS;Verfolgung;Geier;Analyse;Visualisierung;
 StartupNotify=true
