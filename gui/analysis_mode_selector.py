@@ -150,6 +150,9 @@ class AnalysisModeSelector:
     
     def launch_proximity_analysis(self):
         """Launch the proximity analysis GUI"""
+        # Disable button to prevent multiple clicks
+        self.btn1.config(state="disabled")
+        
         self.update_status("Starte Näherungsanalyse..." if self.language == "de" 
                           else "Launching Proximity Analysis...")
         
@@ -161,16 +164,26 @@ class AnalysisModeSelector:
                 env['GPS_ANALYSIS_LANGUAGE'] = self.language
                 subprocess.Popen([sys.executable, script_path], env=env)
                 if self.language == "de":
-                    self.update_status("Näherungsanalyse erfolgreich gestartet")
+                    self.update_status("Näherungsanalyse wird gestartet...")
                 else:
-                    self.update_status("Proximity Analysis launched successfully")
+                    self.update_status("Proximity Analysis starting...")
+                
+                # Re-enable button after short delay
+                self.root.after(3000, lambda: self.btn1.config(state="normal"))
+                self.root.after(3000, lambda: self.update_status("Bereit" if self.language == "de" else "Ready"))
+                    
             except Exception as e:
                 self.show_error(f"Error launching proximity analysis: {str(e)}")
+                self.btn1.config(state="normal")
         else:
             self.show_error(f"proximity_analysis_gui.py not found at: {script_path}")
+            self.btn1.config(state="normal")
     
     def launch_2d_map(self):
         """Launch the 2D live map"""
+        # Disable button to prevent multiple clicks
+        self.btn2.config(state="disabled")
+        
         self.update_status("Starte 2D Live Karte..." if self.language == "de" 
                           else "Launching 2D Live Map...")
         
@@ -182,16 +195,26 @@ class AnalysisModeSelector:
                 env['GPS_ANALYSIS_LANGUAGE'] = self.language
                 subprocess.Popen([sys.executable, script_path], env=env)
                 if self.language == "de":
-                    self.update_status("2D Live Karte GUI erfolgreich gestartet")
+                    self.update_status("2D Live Karte wird gestartet...")
                 else:
-                    self.update_status("2D Live Map GUI launched successfully")
+                    self.update_status("2D Live Map starting...")
+                
+                # Re-enable button after short delay
+                self.root.after(3000, lambda: self.btn2.config(state="normal"))
+                self.root.after(3000, lambda: self.update_status("Bereit" if self.language == "de" else "Ready"))
+                    
             except Exception as e:
                 self.show_error(f"Error launching 2D map GUI: {str(e)}")
+                self.btn2.config(state="normal")
         else:
             self.show_error(f"live_map_2d_gui.py not found at: {script_path}")
+            self.btn2.config(state="normal")
     
     def launch_3d_visualization(self):
         """Launch the 3D visualization"""
+        # Disable button to prevent multiple clicks
+        self.btn3.config(state="disabled")
+        
         self.update_status("Starte 3D Visualisierung..." if self.language == "de" 
                           else "Launching 3D Visualization...")
         
@@ -203,13 +226,20 @@ class AnalysisModeSelector:
                 env['GPS_ANALYSIS_LANGUAGE'] = self.language
                 subprocess.Popen([sys.executable, script_path], env=env)
                 if self.language == "de":
-                    self.update_status("3D Visualisierung GUI erfolgreich gestartet")
+                    self.update_status("3D Visualisierung GUI wird gestartet...")
                 else:
-                    self.update_status("3D Visualization GUI launched successfully")
+                    self.update_status("3D Visualization GUI starting...")
+                
+                # Re-enable button after short delay
+                self.root.after(3000, lambda: self.btn3.config(state="normal"))
+                self.root.after(3000, lambda: self.update_status("Bereit" if self.language == "de" else "Ready"))
+                    
             except Exception as e:
                 self.show_error(f"Error launching 3D visualization GUI: {str(e)}")
+                self.btn3.config(state="normal")
         else:
             self.show_error(f"visualization_3d_gui.py not found at: {script_path}")
+            self.btn3.config(state="normal")
     
     def update_status(self, message):
         """Update the status bar message"""

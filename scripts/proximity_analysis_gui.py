@@ -141,6 +141,9 @@ class ProximityAnalysisGUI:
                               relief=tk.SUNKEN, anchor=tk.W)
         status_bar.grid(row=3, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(10, 0))
         
+        # Ensure all UI elements use the correct initial language
+        self.update_ui_text()
+        
     def change_language_dropdown(self, event=None):
         """Change language from dropdown selection"""
         new_lang = self.lang_var.get()
@@ -378,7 +381,7 @@ class ProximityAnalysisGUI:
     def setup_animation_tab(self):
         """Setup animation parameters tab using shared controls"""
         animation_frame = ttk.Frame(self.notebook, padding="20")
-        self.notebook.add(animation_frame, text="🎬 Animation")
+        self.notebook.add(animation_frame, text=self.translator.t("tab_animation"))
         
         # Animation settings header
         ttk.Label(animation_frame, text="Animation Configuration:", 
@@ -434,7 +437,7 @@ class ProximityAnalysisGUI:
     def setup_results_tab(self):
         """Setup results display tab"""
         results_frame = ttk.Frame(self.notebook, padding="20")
-        self.notebook.add(results_frame, text="📊 Results")
+        self.notebook.add(results_frame, text=self.translator.t("tab_results"))
         
         # Results summary
         self.results_title_label = ttk.Label(results_frame, text="Analysis Results:", 
@@ -469,7 +472,7 @@ class ProximityAnalysisGUI:
     def setup_log_tab(self):
         """Setup log display tab"""
         log_frame = ttk.Frame(self.notebook, padding="20")
-        self.notebook.add(log_frame, text="📝 Log")
+        self.notebook.add(log_frame, text=self.translator.t("tab_log"))
         
         self.log_title_label = ttk.Label(log_frame, text="Analysis Log:", 
                  font=('Arial', 11, 'bold'))
