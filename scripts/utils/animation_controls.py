@@ -18,9 +18,11 @@ sys.path.insert(0, scripts_dir)
 try:
     from utils.performance_optimizer import PerformanceOptimizer
     from gps_utils import DataLoader
+    from i18n import get_translator
 except ImportError:
     PerformanceOptimizer = None
     DataLoader = None
+    get_translator = None
 
 
 class AnimationControlsFrame:
@@ -39,6 +41,9 @@ class AnimationControlsFrame:
         self.parent_frame = parent_frame
         self.include_time_buffer = include_time_buffer
         self.include_encounter_limit = include_encounter_limit
+        
+        # Initialize translator for internationalization
+        self.translator = get_translator() if get_translator else None
         self.data_folder = data_folder
         
         # Animation variables
@@ -58,6 +63,35 @@ class AnimationControlsFrame:
         
         self._load_data_if_available()
         self.setup_controls()
+    
+    def t(self, key, *args):
+        """Get translated text or fallback to English"""
+        if self.translator:
+            return self.translator.t(key, *args)
+        else:
+            # Fallback translations for when i18n is not available
+            fallbacks = {
+                "label_animation_config": "Animation Configuration:",
+                "group_data_range": "Data Range",
+                "label_time_buffer": "Time Buffer (hours):",
+                "label_trail_length": "Trail Length (hours):",
+                "group_animation_quality": "Animation Quality",
+                "label_time_step": "Time Step:",
+                "label_point_count": "📊 Point count calculated when data is loaded",
+                "point_count_format": "📊 {0} {1} Points ({2:.1f}% reduction from {3:,})",
+                "point_count_unavailable": "Point count unavailable",
+                "label_quality_guide": "Quality Guide:",
+                "quality_ultra": "• 1s-30s: Ultra-smooth (slower processing)",
+                "quality_balanced": "• 1m-5m: Balanced quality and speed",
+                "quality_fast": "• 10m-1h: Fast processing (less detail)",
+                "group_performance": "Performance Options",
+                "label_limit_encounters": "Limit Encounters (0 = all):",
+                "limit_no_limit": "No limit",
+                "limit_encounters": "encounters"
+            }
+            if len(args) > 0:
+                return fallbacks.get(key, key).format(*args)
+            return fallbacks.get(key, key)
     
     def _load_data_if_available(self):
         """Load GPS data if data folder is available for point count calculations"""
@@ -98,10 +132,10 @@ class AnimationControlsFrame:
             rating = PerformanceOptimizer.get_performance_rating(filtered)
             reduction = ((original - filtered) / original * 100) if original > 0 else 0
             
-            count_text = f"{rating} {filtered:,} points ({reduction:.1f}% reduction from {original:,})"
+            count_text = self.t("point_count_format", rating, filtered, reduction, original)
             self.point_count_label.config(text=count_text)
         except Exception:
-            self.point_count_label.config(text="Point count unavailable")
+            self.point_count_label.config(text=self.t("point_count_unavailable"))
     
     def setup_controls(self):
         """Setup the animation control widgets"""
@@ -109,18 +143,18 @@ class AnimationControlsFrame:
         animation_frame = self.parent_frame
         
         # Animation settings title
-        ttk.Label(animation_frame, text="Animation Configuration:", 
+        ttk.Label(animation_frame, text=self.t("label_animation_config"), 
                  font=('Arial', 11, 'bold')).grid(row=0, column=0, sticky=tk.W, pady=(0, 15))
         
         # Data range frame
-        buffer_frame = ttk.LabelFrame(animation_frame, text="Data Range", padding="15")
+        buffer_frame = ttk.LabelFrame(animation_frame, text=self.t("group_data_range"), padding="15")
         buffer_frame.grid(row=1, column=0, sticky=(tk.W, tk.E), pady=(0, 15))
         
         current_row = 0
         
         # Time buffer (only for proximity analysis)
         if self.include_time_buffer:
-            ttk.Label(buffer_frame, text="Time Buffer (hours):").grid(row=current_row, column=0, sticky=tk.W, pady=(0, 10))
+            ttk.Label(buffer_frame, text=self.t("label_time_buffer")).grid(row=current_row, column=0, sticky=tk.W, pady=(0, 10))
             buffer_scale = ttk.Scale(buffer_frame, from_=0.5, to=12.0, 
                                     variable=self.time_buffer, orient=tk.HORIZONTAL)
             buffer_scale.grid(row=current_row, column=1, sticky=(tk.W, tk.E), padx=(10, 10), pady=(0, 10))
@@ -130,7 +164,7 @@ class AnimationControlsFrame:
             current_row += 1
         
         # Trail length
-        ttk.Label(buffer_frame, text="Trail Length (hours):").grid(row=current_row, column=0, sticky=tk.W)
+        ttk.Label(buffer_frame, text=self.t("label_trail_length")).grid(row=current_row, column=0, sticky=tk.W)
         trail_scale = ttk.Scale(buffer_frame, from_=0.1, to=6.0, 
                                variable=self.trail_length, orient=tk.HORIZONTAL)
         trail_scale.grid(row=current_row, column=1, sticky=(tk.W, tk.E), padx=(10, 10))
@@ -141,10 +175,10 @@ class AnimationControlsFrame:
         buffer_frame.columnconfigure(1, weight=1)
         
         # Time step frame
-        step_frame = ttk.LabelFrame(animation_frame, text="Animation Quality", padding="15")
+        step_frame = ttk.LabelFrame(animation_frame, text=self.t("group_animation_quality"), padding="15")
         step_frame.grid(row=2, column=0, sticky=(tk.W, tk.E), pady=(0, 15))
         
-        ttk.Label(step_frame, text="Time Step:").grid(row=0, column=0, sticky=tk.W, pady=(0, 10))
+        ttk.Label(step_frame, text=self.t("label_time_step")).grid(row=0, column=0, sticky=tk.W, pady=(0, 10))
         time_step_combo = ttk.Combobox(step_frame, textvariable=self.time_step, 
                                       values=['1s', '5s', '10s', '30s', '1m', '2m', '5m', '10m', '30m', '1h'],
                                       state='readonly', width=10)
@@ -152,32 +186,32 @@ class AnimationControlsFrame:
         time_step_combo.bind('<<ComboboxSelected>>', lambda e: self.update_point_count())
         
         # Point count display
-        self.point_count_label = ttk.Label(step_frame, text="📊 Point count will be calculated when data is loaded", 
+        self.point_count_label = ttk.Label(step_frame, text=self.t("label_point_count"), 
                                           font=('Arial', 9), foreground='blue')
         self.point_count_label.grid(row=1, column=0, columnspan=2, sticky=tk.W, pady=(5, 10))
         
         # Initial point count calculation
         self.after_widget_creation()
         
-        ttk.Label(step_frame, text="Quality Guide:", font=('Arial', 9, 'italic')).grid(
+        ttk.Label(step_frame, text=self.t("label_quality_guide"), font=('Arial', 9, 'italic')).grid(
             row=2, column=0, columnspan=2, sticky=tk.W, pady=(10, 5))
-        ttk.Label(step_frame, text="• 1s-30s: Ultra-smooth (slower processing)", 
+        ttk.Label(step_frame, text=self.t("quality_ultra"), 
                  font=('Arial', 8)).grid(row=3, column=0, columnspan=2, sticky=tk.W)
-        ttk.Label(step_frame, text="• 1m-5m: Balanced quality and speed", 
+        ttk.Label(step_frame, text=self.t("quality_balanced"), 
                  font=('Arial', 8)).grid(row=4, column=0, columnspan=2, sticky=tk.W)
-        ttk.Label(step_frame, text="• 10m-1h: Fast processing (less detail)", 
+        ttk.Label(step_frame, text=self.t("quality_fast"), 
                  font=('Arial', 8)).grid(row=5, column=0, columnspan=2, sticky=tk.W)
         
         # Performance options (only for proximity analysis with encounter limiting)
         if self.include_encounter_limit:
-            perf_frame = ttk.LabelFrame(animation_frame, text="Performance Options", padding="15")
+            perf_frame = ttk.LabelFrame(animation_frame, text=self.t("group_performance"), padding="15")
             perf_frame.grid(row=3, column=0, sticky=(tk.W, tk.E))
             
-            ttk.Label(perf_frame, text="Limit Encounters (0 = all):").grid(row=0, column=0, sticky=tk.W)
+            ttk.Label(perf_frame, text=self.t("label_limit_encounters")).grid(row=0, column=0, sticky=tk.W)
             limit_scale = ttk.Scale(perf_frame, from_=0, to=50, 
                                    variable=self.limit_encounters, orient=tk.HORIZONTAL)
             limit_scale.grid(row=0, column=1, sticky=(tk.W, tk.E), padx=(10, 10))
-            self.limit_label = ttk.Label(perf_frame, text="No limit")
+            self.limit_label = ttk.Label(perf_frame, text=self.t("limit_no_limit"))
             self.limit_label.grid(row=0, column=2)
             limit_scale.configure(command=self.update_limit_label)
             
@@ -206,7 +240,7 @@ class AnimationControlsFrame:
         """Update encounter limit label"""
         if self.limit_label:
             limit = int(float(value))
-            self.limit_label.config(text="No limit" if limit == 0 else f"{limit} encounters")
+            self.limit_label.config(text=self.t("limit_no_limit") if limit == 0 else f"{limit} {self.t('limit_encounters')}")
     
     def get_config(self):
         """Get current animation configuration as dictionary"""

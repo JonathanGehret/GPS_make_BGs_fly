@@ -76,6 +76,7 @@ class Translator:
             "label_time_step": "Zeitschritt:",
             "label_point_count": "📊 Punktanzahl wird berechnet wenn Daten geladen sind",
             "point_count_format": "📊 {0} {1} Punkte ({2:.1f}% Reduzierung von {3:,})",
+            "point_count_unavailable": "Punktanzahl nicht verfügbar",
             "label_quality_guide": "Qualitäts-Leitfaden:",
             "quality_ultra": "• 1s-30s: Ultra-glatt (langsamere Verarbeitung)",
             "quality_balanced": "• 1m-5m: Ausgewogene Qualität und Geschwindigkeit",
@@ -257,6 +258,7 @@ Für weitere Informationen besuchen Sie die Projektdokumentation.
             "quality_fast": "• 10m-1h: Fast processing (less detail)",
             "label_point_count": "📊 Point count calculated when data is loaded",
             "point_count_format": "📊 {0} {1} Points ({2:.1f}% reduction from {3:,})",
+            "point_count_unavailable": "Point count unavailable",
             "group_performance": "Performance Options",
             "label_limit_encounters": "Limit Encounters (0 = all):",
             "limit_no_limit": "No limit",
@@ -452,9 +454,14 @@ def get_translator() -> Translator:
     global _translator
     if _translator is None:
         _translator = Translator()
-        # Load saved language preference
-        saved_lang = _translator.load_language_preference()
-        _translator.set_language(saved_lang)
+        # Check environment variable first, then load saved preference
+        env_lang = os.environ.get('GPS_ANALYSIS_LANGUAGE', None)
+        if env_lang and env_lang in ['de', 'en']:
+            _translator.set_language(env_lang)
+        else:
+            # Load saved language preference
+            saved_lang = _translator.load_language_preference()
+            _translator.set_language(saved_lang)
     return _translator
 
 

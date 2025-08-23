@@ -17,8 +17,8 @@ class AnalysisModeSelector:
         self.root.geometry("500x400")
         self.root.resizable(True, True)
         
-        # Language setting
-        self.language = "en"  # Default to English
+        # Language setting - default to German
+        self.language = "de"  # Default to German
         
         self.setup_ui()
         self.center_window()
@@ -45,7 +45,7 @@ class AnalysisModeSelector:
         
         ttk.Label(lang_frame, text="Language / Sprache:").grid(row=0, column=0, padx=(0, 10))
         
-        self.lang_var = tk.StringVar(value="en")
+        self.lang_var = tk.StringVar(value="de")  # Default to German
         lang_combo = ttk.Combobox(lang_frame, textvariable=self.lang_var, 
                                  values=["en", "de"], state="readonly", width=10)
         lang_combo.grid(row=0, column=1)
@@ -55,10 +55,13 @@ class AnalysisModeSelector:
         self.setup_mode_buttons(main_frame)
         
         # Status bar
-        self.status_var = tk.StringVar(value="Ready / Bereit")
+        self.status_var = tk.StringVar(value="Bereit")  # Default German
         status_bar = ttk.Label(main_frame, textvariable=self.status_var, 
                               relief=tk.SUNKEN, anchor=tk.W)
         status_bar.grid(row=6, column=0, sticky=(tk.W, tk.E), pady=(20, 0))
+        
+        # Set initial language
+        self.update_texts()
     
     def setup_mode_buttons(self, parent):
         """Setup the analysis mode selection buttons"""
@@ -147,17 +150,20 @@ class AnalysisModeSelector:
     
     def launch_proximity_analysis(self):
         """Launch the proximity analysis GUI"""
-        self.update_status("Launching Proximity Analysis..." if self.language == "en" 
-                          else "Starte Näherungsanalyse...")
+        self.update_status("Starte Näherungsanalyse..." if self.language == "de" 
+                          else "Launching Proximity Analysis...")
         
         script_path = os.path.join(os.path.dirname(__file__), "..", "scripts", "proximity_analysis_gui.py")
         if os.path.exists(script_path):
             try:
-                subprocess.Popen([sys.executable, script_path])
-                if self.language == "en":
-                    self.update_status("Proximity Analysis launched successfully")
-                else:
+                # Set environment variable for language persistence
+                env = os.environ.copy()
+                env['GPS_ANALYSIS_LANGUAGE'] = self.language
+                subprocess.Popen([sys.executable, script_path], env=env)
+                if self.language == "de":
                     self.update_status("Näherungsanalyse erfolgreich gestartet")
+                else:
+                    self.update_status("Proximity Analysis launched successfully")
             except Exception as e:
                 self.show_error(f"Error launching proximity analysis: {str(e)}")
         else:
@@ -165,17 +171,20 @@ class AnalysisModeSelector:
     
     def launch_2d_map(self):
         """Launch the 2D live map"""
-        self.update_status("Launching 2D Live Map..." if self.language == "en" 
-                          else "Starte 2D Live Karte...")
+        self.update_status("Starte 2D Live Karte..." if self.language == "de" 
+                          else "Launching 2D Live Map...")
         
         script_path = os.path.join(os.path.dirname(__file__), "live_map_2d_gui.py")
         if os.path.exists(script_path):
             try:
-                subprocess.Popen([sys.executable, script_path])
-                if self.language == "en":
-                    self.update_status("2D Live Map GUI launched successfully")
-                else:
+                # Set environment variable for language persistence
+                env = os.environ.copy()
+                env['GPS_ANALYSIS_LANGUAGE'] = self.language
+                subprocess.Popen([sys.executable, script_path], env=env)
+                if self.language == "de":
                     self.update_status("2D Live Karte GUI erfolgreich gestartet")
+                else:
+                    self.update_status("2D Live Map GUI launched successfully")
             except Exception as e:
                 self.show_error(f"Error launching 2D map GUI: {str(e)}")
         else:
@@ -183,17 +192,20 @@ class AnalysisModeSelector:
     
     def launch_3d_visualization(self):
         """Launch the 3D visualization"""
-        self.update_status("Launching 3D Visualization..." if self.language == "en" 
-                          else "Starte 3D Visualisierung...")
+        self.update_status("Starte 3D Visualisierung..." if self.language == "de" 
+                          else "Launching 3D Visualization...")
         
         script_path = os.path.join(os.path.dirname(__file__), "visualization_3d_gui.py")
         if os.path.exists(script_path):
             try:
-                subprocess.Popen([sys.executable, script_path])
-                if self.language == "en":
-                    self.update_status("3D Visualization GUI launched successfully")
-                else:
+                # Set environment variable for language persistence
+                env = os.environ.copy()
+                env['GPS_ANALYSIS_LANGUAGE'] = self.language
+                subprocess.Popen([sys.executable, script_path], env=env)
+                if self.language == "de":
                     self.update_status("3D Visualisierung GUI erfolgreich gestartet")
+                else:
+                    self.update_status("3D Visualization GUI launched successfully")
             except Exception as e:
                 self.show_error(f"Error launching 3D visualization GUI: {str(e)}")
         else:

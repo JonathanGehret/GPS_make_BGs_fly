@@ -26,8 +26,8 @@ class LiveMap2DGUI:
         self.root.geometry("700x550")  # Reduced size
         self.root.resizable(True, True)
         
-        # Language setting
-        self.language = "en"  # Default to English
+        # Language setting - check environment first, then default to German
+        self.language = os.environ.get('GPS_ANALYSIS_LANGUAGE', 'de')  # Default to German
         
         # Configuration variables
         self.data_folder = tk.StringVar(value=os.path.join(os.path.dirname(__file__), "..", "data"))
@@ -83,7 +83,7 @@ class LiveMap2DGUI:
         
         ttk.Label(lang_frame, text="🌐", font=("Arial", 12)).grid(row=0, column=0, padx=(0, 3))
         
-        self.lang_var = tk.StringVar(value="en")
+        self.lang_var = tk.StringVar(value=self.language)  # Use environment language
         lang_combo = ttk.Combobox(lang_frame, textvariable=self.lang_var, 
                                  values=["en", "de"], state="readonly", width=6)
         lang_combo.grid(row=0, column=1)
@@ -142,7 +142,7 @@ class LiveMap2DGUI:
         bottom_frame.columnconfigure(0, weight=1)
         
         # Status bar
-        self.status_var = tk.StringVar(value="Ready / Bereit")
+        self.status_var = tk.StringVar(value="Bereit" if self.language == "de" else "Ready")
         status_bar = ttk.Label(bottom_frame, textvariable=self.status_var, 
                               relief=tk.SUNKEN, anchor=tk.W, font=("Arial", 8))
         status_bar.grid(row=0, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=(0, 5))
@@ -186,15 +186,88 @@ class LiveMap2DGUI:
             self.root.title("2D Live Karte - Konfiguration")
             self.launch_btn.config(text="🚀 2D Live Karte starten")
             self.status_var.set("Bereit")
+            
+            # Update other German texts
+            for child in self.root.winfo_children():
+                self._update_widget_texts_de(child)
         else:
             self.root.title("2D Live Map - Configuration")
             self.launch_btn.config(text="🚀 Launch 2D Live Map")
             self.status_var.set("Ready")
+            
+            # Update other English texts
+            for child in self.root.winfo_children():
+                self._update_widget_texts_en(child)
+    
+    def _update_widget_texts_de(self, widget):
+        """Recursively update widget texts to German"""
+        try:
+            widget_class = widget.winfo_class()
+            if widget_class == "Label":
+                current_text = widget.cget("text")
+                # Update specific labels
+                if "Data:" in current_text:
+                    widget.config(text="Daten:")
+                elif "Output:" in current_text:
+                    widget.config(text="Ausgabe:")
+                elif "🔄 Refresh" in current_text:
+                    widget.config(text="🔄 Aktualisieren")
+            elif widget_class == "Labelframe":
+                current_text = widget.cget("text")
+                if "📁 Folders" in current_text:
+                    widget.config(text="📁 Ordner")
+                elif "📊 Data Preview" in current_text:
+                    widget.config(text="📊 Datenvorschau")
+                elif "🎬 Animation Settings" in current_text:
+                    widget.config(text="🎬 Animation-Einstellungen")
+            elif widget_class == "Button":
+                current_text = widget.cget("text")
+                if "❌ Cancel" in current_text:
+                    widget.config(text="❌ Abbrechen")
+            
+            # Recursively check children
+            for child in widget.winfo_children():
+                self._update_widget_texts_de(child)
+        except:
+            pass
+    
+    def _update_widget_texts_en(self, widget):
+        """Recursively update widget texts to English"""
+        try:
+            widget_class = widget.winfo_class()
+            if widget_class == "Label":
+                current_text = widget.cget("text")
+                # Update specific labels
+                if "Daten:" in current_text:
+                    widget.config(text="Data:")
+                elif "Ausgabe:" in current_text:
+                    widget.config(text="Output:")
+                elif "🔄 Aktualisieren" in current_text:
+                    widget.config(text="🔄 Refresh")
+            elif widget_class == "Labelframe":
+                current_text = widget.cget("text")
+                if "📁 Ordner" in current_text:
+                    widget.config(text="📁 Folders")
+                elif "📊 Datenvorschau" in current_text:
+                    widget.config(text="📊 Data Preview")
+                elif "🎬 Animation-Einstellungen" in current_text:
+                    widget.config(text="🎬 Animation Settings")
+            elif widget_class == "Button":
+                current_text = widget.cget("text")
+                if "❌ Abbrechen" in current_text:
+                    widget.config(text="❌ Cancel")
+            
+            # Recursively check children
+            for child in widget.winfo_children():
+                self._update_widget_texts_en(child)
+        except:
+            pass
     
     def browse_data_folder(self):
         """Browse for data directory"""
+        title = "GPS-Datenverzeichnis auswählen" if self.language == "de" else "Select GPS Data Directory"
         directory = filedialog.askdirectory(
-            title="Select GPS Data Directory" if self.language == "en" else "GPS-Datenverzeichnis auswählen",
+            title=title,
             initialdir=self.data_folder.get()
         )
         if directory:
@@ -206,8 +279,9 @@ class LiveMap2DGUI:
     
     def browse_output_folder(self):
         """Browse for output directory"""
+        title = "Ausgabeordner auswählen" if self.language == "de" else "Select Output Directory"
         directory = filedialog.askdirectory(
-            title="Select Output Directory" if self.language == "en" else "Ausgabeordner auswählen",
+            title=title,
             initialdir=self.output_folder.get()
         )
         if directory:

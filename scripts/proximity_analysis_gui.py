@@ -91,10 +91,17 @@ class ProximityAnalysisGUI:
                                     font=('Arial', 16, 'bold'))
         self.title_label.grid(row=0, column=0)
         
-        # Language switcher button
-        self.language_button = ttk.Button(title_frame, text=self.translator.t("btn_language"), 
-                                         command=self.switch_language)
-        self.language_button.grid(row=0, column=1, sticky=tk.E)
+        # Language switcher dropdown (same style as other GUIs)
+        lang_frame = ttk.Frame(title_frame)
+        lang_frame.grid(row=0, column=1, sticky=tk.E)
+        
+        ttk.Label(lang_frame, text="🌐", font=("Arial", 12)).grid(row=0, column=0, padx=(0, 3))
+        
+        self.lang_var = tk.StringVar(value=self.translator.get_current_language())
+        lang_combo = ttk.Combobox(lang_frame, textvariable=self.lang_var, 
+                                 values=["en", "de"], state="readonly", width=6)
+        lang_combo.grid(row=0, column=1)
+        lang_combo.bind("<<ComboboxSelected>>", self.change_language_dropdown)
         
         # Create notebook for tabbed interface
         self.notebook = ttk.Notebook(main_frame)
@@ -132,11 +139,21 @@ class ProximityAnalysisGUI:
                               relief=tk.SUNKEN, anchor=tk.W)
         status_bar.grid(row=3, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(10, 0))
         
+    def change_language_dropdown(self, event=None):
+        """Change language from dropdown selection"""
+        new_lang = self.lang_var.get()
+        self.translator.set_language(new_lang)
+        self.translator.save_language_preference(new_lang)
+        
+        # Update all UI text
+        self.update_ui_text()
+    
     def switch_language(self):
-        """Switch between German and English"""
+        """Switch between German and English (legacy method for compatibility)"""
         current_lang = self.translator.get_current_language()
         new_lang = "en" if current_lang == "de" else "de"
         
+        self.lang_var.set(new_lang)  # Update dropdown
         self.translator.set_language(new_lang)
         self.translator.save_language_preference(new_lang)
         
@@ -149,9 +166,8 @@ class ProximityAnalysisGUI:
             # Update window title
             self.root.title(self.translator.t("app_title"))
             
-            # Update main title and button
+            # Update main title
             self.title_label.config(text=self.translator.t("app_title"))
-            self.language_button.config(text=self.translator.t("btn_language"))
             
             # Update tab names
             self.notebook.tab(0, text=self.translator.t("tab_data"))
