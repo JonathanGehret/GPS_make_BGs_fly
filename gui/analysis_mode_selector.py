@@ -18,6 +18,29 @@ try:
 except ImportError:
     UPDATE_AVAILABLE = False
 
+# Import feature GUI modules for direct execution in bundle mode
+FEATURE_GUI_AVAILABLE = {}
+try:
+    # Import proximity analysis GUI
+    from scripts.proximity_analysis_gui import ProximityAnalysisGUI
+    FEATURE_GUI_AVAILABLE['proximity'] = True
+except ImportError:
+    FEATURE_GUI_AVAILABLE['proximity'] = False
+
+try:
+    # Import 2D live map GUI
+    from gui.live_map_2d_gui import LiveMap2DGUI
+    FEATURE_GUI_AVAILABLE['2d_map'] = True
+except ImportError:
+    FEATURE_GUI_AVAILABLE['2d_map'] = False
+
+try:
+    # Import 3D visualization GUI
+    from gui.visualization_3d_gui import Visualization3DGUI
+    FEATURE_GUI_AVAILABLE['3d_viz'] = True
+except ImportError:
+    FEATURE_GUI_AVAILABLE['3d_viz'] = False
+
 class AnalysisModeSelector:
     def __init__(self):
         self.root = tk.Tk()
@@ -186,28 +209,57 @@ class AnalysisModeSelector:
         self.update_status("Starte Näherungsanalyse..." if self.language == "de" 
                           else "Launching Proximity Analysis...")
         
-        script_path = os.path.join(os.path.dirname(__file__), "..", "scripts", "proximity_analysis_gui.py")
-        if os.path.exists(script_path):
+        # Check if we're running in a PyInstaller bundle
+        if getattr(sys, '_MEIPASS', False) and FEATURE_GUI_AVAILABLE.get('proximity', False):
+            # Running in bundle - import and run directly
             try:
-                # Set environment variable for language persistence
-                env = os.environ.copy()
-                env['GPS_ANALYSIS_LANGUAGE'] = self.language
-                subprocess.Popen([sys.executable, script_path], env=env)
+                # Create a new top-level window for the proximity analysis
+                proximity_window = tk.Toplevel(self.root)
+                proximity_window.title("Proximity Analysis" if self.language == "en" else "Näherungsanalyse")
+                proximity_window.geometry("900x700")
+                
+                # Import and create the proximity analysis GUI
+                ProximityAnalysisGUI(proximity_window)
+                
+                # Set language environment variable
+                os.environ['GPS_ANALYSIS_LANGUAGE'] = self.language
+                
                 if self.language == "de":
                     self.update_status("Näherungsanalyse wird gestartet...")
                 else:
                     self.update_status("Proximity Analysis starting...")
                 
                 # Re-enable button after short delay
-                self.root.after(3000, lambda: self.btn1.config(state="normal"))
-                self.root.after(3000, lambda: self.update_status("Bereit" if self.language == "de" else "Ready"))
-                    
+                self.root.after(2000, lambda: self.btn1.config(state="normal"))
+                self.root.after(2000, lambda: self.update_status("Bereit" if self.language == "de" else "Ready"))
+                
             except Exception as e:
                 self.show_error(f"Error launching proximity analysis: {str(e)}")
                 self.btn1.config(state="normal")
         else:
-            self.show_error(f"proximity_analysis_gui.py not found at: {script_path}")
-            self.btn1.config(state="normal")
+            # Running in development mode - use subprocess
+            script_path = os.path.join(os.path.dirname(__file__), "..", "scripts", "proximity_analysis_gui.py")
+            if os.path.exists(script_path):
+                try:
+                    # Set environment variable for language persistence
+                    env = os.environ.copy()
+                    env['GPS_ANALYSIS_LANGUAGE'] = self.language
+                    subprocess.Popen([sys.executable, script_path], env=env)
+                    if self.language == "de":
+                        self.update_status("Näherungsanalyse wird gestartet...")
+                    else:
+                        self.update_status("Proximity Analysis starting...")
+                    
+                    # Re-enable button after short delay
+                    self.root.after(3000, lambda: self.btn1.config(state="normal"))
+                    self.root.after(3000, lambda: self.update_status("Bereit" if self.language == "de" else "Ready"))
+                        
+                except Exception as e:
+                    self.show_error(f"Error launching proximity analysis: {str(e)}")
+                    self.btn1.config(state="normal")
+            else:
+                self.show_error(f"proximity_analysis_gui.py not found at: {script_path}")
+                self.btn1.config(state="normal")
     
     def launch_2d_map(self):
         """Launch the 2D live map"""
@@ -223,7 +275,25 @@ class AnalysisModeSelector:
                 # Set environment variable for language persistence
                 env = os.environ.copy()
                 env['GPS_ANALYSIS_LANGUAGE'] = self.language
-                subprocess.Popen([sys.executable, script_path], env=env)
+                
+                # Check if we're running in a PyInstaller bundle
+                if getattr(sys, '_MEIPASS', False):
+                    # In bundle mode, try to use the bundle's Python executable
+                    bundle_python = os.path.join(sys._MEIPASS, 'GPS_Analysis_Suite')
+                    if os.path.exists(bundle_python):
+                        # This won't work well since we're already running the bundle
+                        # For now, show a message that this feature needs external Python
+                        self.show_error("2D Live Map requires external Python installation when running from standalone executable.\nPlease run from source code or install Python.")
+                        self.btn2.config(state="normal")
+                        return
+                    else:
+                        # Fallback to system Python
+                        python_exe = sys.executable
+                else:
+                    # Development mode
+                    python_exe = sys.executable
+                
+                subprocess.Popen([python_exe, script_path], env=env)
                 if self.language == "de":
                     self.update_status("2D Live Karte wird gestartet...")
                 else:
@@ -254,7 +324,25 @@ class AnalysisModeSelector:
                 # Set environment variable for language persistence
                 env = os.environ.copy()
                 env['GPS_ANALYSIS_LANGUAGE'] = self.language
-                subprocess.Popen([sys.executable, script_path], env=env)
+                
+                # Check if we're running in a PyInstaller bundle
+                if getattr(sys, '_MEIPASS', False):
+                    # In bundle mode, try to use the bundle's Python executable
+                    bundle_python = os.path.join(sys._MEIPASS, 'GPS_Analysis_Suite')
+                    if os.path.exists(bundle_python):
+                        # This won't work well since we're already running the bundle
+                        # For now, show a message that this feature needs external Python
+                        self.show_error("3D Visualization requires external Python installation when running from standalone executable.\nPlease run from source code or install Python.")
+                        self.btn3.config(state="normal")
+                        return
+                    else:
+                        # Fallback to system Python
+                        python_exe = sys.executable
+                else:
+                    # Development mode
+                    python_exe = sys.executable
+                
+                subprocess.Popen([python_exe, script_path], env=env)
                 if self.language == "de":
                     self.update_status("3D Visualisierung GUI wird gestartet...")
                 else:
