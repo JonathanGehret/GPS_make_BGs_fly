@@ -203,6 +203,8 @@ class AnalysisModeSelector:
     
     def launch_proximity_analysis(self):
         """Launch the proximity analysis GUI"""
+        print("🔍 DEBUG: Proximity Analysis button clicked")
+        
         # Disable button to prevent multiple clicks
         self.btn1.config(state="disabled")
         
@@ -211,18 +213,24 @@ class AnalysisModeSelector:
         
         # Check if we're running in a PyInstaller bundle
         if getattr(sys, '_MEIPASS', False) and FEATURE_GUI_AVAILABLE.get('proximity', False):
+            print("📦 DEBUG: Running in bundle mode, attempting direct import")
             # Running in bundle - import and run directly
             try:
+                print("🏗️ DEBUG: Creating Toplevel window...")
                 # Create a new top-level window for the proximity analysis
                 proximity_window = tk.Toplevel(self.root)
                 proximity_window.title("Proximity Analysis" if self.language == "en" else "Näherungsanalyse")
                 proximity_window.geometry("900x700")
+                print("✅ DEBUG: Toplevel window created successfully")
                 
+                print("📥 DEBUG: Importing ProximityAnalysisGUI...")
                 # Import and create the proximity analysis GUI
                 ProximityAnalysisGUI(proximity_window)
+                print("✅ DEBUG: ProximityAnalysisGUI created successfully")
                 
                 # Set language environment variable
                 os.environ['GPS_ANALYSIS_LANGUAGE'] = self.language
+                print("🌐 DEBUG: Language environment set")
                 
                 if self.language == "de":
                     self.update_status("Näherungsanalyse wird gestartet...")
@@ -232,18 +240,22 @@ class AnalysisModeSelector:
                 # Re-enable button after short delay
                 self.root.after(2000, lambda: self.btn1.config(state="normal"))
                 self.root.after(2000, lambda: self.update_status("Bereit" if self.language == "de" else "Ready"))
+                print("🎯 DEBUG: Proximity Analysis launch completed successfully")
                 
             except ImportError as ie:
                 error_msg = f"Import Error: {str(ie)}"
-                print(f"❌ Proximity Analysis Import Error: {error_msg}")
+                print(f"❌ DEBUG: Proximity Analysis Import Error: {error_msg}")
                 self.show_error(f"Failed to import Proximity Analysis modules:\n{error_msg}")
                 self.btn1.config(state="normal")
             except Exception as e:
                 error_msg = f"Error: {str(e)}"
-                print(f"❌ Proximity Analysis Launch Error: {error_msg}")
+                print(f"❌ DEBUG: Proximity Analysis Launch Error: {error_msg}")
+                import traceback
+                print(f"❌ DEBUG: Full traceback:\n{traceback.format_exc()}")
                 self.show_error(f"Failed to launch Proximity Analysis:\n{error_msg}")
                 self.btn1.config(state="normal")
         else:
+            print("🔧 DEBUG: Running in development mode or ProximityAnalysisGUI not available")
             # Running in development mode - use subprocess
             script_path = os.path.join(os.path.dirname(__file__), "..", "scripts", "proximity_analysis_gui.py")
             if os.path.exists(script_path):
