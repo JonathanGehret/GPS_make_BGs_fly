@@ -58,11 +58,23 @@ def main():
                 elif gui_mode == "--proximity":
                     # Import and run proximity analysis GUI
                     try:
+                        # Ensure bundle path is set up correctly
+                        if getattr(sys, '_MEIPASS', False):
+                            bundle_dir = sys._MEIPASS
+                            if bundle_dir not in sys.path:
+                                sys.path.insert(0, bundle_dir)
+                            # Also add the scripts directory to path
+                            scripts_dir = os.path.join(bundle_dir, 'scripts')
+                            if scripts_dir not in sys.path:
+                                sys.path.insert(0, scripts_dir)
+                        
                         from scripts.proximity_analysis_gui import main as gui_main
                         print("✅ Proximity Analysis GUI module loaded successfully")
                         return gui_main()
                     except Exception as e:
                         print(f"❌ Failed to launch Proximity Analysis GUI: {e}")
+                        import traceback
+                        traceback.print_exc()
                         return 1
                 else:
                     print(f"❌ Unknown GUI mode: {gui_mode}")

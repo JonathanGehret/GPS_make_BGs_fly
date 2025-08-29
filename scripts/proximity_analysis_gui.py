@@ -17,19 +17,56 @@ from pathlib import Path
 import pandas as pd
 
 # Add the scripts directory to the Python path
-sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+import sys
+import os
+sys.path.append(os.path.dirname(__file__))
 
 try:
     from utils.animation_controls import AnimationControlsFrame
 except ImportError:
     AnimationControlsFrame = None  # Fallback if import fails
 
-from gps_utils import DataLoader
-from core.proximity_engine import ProximityEngine
-from visualization.proximity_plots import ProximityVisualizer
-from animate_live_map import LiveMapAnimator
-from proximity_analysis import group_proximity_events, parse_time_step
-from i18n import get_translator, t
+try:
+    from gps_utils import DataLoader
+except ImportError:
+    # Try alternative import path for bundled executable
+    try:
+        from scripts.gps_utils import DataLoader
+    except ImportError:
+        print("❌ ERROR: Could not import DataLoader from gps_utils")
+        DataLoader = None
+
+try:
+    from core.proximity_engine import ProximityEngine
+except ImportError:
+    print("❌ ERROR: Could not import ProximityEngine")
+    ProximityEngine = None
+
+try:
+    from visualization.proximity_plots import ProximityVisualizer
+except ImportError:
+    print("❌ ERROR: Could not import ProximityVisualizer")
+    ProximityVisualizer = None
+
+try:
+    from animate_live_map import LiveMapAnimator
+except ImportError:
+    print("❌ ERROR: Could not import LiveMapAnimator")
+    LiveMapAnimator = None
+
+try:
+    from proximity_analysis import group_proximity_events, parse_time_step
+except ImportError:
+    print("❌ ERROR: Could not import proximity analysis functions")
+    group_proximity_events = None
+    parse_time_step = None
+
+try:
+    from i18n import get_translator, t
+except ImportError:
+    print("❌ ERROR: Could not import i18n")
+    get_translator = None
+    t = None
 
 
 class ProximityAnalysisGUI:

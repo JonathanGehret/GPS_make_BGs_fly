@@ -39,6 +39,7 @@ a = Analysis(
         'gui.live_map_2d_gui',
         'gui.visualization_3d_gui',
         # Script modules
+        'scripts',
         'scripts.gps_utils',
         'scripts.animate_live_map',
         'scripts.animation_3d',
@@ -46,18 +47,24 @@ a = Analysis(
         'scripts.proximity_analysis_gui',
         'scripts.proximity_analysis',
         'scripts.i18n',
+        'scripts.update_manager',
+        # Add direct gps_utils import
+        'gps_utils',
         # Core modules
+        'core',
         'core.animation_3d_engine',
         'core.elevation_data_manager',
         'core.mobile_animation_engine',
         'core.proximity_engine',
         'core.trail_system',
         # Utils modules
+        'utils',
         'utils.user_interface_3d',
         'utils.user_interface',
         'utils.mobile_interface',
         'utils.performance_optimizer',
         # Visualization modules
+        'visualization',
         'visualization.proximity_plots',
         # Standard library modules that might be needed
         'tkinter',
