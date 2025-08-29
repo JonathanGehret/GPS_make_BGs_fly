@@ -20,8 +20,13 @@ except ImportError:
     AnimationControlsFrame = None
 
 class Visualization3DGUI:
-    def __init__(self):
-        self.root = tk.Tk()
+    def __init__(self, parent=None):
+        # Create root window - use parent if provided, otherwise create new Tk
+        if parent:
+            self.root = tk.Toplevel(parent)
+        else:
+            self.root = tk.Tk()
+        
         self.root.title("3D Visualization - Configuration")
         self.root.geometry("750x650")
         self.root.resizable(True, True)

@@ -30,21 +30,59 @@ def main():
             if bundle_dir not in sys.path:
                 sys.path.insert(0, bundle_dir)
             
-            # Import and run the GUI directly
-            try:
-                from gui.analysis_mode_selector import main as gui_main
-                print("✅ GUI module loaded successfully")
-                return gui_main()
-            except ImportError as e:
-                print(f"❌ Failed to import GUI module: {e}")
-                print(f"Bundle directory: {bundle_dir}")
-                print("Files in bundle:")
-                for item in os.listdir(bundle_dir):
-                    print(f"  - {item}")
-                return 1
-            except Exception as e:
-                print(f"❌ Failed to run GUI: {e}")
-                return 1
+            # Check command line arguments for specific GUI launch
+            if len(sys.argv) > 1:
+                gui_mode = sys.argv[1]
+                print(f"🎯 Launching specific GUI: {gui_mode}")
+                
+                if gui_mode == "--2d-map":
+                    # Import and run 2D map GUI
+                    try:
+                        from gui.live_map_2d_gui import main as gui_main
+                        print("✅ 2D Map GUI module loaded successfully")
+                        return gui_main()
+                    except Exception as e:
+                        print(f"❌ Failed to launch 2D Map GUI: {e}")
+                        return 1
+                        
+                elif gui_mode == "--3d-viz":
+                    # Import and run 3D visualization GUI
+                    try:
+                        from gui.visualization_3d_gui import main as gui_main
+                        print("✅ 3D Visualization GUI module loaded successfully")
+                        return gui_main()
+                    except Exception as e:
+                        print(f"❌ Failed to launch 3D Visualization GUI: {e}")
+                        return 1
+                        
+                elif gui_mode == "--proximity":
+                    # Import and run proximity analysis GUI
+                    try:
+                        from scripts.proximity_analysis_gui import main as gui_main
+                        print("✅ Proximity Analysis GUI module loaded successfully")
+                        return gui_main()
+                    except Exception as e:
+                        print(f"❌ Failed to launch Proximity Analysis GUI: {e}")
+                        return 1
+                else:
+                    print(f"❌ Unknown GUI mode: {gui_mode}")
+                    return 1
+            else:
+                # Launch main GUI
+                try:
+                    from gui.analysis_mode_selector import main as gui_main
+                    print("✅ GUI module loaded successfully")
+                    return gui_main()
+                except ImportError as e:
+                    print(f"❌ Failed to import GUI module: {e}")
+                    print(f"Bundle directory: {bundle_dir}")
+                    print("Files in bundle:")
+                    for item in os.listdir(bundle_dir):
+                        print(f"  - {item}")
+                    return 1
+                except Exception as e:
+                    print(f"❌ Failed to run GUI: {e}")
+                    return 1
                 
         else:
             # Running in development mode

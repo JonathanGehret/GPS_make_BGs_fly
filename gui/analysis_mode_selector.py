@@ -212,25 +212,21 @@ class AnalysisModeSelector:
                           else "Launching Proximity Analysis...")
         
         # Check if we're running in a PyInstaller bundle
-        if getattr(sys, '_MEIPASS', False) and FEATURE_GUI_AVAILABLE.get('proximity', False):
-            print("📦 DEBUG: Running in bundle mode, attempting direct import")
-            # Running in bundle - import and run directly
+        if getattr(sys, '_MEIPASS', False):
+            print("📦 DEBUG: Running in bundle mode, using subprocess")
+            # Running in bundle - use subprocess to launch new instance
             try:
-                print("🏗️ DEBUG: Creating Toplevel window...")
-                # Create a new top-level window for the proximity analysis
-                proximity_window = tk.Toplevel(self.root)
-                proximity_window.title("Proximity Analysis" if self.language == "en" else "Näherungsanalyse")
-                proximity_window.geometry("900x700")
-                print("✅ DEBUG: Toplevel window created successfully")
+                # Get the path to the current executable
+                executable_path = sys.executable
+                print(f"🏃 DEBUG: Using executable: {executable_path}")
                 
-                print("📥 DEBUG: Importing ProximityAnalysisGUI...")
-                # Import and create the proximity analysis GUI
-                ProximityAnalysisGUI(proximity_window)
-                print("✅ DEBUG: ProximityAnalysisGUI created successfully")
+                # Set environment variable for language persistence
+                env = os.environ.copy()
+                env['GPS_ANALYSIS_LANGUAGE'] = self.language
                 
-                # Set language environment variable
-                os.environ['GPS_ANALYSIS_LANGUAGE'] = self.language
-                print("🌐 DEBUG: Language environment set")
+                # Launch new instance with proximity analysis mode
+                subprocess.Popen([executable_path, "--proximity"], env=env)
+                print("✅ DEBUG: Proximity Analysis subprocess launched")
                 
                 if self.language == "de":
                     self.update_status("Näherungsanalyse wird gestartet...")
@@ -242,11 +238,6 @@ class AnalysisModeSelector:
                 self.root.after(2000, lambda: self.update_status("Bereit" if self.language == "de" else "Ready"))
                 print("🎯 DEBUG: Proximity Analysis launch completed successfully")
                 
-            except ImportError as ie:
-                error_msg = f"Import Error: {str(ie)}"
-                print(f"❌ DEBUG: Proximity Analysis Import Error: {error_msg}")
-                self.show_error(f"Failed to import Proximity Analysis modules:\n{error_msg}")
-                self.btn1.config(state="normal")
             except Exception as e:
                 error_msg = f"Error: {str(e)}"
                 print(f"❌ DEBUG: Proximity Analysis Launch Error: {error_msg}")
@@ -255,7 +246,7 @@ class AnalysisModeSelector:
                 self.show_error(f"Failed to launch Proximity Analysis:\n{error_msg}")
                 self.btn1.config(state="normal")
         else:
-            print("🔧 DEBUG: Running in development mode or ProximityAnalysisGUI not available")
+            print("🔧 DEBUG: Running in development mode")
             # Running in development mode - use subprocess
             script_path = os.path.join(os.path.dirname(__file__), "..", "scripts", "proximity_analysis_gui.py")
             if os.path.exists(script_path):
@@ -282,101 +273,143 @@ class AnalysisModeSelector:
     
     def launch_2d_map(self):
         """Launch the 2D live map"""
+        print("🗺️ DEBUG: 2D Live Map button clicked")
+        
         # Disable button to prevent multiple clicks
         self.btn2.config(state="disabled")
         
         self.update_status("Starte 2D Live Karte..." if self.language == "de" 
                           else "Launching 2D Live Map...")
         
-        script_path = os.path.join(os.path.dirname(__file__), "live_map_2d_gui.py")
-        if os.path.exists(script_path):
+        # Check if we're running in a PyInstaller bundle
+        if getattr(sys, '_MEIPASS', False):
+            print("📦 DEBUG: Running in bundle mode, using subprocess")
+            # Running in bundle - use subprocess to launch new instance
             try:
+                # Get the path to the current executable
+                executable_path = sys.executable
+                print(f"🏃 DEBUG: Using executable: {executable_path}")
+                
                 # Set environment variable for language persistence
                 env = os.environ.copy()
                 env['GPS_ANALYSIS_LANGUAGE'] = self.language
                 
-                # Check if we're running in a PyInstaller bundle
-                if getattr(sys, '_MEIPASS', False):
-                    # In bundle mode, try to use the bundle's Python executable
-                    bundle_python = os.path.join(sys._MEIPASS, 'GPS_Analysis_Suite')
-                    if os.path.exists(bundle_python):
-                        # This won't work well since we're already running the bundle
-                        # For now, show a message that this feature needs external Python
-                        self.show_error("2D Live Map requires external Python installation when running from standalone executable.\nPlease run from source code or install Python.")
-                        self.btn2.config(state="normal")
-                        return
-                    else:
-                        # Fallback to system Python
-                        python_exe = sys.executable
-                else:
-                    # Development mode
-                    python_exe = sys.executable
+                # Launch new instance with 2D map mode
+                subprocess.Popen([executable_path, "--2d-map"], env=env)
+                print("✅ DEBUG: 2D Live Map subprocess launched")
                 
-                subprocess.Popen([python_exe, script_path], env=env)
                 if self.language == "de":
                     self.update_status("2D Live Karte wird gestartet...")
                 else:
                     self.update_status("2D Live Map starting...")
                 
                 # Re-enable button after short delay
-                self.root.after(3000, lambda: self.btn2.config(state="normal"))
-                self.root.after(3000, lambda: self.update_status("Bereit" if self.language == "de" else "Ready"))
-                    
+                self.root.after(2000, lambda: self.btn2.config(state="normal"))
+                self.root.after(2000, lambda: self.update_status("Bereit" if self.language == "de" else "Ready"))
+                print("🎯 DEBUG: 2D Live Map launch completed successfully")
+                
             except Exception as e:
-                self.show_error(f"Error launching 2D map GUI: {str(e)}")
+                error_msg = f"Error: {str(e)}"
+                print(f"❌ DEBUG: 2D Live Map Launch Error: {error_msg}")
+                import traceback
+                print(f"❌ DEBUG: Full traceback:\n{traceback.format_exc()}")
+                self.show_error(f"Failed to launch 2D Live Map:\n{error_msg}")
                 self.btn2.config(state="normal")
         else:
-            self.show_error(f"live_map_2d_gui.py not found at: {script_path}")
-            self.btn2.config(state="normal")
+            print("🔧 DEBUG: Running in development mode")
+            # Running in development mode - use subprocess
+            script_path = os.path.join(os.path.dirname(__file__), "live_map_2d_gui.py")
+            if os.path.exists(script_path):
+                try:
+                    # Set environment variable for language persistence
+                    env = os.environ.copy()
+                    env['GPS_ANALYSIS_LANGUAGE'] = self.language
+                    subprocess.Popen([sys.executable, script_path], env=env)
+                    if self.language == "de":
+                        self.update_status("2D Live Karte wird gestartet...")
+                    else:
+                        self.update_status("2D Live Map starting...")
+                    
+                    # Re-enable button after short delay
+                    self.root.after(3000, lambda: self.btn2.config(state="normal"))
+                    self.root.after(3000, lambda: self.update_status("Bereit" if self.language == "de" else "Ready"))
+                        
+                except Exception as e:
+                    self.show_error(f"Error launching 2D map GUI: {str(e)}")
+                    self.btn2.config(state="normal")
+            else:
+                self.show_error(f"live_map_2d_gui.py not found at: {script_path}")
+                self.btn2.config(state="normal")
     
     def launch_3d_visualization(self):
         """Launch the 3D visualization"""
+        print("🎯 DEBUG: 3D Visualization button clicked")
+        
         # Disable button to prevent multiple clicks
         self.btn3.config(state="disabled")
         
         self.update_status("Starte 3D Visualisierung..." if self.language == "de" 
                           else "Launching 3D Visualization...")
         
-        script_path = os.path.join(os.path.dirname(__file__), "visualization_3d_gui.py")
-        if os.path.exists(script_path):
+        # Check if we're running in a PyInstaller bundle
+        if getattr(sys, '_MEIPASS', False):
+            print("📦 DEBUG: Running in bundle mode, using subprocess")
+            # Running in bundle - use subprocess to launch new instance
             try:
+                # Get the path to the current executable
+                executable_path = sys.executable
+                print(f"🏃 DEBUG: Using executable: {executable_path}")
+                
                 # Set environment variable for language persistence
                 env = os.environ.copy()
                 env['GPS_ANALYSIS_LANGUAGE'] = self.language
                 
-                # Check if we're running in a PyInstaller bundle
-                if getattr(sys, '_MEIPASS', False):
-                    # In bundle mode, try to use the bundle's Python executable
-                    bundle_python = os.path.join(sys._MEIPASS, 'GPS_Analysis_Suite')
-                    if os.path.exists(bundle_python):
-                        # This won't work well since we're already running the bundle
-                        # For now, show a message that this feature needs external Python
-                        self.show_error("3D Visualization requires external Python installation when running from standalone executable.\nPlease run from source code or install Python.")
-                        self.btn3.config(state="normal")
-                        return
-                    else:
-                        # Fallback to system Python
-                        python_exe = sys.executable
-                else:
-                    # Development mode
-                    python_exe = sys.executable
+                # Launch new instance with 3D visualization mode
+                subprocess.Popen([executable_path, "--3d-viz"], env=env)
+                print("✅ DEBUG: 3D Visualization subprocess launched")
                 
-                subprocess.Popen([python_exe, script_path], env=env)
                 if self.language == "de":
-                    self.update_status("3D Visualisierung GUI wird gestartet...")
+                    self.update_status("3D Visualisierung wird gestartet...")
                 else:
-                    self.update_status("3D Visualization GUI starting...")
+                    self.update_status("3D Visualization starting...")
                 
                 # Re-enable button after short delay
-                self.root.after(3000, lambda: self.btn3.config(state="normal"))
-                self.root.after(3000, lambda: self.update_status("Bereit" if self.language == "de" else "Ready"))
-                    
+                self.root.after(2000, lambda: self.btn3.config(state="normal"))
+                self.root.after(2000, lambda: self.update_status("Bereit" if self.language == "de" else "Ready"))
+                print("🎯 DEBUG: 3D Visualization launch completed successfully")
+                
             except Exception as e:
-                self.show_error(f"Error launching 3D visualization GUI: {str(e)}")
+                error_msg = f"Error: {str(e)}"
+                print(f"❌ DEBUG: 3D Visualization Launch Error: {error_msg}")
+                import traceback
+                print(f"❌ DEBUG: Full traceback:\n{traceback.format_exc()}")
+                self.show_error(f"Failed to launch 3D Visualization:\n{error_msg}")
                 self.btn3.config(state="normal")
         else:
-            self.show_error(f"visualization_3d_gui.py not found at: {script_path}")
-            self.btn3.config(state="normal")
+            print("🔧 DEBUG: Running in development mode")
+            # Running in development mode - use subprocess
+            script_path = os.path.join(os.path.dirname(__file__), "visualization_3d_gui.py")
+            if os.path.exists(script_path):
+                try:
+                    # Set environment variable for language persistence
+                    env = os.environ.copy()
+                    env['GPS_ANALYSIS_LANGUAGE'] = self.language
+                    subprocess.Popen([sys.executable, script_path], env=env)
+                    if self.language == "de":
+                        self.update_status("3D Visualisierung GUI wird gestartet...")
+                    else:
+                        self.update_status("3D Visualization GUI starting...")
+                    
+                    # Re-enable button after short delay
+                    self.root.after(3000, lambda: self.btn3.config(state="normal"))
+                    self.root.after(3000, lambda: self.update_status("Bereit" if self.language == "de" else "Ready"))
+                        
+                except Exception as e:
+                    self.show_error(f"Error launching 3D visualization GUI: {str(e)}")
+                    self.btn3.config(state="normal")
+            else:
+                self.show_error(f"visualization_3d_gui.py not found at: {script_path}")
+                self.btn3.config(state="normal")
     
     def update_status(self, message):
         """Update the status bar message"""
