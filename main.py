@@ -15,6 +15,11 @@ Features:
 import sys
 import os
 
+# Version information
+__version__ = "1.0.0"
+__author__ = "Jonathan Gehret"
+__description__ = "GPS Analysis Suite for Bearded Vulture tracking and analysis"
+
 def main():
     """Launch the GPS Analysis Suite"""
     try:

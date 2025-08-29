@@ -439,8 +439,15 @@ class AnalysisModeSelector:
                           else "Suche nach Updates...")
         
         try:
+            # Get current version from main module
+            try:
+                import main
+                current_version = main.__version__
+            except (ImportError, AttributeError):
+                current_version = "1.0.0"  # Fallback
+            
             # Check for updates
-            check_for_updates(current_version="1.0.0", show_dialog=True, parent=self.root)
+            check_for_updates(current_version=current_version, show_dialog=True, parent=self.root)
             
             # Re-enable button
             if hasattr(self, 'update_btn'):

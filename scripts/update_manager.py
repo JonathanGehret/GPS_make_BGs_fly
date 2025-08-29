@@ -1,284 +1,286 @@
 #!/usr/bin/env python3
 """
-GPS Analysis Suite - Auto Update System
+GPS Analysis Suite - Update Manager
 
-Handles version checking and automatic updates for the GPS Analysis Suite.
+Handles checking for updates from GitHub releases and notifying users
+of new versions available for download.
 """
 
-import os
-import sys
 import requests
-import subprocess
-import tempfile
-import zipfile
-import shutil
-from pathlib import Path
-import tkinter.ttk as ttk
 import tkinter as tk
-from tkinter import messagebox
+from tkinter import messagebox, ttk
+import webbrowser
+import sys
+import os
+from packaging import version
 
-class UpdateManager:
-    """Manages automatic updates for GPS Analysis Suite"""
+# GitHub repository information
+GITHUB_REPO = "JonathanGehret/GPS_make_BGs_fly"
+GITHUB_API_URL = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
 
-    def __init__(self, current_version="1.0.0"):
-        self.current_version = current_version
-        self.repo_owner = "JonathanGehret"
-        self.repo_name = "GPS_make_BGs_fly"
-        self.github_api_url = f"https://api.github.com/repos/{self.repo_owner}/{self.repo_name}"
-        self.download_url = f"https://github.com/{self.repo_owner}/{self.repo_name}/archive/main.zip"
-
-        # Get project root
+def get_current_version():
+    """Get the current application version"""
+    try:
+        # Try to import from main module
         if getattr(sys, '_MEIPASS', False):
-            # Running in PyInstaller bundle
-            self.project_root = Path(sys._MEIPASS).parent
+            # Running as bundle
+            bundle_dir = sys._MEIPASS
+            main_path = os.path.join(bundle_dir, 'main.py')
+            if os.path.exists(main_path):
+                with open(main_path, 'r', encoding='utf-8') as f:
+                    content = f.read()
+                    for line in content.split('\n'):
+                        if line.startswith('__version__'):
+                            return line.split('=')[1].strip().strip('"\'')
         else:
             # Running in development
-            self.project_root = Path(__file__).parent.parent
+            import main
+            return main.__version__
+    except Exception:
+        pass
 
-    def get_latest_version(self):
-        """Get the latest version from GitHub"""
-        try:
-            response = requests.get(f"{self.github_api_url}/releases/latest", timeout=10)
-            if response.status_code == 200:
-                release_data = response.json()
-                return release_data['tag_name'], release_data['body']
-            else:
-                # Fallback: get latest commit info
-                response = requests.get(f"{self.github_api_url}/commits/main", timeout=10)
-                if response.status_code == 200:
-                    commit_data = response.json()
-                    return commit_data['sha'][:8], "Latest development version"
-        except Exception as e:
-            print(f"Failed to check for updates: {e}")
-        return None, None
+    # Fallback version
+    return "1.0.0"
 
-    def is_update_available(self):
-        """Check if an update is available"""
-        latest_version, _ = self.get_latest_version()
-        if latest_version:
-            return latest_version != self.current_version
+def check_github_for_updates():
+    """Check GitHub for the latest release information"""
+    try:
+        print("🔄 Checking GitHub for updates...")
+
+        # Make request to GitHub API
+        headers = {
+            'User-Agent': 'GPS-Analysis-Suite-Updater/1.0.0',
+            'Accept': 'application/vnd.github.v3+json'
+        }
+
+        response = requests.get(GITHUB_API_URL, headers=headers, timeout=10)
+        response.raise_for_status()
+
+        release_data = response.json()
+
+        latest_version = release_data.get('tag_name', '').lstrip('v')
+        release_url = release_data.get('html_url', '')
+        release_notes = release_data.get('body', '')
+        published_at = release_data.get('published_at', '')
+
+        print(f"📦 Latest version on GitHub: {latest_version}")
+
+        return {
+            'version': latest_version,
+            'url': release_url,
+            'notes': release_notes,
+            'published': published_at,
+            'success': True
+        }
+
+    except requests.exceptions.RequestException as e:
+        print(f"❌ Network error checking for updates: {e}")
+        return {
+            'success': False,
+            'error': f"Network error: {str(e)}"
+        }
+    except Exception as e:
+        print(f"❌ Error checking for updates: {e}")
+        return {
+            'success': False,
+            'error': f"Error: {str(e)}"
+        }
+
+def compare_versions(current, latest):
+    """Compare version strings using packaging library"""
+    try:
+        return version.parse(latest) > version.parse(current)
+    except Exception:
+        # Fallback to simple string comparison
+        return latest != current
+
+def show_update_dialog(current_version, latest_info, parent=None):
+    """Show update notification dialog"""
+
+    # Create dialog window
+    dialog = tk.Toplevel(parent) if parent else tk.Tk()
+    dialog.title("Update Available" if parent else "GPS Analysis Suite - Update Available")
+    dialog.geometry("500x400")
+    dialog.resizable(True, True)
+
+    # Center the dialog
+    dialog.transient(parent)
+    dialog.grab_set()
+
+    # Main frame
+    main_frame = ttk.Frame(dialog, padding="20")
+    main_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+
+    dialog.columnconfigure(0, weight=1)
+    dialog.rowconfigure(0, weight=1)
+    main_frame.columnconfigure(0, weight=1)
+
+    # Title
+    title_label = ttk.Label(main_frame, text="🎉 Update Available!",
+                           font=("Arial", 14, "bold"))
+    title_label.grid(row=0, column=0, pady=(0, 10))
+
+    # Version info
+    version_frame = ttk.Frame(main_frame)
+    version_frame.grid(row=1, column=0, pady=(0, 15), sticky=(tk.W, tk.E))
+    version_frame.columnconfigure(1, weight=1)
+
+    ttk.Label(version_frame, text="Current version:").grid(row=0, column=0, sticky=tk.W)
+    ttk.Label(version_frame, text=current_version).grid(row=0, column=1, sticky=tk.W, padx=(10, 0))
+
+    ttk.Label(version_frame, text="Latest version:").grid(row=1, column=0, sticky=tk.W)
+    ttk.Label(version_frame, text=latest_info['version'],
+              font=("Arial", 10, "bold")).grid(row=1, column=1, sticky=tk.W, padx=(10, 0))
+
+    # Release notes
+    notes_label = ttk.Label(main_frame, text="What's new:",
+                           font=("Arial", 11, "bold"))
+    notes_label.grid(row=2, column=0, pady=(0, 5), sticky=tk.W)
+
+    # Text widget for release notes
+    notes_frame = ttk.Frame(main_frame)
+    notes_frame.grid(row=3, column=0, pady=(0, 20), sticky=(tk.W, tk.E, tk.N, tk.S))
+    notes_frame.columnconfigure(0, weight=1)
+    notes_frame.rowconfigure(0, weight=1)
+
+    notes_text = tk.Text(notes_frame, height=8, wrap=tk.WORD, padx=10, pady=10)
+    scrollbar = ttk.Scrollbar(notes_frame, orient=tk.VERTICAL, command=notes_text.yview)
+    notes_text.configure(yscrollcommand=scrollbar.set)
+
+    notes_text.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+    scrollbar.grid(row=0, column=1, sticky=(tk.N, tk.S))
+
+    # Insert release notes
+    release_notes = latest_info.get('notes', 'No release notes available.')
+    notes_text.insert(tk.END, release_notes)
+    notes_text.config(state=tk.DISABLED)
+
+    # Buttons
+    button_frame = ttk.Frame(main_frame)
+    button_frame.grid(row=4, column=0, pady=(0, 0), sticky=(tk.W, tk.E))
+    button_frame.columnconfigure(0, weight=1)
+
+    def download_update():
+        """Open browser to download the update"""
+        if latest_info.get('url'):
+            webbrowser.open(latest_info['url'])
+        dialog.destroy()
+
+    def skip_update():
+        """Skip this update"""
+        dialog.destroy()
+
+    download_btn = ttk.Button(button_frame, text="📥 Download Update",
+                             command=download_update, style="Accent.TButton")
+    download_btn.grid(row=0, column=0, pady=10)
+
+    skip_btn = ttk.Button(button_frame, text="⏭️ Skip This Version",
+                         command=skip_update)
+    skip_btn.grid(row=0, column=1, pady=10, padx=(10, 0))
+
+    # Configure button style
+    style = ttk.Style()
+    style.configure("Accent.TButton", font=("Arial", 10, "bold"))
+
+    # Center dialog on screen
+    dialog.update_idletasks()
+    width = dialog.winfo_width()
+    height = dialog.winfo_height()
+    x = (dialog.winfo_screenwidth() // 2) - (width // 2)
+    y = (dialog.winfo_screenheight() // 2) - (height // 2)
+    dialog.geometry(f"{width}x{height}+{x}+{y}")
+
+    if not parent:
+        dialog.mainloop()
+
+def show_no_updates_dialog(current_version, parent=None):
+    """Show dialog when no updates are available"""
+    if parent:
+        messagebox.showinfo("No Updates Available",
+                          f"You are running the latest version ({current_version}).\n\n"
+                          "No updates are currently available.",
+                          parent=parent)
+    else:
+        # Create simple dialog
+        dialog = tk.Tk()
+        dialog.title("GPS Analysis Suite - No Updates")
+        dialog.geometry("300x150")
+
+        label = ttk.Label(dialog, text=f"No updates available.\n\nCurrent version: {current_version}",
+                         justify=tk.CENTER)
+        label.pack(pady=20)
+
+        btn = ttk.Button(dialog, text="OK", command=dialog.destroy)
+        btn.pack(pady=10)
+
+        dialog.mainloop()
+
+def show_update_error(error_message, parent=None):
+    """Show error dialog for update check failures"""
+    if parent:
+        messagebox.showerror("Update Check Failed",
+                           f"Failed to check for updates:\n\n{error_message}",
+                           parent=parent)
+    else:
+        dialog = tk.Tk()
+        dialog.title("GPS Analysis Suite - Update Error")
+        dialog.geometry("350x150")
+
+        label = ttk.Label(dialog, text=f"Failed to check for updates:\n\n{error_message}",
+                         justify=tk.CENTER)
+        label.pack(pady=20)
+
+        btn = ttk.Button(dialog, text="OK", command=dialog.destroy)
+        btn.pack(pady=10)
+
+        dialog.mainloop()
+
+def check_for_updates(current_version=None, show_dialog=True, parent=None):
+    """
+    Main function to check for updates
+
+    Args:
+        current_version: Override current version (optional)
+        show_dialog: Whether to show GUI dialogs
+        parent: Parent window for dialogs
+    """
+    if current_version is None:
+        current_version = get_current_version()
+
+    print(f"🔍 Checking for updates (current: {current_version})")
+
+    # Check GitHub for latest release
+    latest_info = check_github_for_updates()
+
+    if not latest_info.get('success', False):
+        print(f"❌ Update check failed: {latest_info.get('error', 'Unknown error')}")
+        if show_dialog:
+            show_update_error(latest_info.get('error', 'Unknown error'), parent)
         return False
 
-    def download_update(self, progress_callback=None):
-        """Download the latest version"""
-        try:
-            response = requests.get(self.download_url, stream=True, timeout=30)
-            response.raise_for_status()
+    latest_version = latest_info.get('version', '')
 
-            total_size = int(response.headers.get('content-length', 0))
-            downloaded_size = 0
+    if not latest_version:
+        print("❌ No version information found")
+        if show_dialog:
+            show_update_error("No version information found", parent)
+        return False
 
-            with tempfile.NamedTemporaryFile(delete=False, suffix='.zip') as temp_file:
-                for chunk in response.iter_content(chunk_size=8192):
-                    if chunk:
-                        temp_file.write(chunk)
-                        downloaded_size += len(chunk)
-                        if progress_callback and total_size > 0:
-                            progress = int((downloaded_size / total_size) * 100)
-                            progress_callback(progress)
+    print(f"📦 Latest version: {latest_version}")
 
-                return temp_file.name
-
-        except Exception as e:
-            print(f"Failed to download update: {e}")
-            return None
-
-    def install_update(self, zip_path, progress_callback=None):
-        """Install the downloaded update"""
-        try:
-            # Create backup directory
-            backup_dir = self.project_root / "backup"
-            backup_dir.mkdir(exist_ok=True)
-
-            # Extract update to temporary directory
-            with tempfile.TemporaryDirectory() as temp_dir:
-                with zipfile.ZipFile(zip_path, 'r') as zip_ref:
-                    zip_ref.extractall(temp_dir)
-
-                # Find the extracted folder (GitHub zip includes repo name)
-                extracted_dir = Path(temp_dir) / f"{self.repo_name}-main"
-
-                if not extracted_dir.exists():
-                    # Try alternative naming
-                    extracted_dir = Path(temp_dir) / self.repo_name
-                    if not extracted_dir.exists():
-                        extracted_dir = Path(temp_dir)
-
-                # Backup current version
-                current_backup = backup_dir / f"backup_{self.current_version}"
-                if self.project_root.exists():
-                    shutil.copytree(self.project_root, current_backup, dirs_exist_ok=True)
-
-                # Update files (skip certain directories)
-                skip_dirs = {'.git', '__pycache__', '.venv', 'backup', 'node_modules'}
-
-                for item in extracted_dir.rglob('*'):
-                    if item.is_file():
-                        # Skip certain directories
-                        skip = False
-                        for parent in item.parents:
-                            if parent.name in skip_dirs:
-                                skip = True
-                                break
-
-                        if not skip:
-                            relative_path = item.relative_to(extracted_dir)
-                            target_path = self.project_root / relative_path
-
-                            # Create parent directories
-                            target_path.parent.mkdir(parents=True, exist_ok=True)
-
-                            # Copy file
-                            shutil.copy2(item, target_path)
-
-                            if progress_callback:
-                                progress_callback(f"Updating: {relative_path}")
-
-            # Clean up
-            os.unlink(zip_path)
-
-            return True
-
-        except Exception as e:
-            print(f"Failed to install update: {e}")
-            return False
-
-    def show_update_dialog(self, parent=None):
-        """Show update dialog to user"""
-        latest_version, release_notes = self.get_latest_version()
-
-        if not latest_version:
-            messagebox.showwarning("Update Check", "Unable to check for updates. Please try again later.")
-            return
-
-        if latest_version == self.current_version:
-            messagebox.showinfo("Update Check", f"You have the latest version ({self.current_version})!")
-            return
-
-        # Create update dialog
-        dialog = tk.Toplevel(parent) if parent else tk.Tk()
-        dialog.title("Update Available")
-        dialog.geometry("500x400")
-        dialog.resizable(False, False)
-
-        # Center the dialog
-        dialog.transient(parent)
-        dialog.grab_set()
-
-        # Title
-        title_label = ttk.Label(dialog, text="🦅 GPS Analysis Suite Update",
-                               font=('Arial', 14, 'bold'))
-        title_label.pack(pady=10)
-
-        # Version info
-        version_frame = ttk.Frame(dialog)
-        version_frame.pack(fill='x', padx=20, pady=5)
-
-        ttk.Label(version_frame, text=f"Current version: {self.current_version}").pack(anchor='w')
-        ttk.Label(version_frame, text=f"Latest version: {latest_version}").pack(anchor='w')
-
-        # Release notes
-        notes_frame = ttk.LabelFrame(dialog, text="What's New", padding=10)
-        notes_frame.pack(fill='both', expand=True, padx=20, pady=10)
-
-        notes_text = tk.Text(notes_frame, wrap='word', height=8)
-        scrollbar = ttk.Scrollbar(notes_frame, orient='vertical', command=notes_text.yview)
-        notes_text.configure(yscrollcommand=scrollbar.set)
-
-        notes_text.pack(side='left', fill='both', expand=True)
-        scrollbar.pack(side='right', fill='y')
-
-        if release_notes:
-            notes_text.insert('1.0', release_notes)
-        else:
-            notes_text.insert('1.0', "No release notes available.")
-
-        notes_text.config(state='disabled')
-
-        # Progress bar (initially hidden)
-        progress_var = tk.DoubleVar()
-        progress_bar = ttk.Progressbar(dialog, variable=progress_var, maximum=100)
-        progress_bar.pack(fill='x', padx=20, pady=(0, 10))
-        progress_bar.pack_forget()  # Hide initially
-
-        # Status label
-        status_label = ttk.Label(dialog, text="")
-        status_label.pack(pady=(0, 10))
-
-        # Buttons
-        button_frame = ttk.Frame(dialog)
-        button_frame.pack(fill='x', padx=20, pady=(0, 20))
-
-        def update_now():
-            # Hide buttons, show progress
-            update_button.pack_forget()
-            skip_button.pack_forget()
-            progress_bar.pack(fill='x', padx=20, pady=(0, 10))
-
-            def progress_callback(value):
-                if isinstance(value, int):
-                    progress_var.set(value)
-                    status_label.config(text=f"Downloading... {value}%")
-                else:
-                    status_label.config(text=value)
-                dialog.update()
-
-            # Download and install
-            status_label.config(text="Downloading update...")
-            zip_path = self.download_update(progress_callback)
-
-            if zip_path:
-                status_label.config(text="Installing update...")
-                if self.install_update(zip_path, progress_callback):
-                    status_label.config(text="✅ Update completed! Please restart the application.")
-                    ttk.Button(button_frame, text="Restart Now",
-                              command=lambda: restart_application()).pack(pady=5)
-                else:
-                    status_label.config(text="❌ Update failed. Please try again later.")
-                    ttk.Button(button_frame, text="Close",
-                              command=dialog.destroy).pack(pady=5)
-            else:
-                status_label.config(text="❌ Download failed. Please try again later.")
-                ttk.Button(button_frame, text="Close",
-                          command=dialog.destroy).pack(pady=5)
-
-        def skip_update():
-            dialog.destroy()
-
-        def restart_application():
-            # Restart the application
-            python = sys.executable
-            script = sys.argv[0]
-            subprocess.Popen([python, script])
-            sys.exit(0)
-
-        update_button = ttk.Button(button_frame, text="Update Now", command=update_now)
-        update_button.pack(side='left', padx=(0, 10))
-
-        skip_button = ttk.Button(button_frame, text="Skip", command=skip_update)
-        skip_button.pack(side='right')
-
-        # Wait for dialog
-        dialog.wait_window()
-
-def check_for_updates(current_version="1.0.0", show_dialog=True, parent=None):
-    """Convenience function to check for updates"""
-    updater = UpdateManager(current_version)
-
-    if show_dialog:
-        updater.show_update_dialog(parent)
+    # Compare versions
+    if compare_versions(current_version, latest_version):
+        print(f"🎉 Update available! {current_version} → {latest_version}")
+        if show_dialog:
+            show_update_dialog(current_version, latest_info, parent)
+        return True
     else:
-        return updater.is_update_available()
+        print(f"✅ Already up to date (version {current_version})")
+        if show_dialog:
+            show_no_updates_dialog(current_version, parent)
+        return False
 
 if __name__ == "__main__":
-    # Test the update system
-    updater = UpdateManager()
-    print(f"Current version: {updater.current_version}")
-    print(f"Update available: {updater.is_update_available()}")
-
-    latest_version, notes = updater.get_latest_version()
-    if latest_version:
-        print(f"Latest version: {latest_version}")
-        print(f"Release notes: {notes[:100]}...")
-    else:
-        print("Could not fetch latest version")
+    # Test the update checker
+    print("🧪 Testing update checker...")
+    check_for_updates(show_dialog=True)

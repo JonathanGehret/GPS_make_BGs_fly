@@ -9,6 +9,9 @@ plotly>=5.15.0  # MapLibre GL JS support for modern mapping
 # HTTP requests for elevation data
 requests>=2.25.0
 
+# Version comparison for update system
+packaging>=21.0
+
 # GUI interface (included with Python standard library)
 # tkinter - no installation needed
 
