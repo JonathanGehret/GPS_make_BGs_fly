@@ -233,8 +233,15 @@ class AnalysisModeSelector:
                 self.root.after(2000, lambda: self.btn1.config(state="normal"))
                 self.root.after(2000, lambda: self.update_status("Bereit" if self.language == "de" else "Ready"))
                 
+            except ImportError as ie:
+                error_msg = f"Import Error: {str(ie)}"
+                print(f"❌ Proximity Analysis Import Error: {error_msg}")
+                self.show_error(f"Failed to import Proximity Analysis modules:\n{error_msg}")
+                self.btn1.config(state="normal")
             except Exception as e:
-                self.show_error(f"Error launching proximity analysis: {str(e)}")
+                error_msg = f"Error: {str(e)}"
+                print(f"❌ Proximity Analysis Launch Error: {error_msg}")
+                self.show_error(f"Failed to launch Proximity Analysis:\n{error_msg}")
                 self.btn1.config(state="normal")
         else:
             # Running in development mode - use subprocess
