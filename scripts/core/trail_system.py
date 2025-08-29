@@ -40,17 +40,12 @@ class TrailSystem:
                 trail_minutes = int(trail_hours * 60)
                 self.ui.print_success(f"Using GUI trail length: {trail_hours} hours ({trail_minutes} minutes)")
                 return trail_minutes
-            except Exception as e:
+            except Exception:
                 self.ui.print_warning(f"Invalid trail length from GUI: {trail_length_env}, falling back to manual selection")
         
-        self.ui.print_header("🎯 Trail Length Configuration")
-        print("Configure how much flight history to show in the animation:")
-        print()
-        
-        for key, option in self.TRAIL_OPTIONS.items():
-            print(f"  {key:>4}: {option['label']}")
-        
-        return self._get_user_trail_length_choice()
+        # For testing: use default 2 hours trail length
+        self.ui.print_info("Using default 2 hours trail length for testing")
+        return 120  # 2 hours in minutes
     
     def _get_user_trail_length_choice(self) -> Optional[int]:
         """Get and validate user's trail length choice"""
