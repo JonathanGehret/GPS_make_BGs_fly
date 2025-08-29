@@ -163,7 +163,7 @@ class LiveMapAnimator:
                 self.selected_time_step = self._parse_time_step_from_gui(time_step_env)
                 self.ui.print_success(f"Using GUI time step: {time_step_env} ({self.selected_time_step}s)")
                 return True
-            except Exception as e:
+            except Exception:
                 self.ui.print_warning(f"Invalid time step from GUI: {time_step_env}, falling back to manual selection")
         
         self.ui.print_section("⚡ PERFORMANCE CONFIGURATION")
@@ -292,6 +292,21 @@ class LiveMapAnimator:
             colors = px.colors.qualitative.Set1[:len(vulture_ids)]
             color_map = dict(zip(vulture_ids, colors))
             
+            # Calculate fixed map bounds for the entire dataset to prevent jumping
+            lat_min, lat_max = df['Latitude'].min(), df['Latitude'].max()
+            lon_min, lon_max = df['Longitude'].min(), df['Longitude'].max()
+            
+            # Add some padding to the bounds (5% on each side)
+            lat_padding = (lat_max - lat_min) * 0.05
+            lon_padding = (lon_max - lon_min) * 0.05
+            
+            lat_min -= lat_padding
+            lat_max += lat_padding
+            lon_min -= lon_padding
+            lon_max += lon_padding
+            
+            print(f"📍 Map bounds: Lat {lat_min:.4f} to {lat_max:.4f}, Lon {lon_min:.4f} to {lon_max:.4f}")
+            
             # Create figure with empty traces
             import plotly.graph_objects as go
             fig = go.Figure()
@@ -311,12 +326,19 @@ class LiveMapAnimator:
             frames = self.trail_system.create_frames_with_trail(df, vulture_ids, color_map, unique_times)
             fig.frames = frames
             
-            # Configure layout
+            # Configure layout with FIXED bounds to prevent map jumping
             fig.update_layout(
                 map=dict(
                     style="open-street-map",
                     center=dict(lat=df['Latitude'].mean(), lon=df['Longitude'].mean()),
-                    zoom=12
+                    zoom=12,
+                    # Set fixed bounds to prevent map jumping during animation
+                    bounds=dict(
+                        west=lon_min,
+                        east=lon_max,
+                        south=lat_min,
+                        north=lat_max
+                    )
                 ),
                 height=600,
                 title="🦅 Bearded Vulture GPS Flight Paths - Live Map Visualization",
