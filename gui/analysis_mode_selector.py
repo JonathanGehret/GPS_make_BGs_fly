@@ -10,6 +10,14 @@ import subprocess
 import sys
 import os
 
+# Try to import update manager
+try:
+    sys.path.append(os.path.join(os.path.dirname(__file__), "..", "scripts"))
+    from update_manager import check_for_updates
+    UPDATE_AVAILABLE = True
+except ImportError:
+    UPDATE_AVAILABLE = False
+
 class AnalysisModeSelector:
     def __init__(self):
         self.root = tk.Tk()
@@ -103,9 +111,23 @@ class AnalysisModeSelector:
                               font=("Arial", 9), foreground="gray")
         self.desc3.grid(row=5, column=0, pady=(0, 15))
         
-        # Configure button style
+        # Update button (if update system is available)
+        if UPDATE_AVAILABLE:
+            self.update_btn = ttk.Button(button_frame, text="🔄 Check for Updates", 
+                                        command=self.check_for_updates,
+                                        style="Update.TButton")
+            self.update_btn.grid(row=6, column=0, pady=10, sticky=(tk.W, tk.E))
+            
+            self.update_desc = ttk.Label(button_frame, 
+                                        text="Download latest version with new features",
+                                        font=("Arial", 9), foreground="gray")
+            self.update_desc.grid(row=7, column=0, pady=(0, 15))
+        
+        # Configure button styles
         style = ttk.Style()
         style.configure("Large.TButton", font=("Arial", 11, "bold"), padding=10)
+        if UPDATE_AVAILABLE:
+            style.configure("Update.TButton", font=("Arial", 10), padding=8)
     
     def change_language(self, event=None):
         """Change the interface language"""
@@ -125,6 +147,10 @@ class AnalysisModeSelector:
             self.btn3.config(text="🎯 3D Visualisierung")
             self.desc3.config(text="3D-Flugpfad-Visualisierung mit Gelände")
             
+            if UPDATE_AVAILABLE:
+                self.update_btn.config(text="🔄 Nach Updates suchen")
+                self.update_desc.config(text="Neueste Version mit neuen Funktionen herunterladen")
+            
             self.status_var.set("Bereit")
         else:
             self.root.title("GPS Analysis - Mode Selection")
@@ -136,6 +162,10 @@ class AnalysisModeSelector:
             
             self.btn3.config(text="🎯 3D Visualization")
             self.desc3.config(text="3D flight path visualization with terrain")
+            
+            if UPDATE_AVAILABLE:
+                self.update_btn.config(text="🔄 Check for Updates")
+                self.update_desc.config(text="Download latest version with new features")
             
             self.status_var.set("Ready")
     
@@ -254,6 +284,34 @@ class AnalysisModeSelector:
             messagebox.showerror("Error", message)
         
         self.update_status("Error occurred" if self.language == "en" else "Fehler aufgetreten")
+    
+    def check_for_updates(self):
+        """Check for application updates"""
+        if not UPDATE_AVAILABLE:
+            self.show_error("Update system not available")
+            return
+        
+        # Disable update button during check
+        if hasattr(self, 'update_btn'):
+            self.update_btn.config(state="disabled")
+        
+        self.update_status("Checking for updates..." if self.language == "en" 
+                          else "Suche nach Updates...")
+        
+        try:
+            # Check for updates
+            check_for_updates(current_version="1.0.0", show_dialog=True, parent=self.root)
+            
+            # Re-enable button
+            if hasattr(self, 'update_btn'):
+                self.update_btn.config(state="normal")
+            
+            self.update_status("Ready" if self.language == "en" else "Bereit")
+            
+        except Exception as e:
+            self.show_error(f"Update check failed: {str(e)}")
+            if hasattr(self, 'update_btn'):
+                self.update_btn.config(state="normal")
     
     def run(self):
         """Start the GUI application"""

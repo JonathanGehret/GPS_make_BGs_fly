@@ -19,14 +19,28 @@ import subprocess
 def main():
     """Launch the GPS Analysis Suite"""
     try:
-        # Get the directory containing this script
-        script_dir = os.path.dirname(os.path.abspath(__file__))
+        # Get the directory containing this script (works for both dev and bundled)
+        if getattr(sys, '_MEIPASS', False):
+            # Running in PyInstaller bundle
+            script_dir = sys._MEIPASS
+        else:
+            # Running in development
+            script_dir = os.path.dirname(os.path.abspath(__file__))
+        
         gui_script = os.path.join(script_dir, 'gui', 'analysis_mode_selector.py')
         
         # Check if GUI script exists
         if not os.path.exists(gui_script):
             print("❌ Error: Main GUI script not found!")
             print(f"Looking for: {gui_script}")
+            print(f"Script directory: {script_dir}")
+            
+            # List available files for debugging
+            if os.path.exists(script_dir):
+                print("Available files in script directory:")
+                for item in os.listdir(script_dir):
+                    print(f"  - {item}")
+            
             print("\n🔧 Please ensure all project files are present.")
             input("Press Enter to exit...")
             return 1
