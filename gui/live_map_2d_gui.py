@@ -5,13 +5,13 @@ GUI wrapper for the 2D live map visualization with animation controls
 """
 
 import tkinter as tk
-from tkinter import ttk, filedialog, messagebox, scrolledtext
+from tkinter import ttk, filedialog, messagebox
 import subprocess
 import sys
 import os
 from pathlib import Path
 
-# Import shared animation controls
+# Try to import shared animation controls
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", "scripts"))
 try:
     from utils.animation_controls import AnimationControlsFrame
@@ -254,7 +254,7 @@ class LiveMap2DGUI:
             # Recursively check children
             for child in widget.winfo_children():
                 self._update_widget_texts_de(child)
-        except:
+        except Exception:
             pass
     
     def _update_widget_texts_en(self, widget):
@@ -286,7 +286,7 @@ class LiveMap2DGUI:
             # Recursively check children
             for child in widget.winfo_children():
                 self._update_widget_texts_en(child)
-        except:
+        except Exception:
             pass
     
     def browse_data_folder(self):
@@ -338,7 +338,7 @@ class LiveMap2DGUI:
                     with open(csv_file, 'r') as f:
                         lines = sum(1 for _ in f) - 1  # Subtract header
                     self.data_preview.insert(tk.END, f"✅ {csv_file.name}: ~{lines} data points\n")
-                except Exception as e:
+                except Exception:
                     self.data_preview.insert(tk.END, f"❌ {csv_file.name}: Error reading file\n")
                     
         except Exception as e:
@@ -439,8 +439,34 @@ class LiveMap2DGUI:
             env['TRAIL_LENGTH_HOURS'] = str(config['trail_length'])
             env['TIME_STEP'] = config['time_step']
             
-            # Launch the script
-            subprocess.Popen([sys.executable, script_path], env=env)
+            # Check if we're running in a PyInstaller bundle
+            if getattr(sys, '_MEIPASS', False):
+                # In bundle mode, we need to find the Python interpreter
+                bundle_dir = sys._MEIPASS
+                
+                # Try to find python executable in the bundle
+                python_exe = None
+                possible_python_paths = [
+                    os.path.join(bundle_dir, 'python'),
+                    os.path.join(bundle_dir, 'python3'),
+                    'python3',  # System python
+                    'python'    # Fallback
+                ]
+                
+                for py_path in possible_python_paths:
+                    if os.path.exists(py_path) or py_path in ['python3', 'python']:
+                        python_exe = py_path
+                        break
+                
+                if python_exe:
+                    # Launch the script with the found Python interpreter
+                    subprocess.Popen([python_exe, script_path], env=env)
+                else:
+                    # Fallback: try to run script directly (might work on some systems)
+                    subprocess.Popen([script_path], env=env)
+            else:
+                # Development mode - use system Python
+                subprocess.Popen([sys.executable, script_path], env=env)
             
             if self.language == "de":
                 messagebox.showinfo("Erfolg", f"2D Live Karte gestartet!\nAusgabe: {self.output_folder.get()}")
