@@ -140,6 +140,7 @@ class AnalysisModeSelector:
         
         # Update button (if update system is available)
         if UPDATE_AVAILABLE:
+            print("✅ DEBUG: Creating update button")
             self.update_btn = ttk.Button(button_frame, text="🔄 Check for Updates", 
                                         command=self.check_for_updates,
                                         style="Update.TButton")
@@ -149,6 +150,9 @@ class AnalysisModeSelector:
                                         text="Download latest version with new features",
                                         font=("Arial", 9), foreground="gray")
             self.update_desc.grid(row=7, column=0, pady=(0, 15))
+            print("✅ DEBUG: Update button and description created")
+        else:
+            print("❌ DEBUG: UPDATE_AVAILABLE is False, not creating update button")
         
         # Configure button styles
         style = ttk.Style()
