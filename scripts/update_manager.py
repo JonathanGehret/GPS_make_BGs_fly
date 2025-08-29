@@ -215,6 +215,111 @@ def show_no_updates_dialog(current_version, parent=None):
 
         dialog.mainloop()
 
+def show_no_repository_dialog(parent=None):
+    """Show dialog when repository doesn't exist or has no releases"""
+    message = """🚀 **Ready to Deploy Your GPS Analysis Suite!**
+
+Your update system is working perfectly! To enable automatic updates:
+
+**Option 1: Create GitHub Repository**
+1. Go to https://github.com and create a new repository
+2. Name it: `GPS_make_BGs_fly`
+3. Upload your project files
+4. Create a release with version tag (e.g., v1.0.0)
+5. Add release notes describing your features
+
+**Option 2: Test Update System**
+- Create a test release on GitHub
+- The update system will detect it automatically
+- Users will see professional update notifications
+
+**Current Status:** ✅ Update system ready!
+**Next Step:** Create your first GitHub release
+
+Would you like help creating the GitHub repository?"""
+
+    if parent:
+        # Create a more detailed dialog
+        dialog = tk.Toplevel(parent)
+        dialog.title("GPS Analysis Suite - Update System Ready!")
+        dialog.geometry("600x400")
+        dialog.resizable(True, True)
+
+        # Center the dialog
+        dialog.transient(parent)
+        dialog.grab_set()
+
+        # Main frame
+        main_frame = ttk.Frame(dialog, padding="20")
+        main_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+
+        dialog.columnconfigure(0, weight=1)
+        dialog.rowconfigure(0, weight=1)
+        main_frame.columnconfigure(0, weight=1)
+
+        # Title
+        title_label = ttk.Label(main_frame, text="🚀 Update System Ready!",
+                               font=("Arial", 16, "bold"))
+        title_label.grid(row=0, column=0, pady=(0, 20))
+
+        # Message text
+        text_frame = ttk.Frame(main_frame)
+        text_frame.grid(row=1, column=0, pady=(0, 20), sticky=(tk.W, tk.E, tk.N, tk.S))
+        text_frame.columnconfigure(0, weight=1)
+        text_frame.rowconfigure(0, weight=1)
+
+        text_widget = tk.Text(text_frame, wrap=tk.WORD, padx=10, pady=10, height=12)
+        scrollbar = ttk.Scrollbar(text_frame, orient=tk.VERTICAL, command=text_widget.yview)
+        text_widget.configure(yscrollcommand=scrollbar.set)
+
+        text_widget.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        scrollbar.grid(row=0, column=1, sticky=(tk.N, tk.S))
+
+        text_widget.insert(tk.END, message)
+        text_widget.config(state=tk.DISABLED)
+
+        # Buttons
+        button_frame = ttk.Frame(main_frame)
+        button_frame.grid(row=2, column=0, pady=(0, 0), sticky=(tk.W, tk.E))
+
+        def open_github():
+            """Open GitHub in browser"""
+            webbrowser.open("https://github.com")
+
+        def close_dialog():
+            """Close the dialog"""
+            dialog.destroy()
+
+        github_btn = ttk.Button(button_frame, text="🌐 Open GitHub",
+                               command=open_github, style="Accent.TButton")
+        github_btn.grid(row=0, column=0, padx=(0, 10))
+
+        close_btn = ttk.Button(button_frame, text="✅ Close",
+                              command=close_dialog)
+        close_btn.grid(row=0, column=1)
+
+        # Configure button style
+        style = ttk.Style()
+        style.configure("Accent.TButton", font=("Arial", 10, "bold"))
+
+        # Center dialog on screen
+        dialog.update_idletasks()
+        width = dialog.winfo_width()
+        height = dialog.winfo_height()
+        x = (dialog.winfo_screenwidth() // 2) - (width // 2)
+        y = (dialog.winfo_screenheight() // 2) - (height // 2)
+        dialog.geometry(f"{width}x{height}+{x}+{y}")
+
+    else:
+        # Simple message box for non-GUI context
+        messagebox.showinfo("Update System Ready",
+                          "Your GPS Analysis Suite update system is working!\n\n"
+                          "To enable automatic updates:\n"
+                          "1. Create a GitHub repository\n"
+                          "2. Add releases with version tags\n"
+                          "3. Users will get update notifications\n\n"
+                          "Visit: https://github.com to get started!")
+
 def show_update_error(error_message, parent=None):
     """Show error dialog for update check failures"""
     if parent:
@@ -253,9 +358,18 @@ def check_for_updates(current_version=None, show_dialog=True, parent=None):
     latest_info = check_github_for_updates()
 
     if not latest_info.get('success', False):
-        print(f"❌ Update check failed: {latest_info.get('error', 'Unknown error')}")
-        if show_dialog:
-            show_update_error(latest_info.get('error', 'Unknown error'), parent)
+        error_msg = latest_info.get('error', 'Unknown error')
+        
+        # Check if it's a 404 (repository not found)
+        if '404' in error_msg or 'Not Found' in error_msg:
+            print("ℹ️ Repository not found - showing setup instructions")
+            if show_dialog:
+                show_no_repository_dialog(parent)
+            return False
+        else:
+            print(f"❌ Update check failed: {error_msg}")
+            if show_dialog:
+                show_update_error(error_msg, parent)
         return False
 
     latest_version = latest_info.get('version', '')

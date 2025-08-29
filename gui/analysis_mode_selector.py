@@ -49,7 +49,7 @@ class AnalysisModeSelector:
     def __init__(self):
         self.root = tk.Tk()
         self.root.title("GPS Analysis - Mode Selection")
-        self.root.geometry("500x400")
+        self.root.geometry("500x500")
         self.root.resizable(True, True)
         
         # Language setting - default to German
