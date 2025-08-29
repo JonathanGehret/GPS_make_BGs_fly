@@ -647,6 +647,7 @@
    'PYMODULE'),
   ('logging', '/usr/lib/python3.10/logging/__init__.py', 'PYMODULE'),
   ('lzma', '/usr/lib/python3.10/lzma.py', 'PYMODULE'),
+  ('main', '/home/jonathan/development/GPS_make_BGs_fly/main.py', 'PYMODULE'),
   ('matplotlib',
    '/home/jonathan/development/GPS_make_BGs_fly/.venv/lib/python3.10/site-packages/matplotlib/__init__.py',
    'PYMODULE'),
