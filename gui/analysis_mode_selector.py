@@ -15,8 +15,12 @@ try:
     sys.path.append(os.path.join(os.path.dirname(__file__), "..", "scripts"))
     from update_manager import check_for_updates
     UPDATE_AVAILABLE = True
-except ImportError:
+    print("✅ DEBUG: Update manager imported successfully")
+except ImportError as e:
     UPDATE_AVAILABLE = False
+    print(f"❌ DEBUG: Failed to import update manager: {e}")
+    print(f"❌ DEBUG: Current sys.path: {sys.path}")
+    print(f"❌ DEBUG: Script directory: {os.path.join(os.path.dirname(__file__), '..', 'scripts')}")
 
 # Import feature GUI modules for direct execution in bundle mode
 FEATURE_GUI_AVAILABLE = {}
