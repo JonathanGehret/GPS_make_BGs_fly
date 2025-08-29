@@ -14,58 +14,61 @@ Features:
 
 import sys
 import os
-import subprocess
 
 def main():
     """Launch the GPS Analysis Suite"""
     try:
-        # Get the directory containing this script (works for both dev and bundled)
-        if getattr(sys, '_MEIPASS', False):
-            # Running in PyInstaller bundle
-            script_dir = sys._MEIPASS
-        else:
-            # Running in development
-            script_dir = os.path.dirname(os.path.abspath(__file__))
-        
-        gui_script = os.path.join(script_dir, 'gui', 'analysis_mode_selector.py')
-        
-        # Check if GUI script exists
-        if not os.path.exists(gui_script):
-            print("❌ Error: Main GUI script not found!")
-            print(f"Looking for: {gui_script}")
-            print(f"Script directory: {script_dir}")
-            
-            # List available files for debugging
-            if os.path.exists(script_dir):
-                print("Available files in script directory:")
-                for item in os.listdir(script_dir):
-                    print(f"  - {item}")
-            
-            print("\n🔧 Please ensure all project files are present.")
-            input("Press Enter to exit...")
-            return 1
-        
         print("🦅 Launching GPS Analysis Suite...")
-        print("📁 Loading application...")
         
-        # Launch the GUI
-        if sys.platform.startswith('win'):
-            # Windows - create new console window
-            subprocess.run([sys.executable, gui_script], creationflags=subprocess.CREATE_NEW_CONSOLE)
-        else:
-            # Linux/Mac
-            subprocess.run([sys.executable, gui_script])
+        # Check if we're running as a PyInstaller bundle
+        if getattr(sys, '_MEIPASS', False):
+            # Running as standalone executable - import and run GUI directly
+            print("📦 Running as standalone executable...")
             
-        return 0
-        
+            # Add bundle directory to Python path
+            bundle_dir = sys._MEIPASS
+            if bundle_dir not in sys.path:
+                sys.path.insert(0, bundle_dir)
+            
+            # Import and run the GUI directly
+            try:
+                from gui.analysis_mode_selector import main as gui_main
+                print("✅ GUI module loaded successfully")
+                return gui_main()
+            except ImportError as e:
+                print(f"❌ Failed to import GUI module: {e}")
+                print(f"Bundle directory: {bundle_dir}")
+                print("Files in bundle:")
+                for item in os.listdir(bundle_dir):
+                    print(f"  - {item}")
+                return 1
+            except Exception as e:
+                print(f"❌ Failed to run GUI: {e}")
+                return 1
+                
+        else:
+            # Running in development mode
+            print("🔧 Running in development mode...")
+            
+            script_dir = os.path.dirname(os.path.abspath(__file__))
+            gui_script = os.path.join(script_dir, 'gui', 'analysis_mode_selector.py')
+            
+            if not os.path.exists(gui_script):
+                print("❌ Error: GUI script not found in development mode!")
+                print(f"Looking for: {gui_script}")
+                return 1
+            
+            # Import and run GUI directly in development
+            try:
+                sys.path.insert(0, script_dir)
+                from gui.analysis_mode_selector import main as gui_main
+                return gui_main()
+            except Exception as e:
+                print(f"❌ Failed to run GUI in development mode: {e}")
+                return 1
+    
     except Exception as e:
         print(f"❌ Failed to launch GPS Analysis Suite: {e}")
-        print("\n🔧 Troubleshooting:")
-        print("1. Make sure Python 3.8+ is installed")
-        print("2. Make sure you're in the GPS_make_BGs_fly directory")
-        print("3. Check that all required files are present")
-        print("4. Try running: python3 main.py")
-        input("\nPress Enter to exit...")
         return 1
 
 if __name__ == "__main__":
