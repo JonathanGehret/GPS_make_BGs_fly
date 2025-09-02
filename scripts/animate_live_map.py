@@ -13,6 +13,7 @@ from typing import Optional, List
 from pathlib import Path
 from utils.user_interface import UserInterface
 from utils.performance_optimizer import PerformanceOptimizer
+from utils.enhanced_timeline_labels import create_enhanced_slider_config
 from core.trail_system import TrailSystem
 from gps_utils import (
     get_numbered_output_path, ensure_output_directories, logger,
@@ -377,16 +378,7 @@ class LiveMapAnimator:
                                            "mode": "immediate", "transition": {"duration": 0}}])
                     ]
                 )],
-                sliders=[dict(
-                    active=0,
-                    currentvalue={"prefix": "Time: "},
-                    x=0.1,
-                    y=0.08,
-                    len=0.8,
-                    steps=[dict(label=time_str, method="animate",
-                               args=[[time_str], dict(mode="immediate", transition=dict(duration=300))])
-                          for time_str in unique_times]
-                )]
+                sliders=[create_enhanced_slider_config(unique_times, position_y=0.08)]
             )
             
             # Save visualization with fullscreen support

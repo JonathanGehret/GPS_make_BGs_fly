@@ -12,6 +12,7 @@ import numpy as np
 from typing import Optional, Dict, Any
 from gps_utils import VisualizationHelper, format_height_display, get_numbered_output_path
 from utils.user_interface import UserInterface
+from utils.enhanced_timeline_labels import create_enhanced_slider_config
 from core.elevation_data_manager import ElevationDataManager, ElevationData
 
 
@@ -513,32 +514,12 @@ class Animation3DEngine:
                     'xanchor': 'right',
                     'yanchor': 'bottom'
                 }],
-                'sliders': [{
-                    'steps': [
-                        {
-                            'args': [[frame.name], {
-                                'frame': {'duration': 0, 'redraw': True},
-                                'mode': 'immediate',
-                                'transition': {'duration': 0}
-                            }],
-                            'label': frame.name.split(' ')[1] if ' ' in frame.name else frame.name[:10],
-                            'method': 'animate'
-                        } for frame in fig.frames
-                    ],
-                    'active': 0,
-                    'len': 0.8,
-                    'x': 0.1,
-                    'y': 0.02,
-                    'xanchor': 'left',
-                    'yanchor': 'bottom',
-                    'transition': {'duration': 300},
-                    'currentvalue': {
-                        'font': {'size': 12},
-                        'prefix': '🕒 ',
-                        'visible': True,
-                        'xanchor': 'center'
-                    }
-                }]
+                'sliders': [create_enhanced_slider_config(
+                    [frame.name for frame in fig.frames], 
+                    position_y=0.02, 
+                    position_x=0.1, 
+                    length=0.8
+                )]
             })
         
         fig.update_layout(**layout_updates)
