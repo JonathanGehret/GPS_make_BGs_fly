@@ -14,6 +14,7 @@ from pathlib import Path
 from utils.user_interface import UserInterface
 from utils.performance_optimizer import PerformanceOptimizer
 from utils.enhanced_timeline_labels import create_enhanced_slider_config
+from utils.animation_state_manager import AnimationStateManager, create_reliable_animation_controls
 from core.trail_system import TrailSystem
 from gps_utils import (
     get_numbered_output_path, ensure_output_directories, logger,
@@ -328,7 +329,9 @@ class LiveMapAnimator:
             
             # Create frames using trail system
             unique_times = sorted(df['timestamp_str'].unique())
-            frames = self.trail_system.create_frames_with_trail(df, vulture_ids, color_map, unique_times)
+            frames = self.trail_system.create_frames_with_trail(
+                df, vulture_ids, color_map, unique_times, enable_prominent_time_display=True
+            )
             fig.frames = frames
             
             # Configure layout with FIXED center, zoom, and dimensions to prevent jumping
@@ -352,6 +355,28 @@ class LiveMapAnimator:
                     xanchor='center'
                 ),
                 showlegend=True,
+                # Add prominent current time annotation
+                annotations=[
+                    dict(
+                        text=f"<b>📅 Current Time:</b><br><span style='font-size: 20px; color: #2E86AB; text-shadow: 1px 1px 3px rgba(0,0,0,0.3);'>{unique_times[0] if unique_times else 'No data'}</span>",
+                        x=0.98,
+                        y=0.98,
+                        xref='paper',
+                        yref='paper',
+                        xanchor='right',
+                        yanchor='top',
+                        showarrow=False,
+                        bgcolor='rgba(255, 255, 255, 0.95)',
+                        bordercolor='rgba(46, 134, 171, 0.8)',
+                        borderwidth=2,
+                        borderpad=10,
+                        font=dict(
+                            size=16,
+                            color='#333',
+                            family='Arial, sans-serif'
+                        )
+                    )
+                ],
                 # Configure legend to stay in fixed position
                 legend=dict(
                     x=0.02,
@@ -362,23 +387,16 @@ class LiveMapAnimator:
                     bordercolor='rgba(0, 0, 0, 0.2)',
                     borderwidth=1
                 ),
-                updatemenus=[dict(
-                    type="buttons", 
-                    direction="left",
-                    x=0.5,
-                    y=0.02,
-                    xanchor='center',
-                    yanchor='bottom',
-                    buttons=[
-                        dict(label="▶", method="animate", 
-                             args=[None, {"frame": {"duration": self.get_frame_duration(), "redraw": False}, 
-                                         "transition": {"duration": 300}, "fromcurrent": True}]),
-                        dict(label="⏸", method="animate", 
-                             args=[[None], {"frame": {"duration": 0, "redraw": False}, 
-                                           "mode": "immediate", "transition": {"duration": 0}}])
-                    ]
-                )],
-                sliders=[create_enhanced_slider_config(unique_times, position_y=0.08)]
+                # Enhanced reliable animation controls
+                **create_reliable_animation_controls(
+                    frame_duration=self.get_frame_duration(),
+                    include_speed_controls=True
+                ),
+                sliders=[create_enhanced_slider_config(
+                    unique_times, 
+                    position_y=0.08, 
+                    enable_prominent_display=True
+                )]
             )
             
             # Save visualization with fullscreen support

@@ -287,7 +287,8 @@ class TimelineLabelSystem:
 def create_enhanced_slider_config(unique_times: List[str], 
                                  position_y: float = 0.08, 
                                  position_x: float = 0.1, 
-                                 length: float = 0.8) -> Dict:
+                                 length: float = 0.8,
+                                 enable_prominent_display: bool = False) -> Dict:
     """
     Create enhanced slider configuration for Plotly animations
     
@@ -296,6 +297,7 @@ def create_enhanced_slider_config(unique_times: List[str],
         position_y: Y position of slider (0-1)
         position_x: X position of slider (0-1)
         length: Length of slider (0-1)
+        enable_prominent_display: Whether to enable prominent date/time display
         
     Returns:
         Enhanced slider configuration dict for Plotly
@@ -303,21 +305,60 @@ def create_enhanced_slider_config(unique_times: List[str],
     label_system = TimelineLabelSystem()
     enhanced_labels = label_system.create_enhanced_slider_labels(unique_times)
     
-    return {
-        'active': 0,
-        'currentvalue': {
+    # Create robust slider steps with improved animation handling
+    improved_steps = []
+    for step in enhanced_labels:
+        improved_step = {
+            'args': step['args'],
+            'label': step['label'],
+            'method': 'animate',
+            'execute': True  # Ensure step execution
+        }
+        improved_steps.append(improved_step)
+    
+    # Enhanced current value display with prominent styling
+    if enable_prominent_display:
+        current_value_config = {
+            'prefix': '',  # Remove prefix to make room for custom styling
+            'font': {
+                'size': 16,
+                'family': 'Arial, sans-serif',
+                'color': '#ffffff'
+            },
+            'visible': True,
+            'xanchor': 'center',
+            'offset': 10,
+            # Custom background styling for visibility
+            'template': '<span style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); '
+                       'color: white; padding: 8px 16px; border-radius: 20px; '
+                       'box-shadow: 0 4px 15px rgba(0,0,0,0.3); '
+                       'font-weight: 600; font-size: 16px; '
+                       'text-shadow: 1px 1px 2px rgba(0,0,0,0.5);">'
+                       '🕒 %{label}</span>'
+        }
+    else:
+        current_value_config = {
             'prefix': '🕒 Time: ',
             'font': {'size': 12},
             'visible': True,
             'xanchor': 'center'
-        },
+        }
+    
+    return {
+        'active': 0,
+        'currentvalue': current_value_config,
         'x': position_x,
         'y': position_y,
         'len': length,
-        'steps': enhanced_labels,
-        'transition': {'duration': 300},
-        'tickcolor': 'rgba(0,0,0,0.3)',
-        'bordercolor': 'rgba(0,0,0,0.3)',
-        'borderwidth': 1,
-        'bgcolor': 'rgba(255,255,255,0.8)'
+        'steps': improved_steps,
+        'transition': {'duration': 250},  # Slightly faster transitions
+        'tickcolor': 'rgba(0,0,0,0.4)',
+        'bordercolor': 'rgba(0,0,0,0.4)',
+        'borderwidth': 2,
+        'bgcolor': 'rgba(255,255,255,0.9)',
+        # Enhanced slider styling
+        'pad': {'t': 20, 'b': 20},
+        'minorticklen': 4,
+        'majorticklen': 8,
+        'tickwidth': 2
     }

@@ -70,7 +70,8 @@ class TrailSystem:
             self.ui.print_error("Invalid choice. Please enter a valid option (e.g., '30m', '1h', 'all')")
     
     def create_frames_with_trail(self, df: pd.DataFrame, vulture_ids: List[str], 
-                                color_map: Dict[str, str], unique_times: List[str]) -> List[go.Frame]:
+                                color_map: Dict[str, str], unique_times: List[str], 
+                                enable_prominent_time_display: bool = True) -> List[go.Frame]:
         """Create animation frames with trail length support and visual fading effects"""
         frames = []
         
@@ -162,7 +163,34 @@ class TrailSystem:
                         )
                     )
             
-            frames.append(go.Frame(data=frame_data, name=time_str))
+            # Create frame with data and layout updates for prominent time display
+            frame_layout = {}
+            if enable_prominent_time_display:
+                frame_layout = {
+                    'annotations': [
+                        dict(
+                            text=f"<b>📅 Current Time:</b><br><span style='font-size: 20px; color: #2E86AB; text-shadow: 1px 1px 3px rgba(0,0,0,0.3);'>{time_str}</span>",
+                            x=0.98,
+                            y=0.98,
+                            xref='paper',
+                            yref='paper',
+                            xanchor='right',
+                            yanchor='top',
+                            showarrow=False,
+                            bgcolor='rgba(255, 255, 255, 0.95)',
+                            bordercolor='rgba(46, 134, 171, 0.8)',
+                            borderwidth=2,
+                            borderpad=10,
+                            font=dict(
+                                size=16,
+                                color='#333',
+                                family='Arial, sans-serif'
+                            )
+                        )
+                    ]
+                }
+            
+            frames.append(go.Frame(data=frame_data, layout=frame_layout, name=time_str))
         
         return frames
     

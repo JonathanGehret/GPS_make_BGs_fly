@@ -13,6 +13,7 @@ from typing import Optional, Dict, Any
 from gps_utils import VisualizationHelper, format_height_display, get_numbered_output_path
 from utils.user_interface import UserInterface
 from utils.enhanced_timeline_labels import create_enhanced_slider_config
+from utils.animation_state_manager import create_reliable_animation_controls
 from core.elevation_data_manager import ElevationDataManager, ElevationData
 
 
@@ -485,40 +486,20 @@ class Animation3DEngine:
         
         # Add animation controls if this is an animated visualization
         if animation_type == 'full' and hasattr(fig, 'frames') and fig.frames:
+            # Use reliable animation controls
+            reliable_controls = create_reliable_animation_controls(
+                frame_duration=self.get_frame_duration(),
+                include_speed_controls=True
+            )
+            
             layout_updates.update({
-                'updatemenus': [{
-                    'buttons': [
-                        {
-                            'args': [None, {
-                                'frame': {'duration': self.get_frame_duration(), 'redraw': True},
-                                'transition': {'duration': 300}
-                            }],
-                            'label': '▶️ Play',
-                            'method': 'animate'
-                        },
-                        {
-                            'args': [[None], {
-                                'frame': {'duration': 0, 'redraw': True},
-                                'mode': 'immediate',
-                                'transition': {'duration': 0}
-                            }],
-                            'label': '⏸️ Pause',
-                            'method': 'animate'
-                        }
-                    ],
-                    'direction': 'left',
-                    'pad': {'r': 10, 't': 85},
-                    'type': 'buttons',
-                    'x': 0.1,
-                    'y': 0.02,
-                    'xanchor': 'right',
-                    'yanchor': 'bottom'
-                }],
+                **reliable_controls,
                 'sliders': [create_enhanced_slider_config(
                     [frame.name for frame in fig.frames], 
                     position_y=0.02, 
                     position_x=0.1, 
-                    length=0.8
+                    length=0.8,
+                    enable_prominent_display=True
                 )]
             })
         

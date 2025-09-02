@@ -11,6 +11,7 @@ import plotly.express as px
 from typing import Optional, Dict, Any
 from gps_utils import VisualizationHelper, format_height_display, get_numbered_output_path
 from utils.enhanced_timeline_labels import create_enhanced_slider_config
+from utils.animation_state_manager import create_reliable_animation_controls
 from utils.user_interface import UserInterface
 
 
@@ -267,43 +268,19 @@ class MobileAnimationEngine:
                 font=dict(size=10)  # Smaller legend text
             ),
             
-            # Mobile-friendly animation controls
-            updatemenus=[{
-                'buttons': [
-                    {
-                        'args': [None, {
-                            'frame': {'duration': 800, 'redraw': True},  # Slower for mobile
-                            'transition': {'duration': 300}
-                        }],
-                        'label': '▶️ Play',
-                        'method': 'animate'
-                    },
-                    {
-                        'args': [[None], {
-                            'frame': {'duration': 0, 'redraw': True},
-                            'mode': 'immediate',
-                            'transition': {'duration': 0}
-                        }],
-                        'label': '⏸️ Pause',
-                        'method': 'animate'
-                    }
-                ],
-                'direction': 'left',
-                'pad': {'r': 10, 't': 85},
-                'type': 'buttons',
-                'x': 0.1,
-                'y': 0.9,
-                'xanchor': 'right',
-                'yanchor': 'top',
-                'font': {'size': 12}  # Larger buttons for mobile
-            }],
+            # Mobile-friendly reliable animation controls
+            **create_reliable_animation_controls(
+                frame_duration=800,  # Mobile-optimized slower pace
+                include_speed_controls=False  # Simplified for mobile
+            ),
             
             # Mobile-optimized enhanced slider
             sliders=[create_enhanced_slider_config(
                 [frame.name for frame in fig.frames], 
                 position_y=0.02, 
                 position_x=0.1, 
-                length=0.8
+                length=0.8,
+                enable_prominent_display=True
             )]
         )
         
