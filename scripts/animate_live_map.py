@@ -48,6 +48,37 @@ class LiveMapAnimator:
         self.selected_time_step: Optional[int] = None
         self.dataframes: List[pd.DataFrame] = []
         self.combined_data: Optional[pd.DataFrame] = None
+        self.base_animation_speed = 600  # ms per frame at 1x speed for 2D maps
+        self.playback_speed = 1.0  # Default playback speed multiplier
+        
+        # Read playback speed from environment if available (from GUI)
+        playback_speed_env = os.environ.get('PLAYBACK_SPEED')
+        if playback_speed_env:
+            try:
+                self.playback_speed = float(playback_speed_env)
+                self.playback_speed = max(0.1, min(10.0, self.playback_speed))  # Clamp between 0.1x and 10x
+                print(f"🎬 Using GUI playback speed: {self.playback_speed:.1f}x")
+            except Exception:
+                print(f"⚠️ Invalid playback speed from GUI: {playback_speed_env}, using default 1.0x")
+    
+    def set_playback_speed(self, speed_multiplier: float) -> None:
+        """
+        Set the playback speed multiplier
+        
+        Args:
+            speed_multiplier: Speed multiplier (1.0 = normal, 2.0 = 2x faster, 0.5 = 2x slower)
+        """
+        self.playback_speed = max(0.1, min(10.0, speed_multiplier))  # Clamp between 0.1x and 10x
+        print(f"🎬 2D Animation playback speed set to {self.playback_speed:.1f}x")
+    
+    def get_frame_duration(self) -> int:
+        """
+        Get the current frame duration based on playback speed
+        
+        Returns:
+            Frame duration in milliseconds
+        """
+        return max(50, int(self.base_animation_speed / self.playback_speed))
     
     def _parse_time_step_from_gui(self, time_step_str: str) -> int:
         """Parse time step from GUI format to seconds"""
@@ -339,7 +370,7 @@ class LiveMapAnimator:
                     yanchor='bottom',
                     buttons=[
                         dict(label="▶", method="animate", 
-                             args=[None, {"frame": {"duration": 600, "redraw": False}, 
+                             args=[None, {"frame": {"duration": self.get_frame_duration(), "redraw": False}, 
                                          "transition": {"duration": 300}, "fromcurrent": True}]),
                         dict(label="⏸", method="animate", 
                              args=[[None], {"frame": {"duration": 0, "redraw": False}, 

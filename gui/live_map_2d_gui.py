@@ -442,6 +442,7 @@ class LiveMap2DGUI:
             env['OUTPUT_DIR'] = self.output_folder.get()
             env['TRAIL_LENGTH_HOURS'] = str(config['trail_length'])
             env['TIME_STEP'] = config['time_step']
+            env['PLAYBACK_SPEED'] = str(config.get('playback_speed', 1.0))
             
             # Check if we're running in a PyInstaller bundle
             if getattr(sys, '_MEIPASS', False):

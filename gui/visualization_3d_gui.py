@@ -368,6 +368,7 @@ class Visualization3DGUI:
             env['TERRAIN_QUALITY'] = self.terrain_quality.get()
             env['TRAIL_LENGTH_HOURS'] = str(config['trail_length'])
             env['TIME_STEP'] = config['time_step']
+            env['PLAYBACK_SPEED'] = str(config.get('playback_speed', 1.0))
             env['SHOW_ELEVATION'] = str(self.show_elevation.get())
             env['SHOW_MARKERS'] = str(self.show_markers.get())
             

@@ -38,7 +38,8 @@ class Animation3DEngine:
         # 3D visualization settings
         self.terrain_opacity = 0.7
         self.terrain_colorscale = 'earth'
-        self.animation_speed = 800  # ms per frame
+        self.base_animation_speed = 800  # ms per frame at 1x speed
+        self.playback_speed = 1.0  # Default playback speed multiplier
         self.trail_mode = 'lines+markers'
         self.marker_size = 8
         self.line_width = 3
@@ -52,6 +53,25 @@ class Animation3DEngine:
         """
         self.combined_data = combined_data.copy()
         print(f"🎬 Loaded {len(self.combined_data):,} GPS points for 3D animation")
+    
+    def set_playback_speed(self, speed_multiplier: float) -> None:
+        """
+        Set the playback speed multiplier
+        
+        Args:
+            speed_multiplier: Speed multiplier (1.0 = normal, 2.0 = 2x faster, 0.5 = 2x slower)
+        """
+        self.playback_speed = max(0.1, min(10.0, speed_multiplier))  # Clamp between 0.1x and 10x
+        print(f"🎬 Animation playback speed set to {self.playback_speed:.1f}x")
+    
+    def get_frame_duration(self) -> int:
+        """
+        Get the current frame duration based on playback speed
+        
+        Returns:
+            Frame duration in milliseconds
+        """
+        return max(50, int(self.base_animation_speed / self.playback_speed))
     
     def setup_terrain(self, region_name: str = 'berchtesgaden_full', 
                      resolution: int = 100, force_download: bool = False) -> bool:
@@ -441,7 +461,7 @@ class Animation3DEngine:
                     'buttons': [
                         {
                             'args': [None, {
-                                'frame': {'duration': self.animation_speed, 'redraw': True},
+                                'frame': {'duration': self.get_frame_duration(), 'redraw': True},
                                 'transition': {'duration': 300}
                             }],
                             'label': '▶️ Play',
@@ -501,7 +521,7 @@ class Animation3DEngine:
         info = {
             'has_data': self.combined_data is not None,
             'has_terrain': self.current_elevation_data is not None,
-            'animation_speed_ms': self.animation_speed,
+            'animation_speed_ms': self.get_frame_duration(),
             'terrain_opacity': self.terrain_opacity
         }
         

@@ -51,6 +51,7 @@ class AnimationControlsFrame:
         self.trail_length = tk.DoubleVar(value=2.0)
         self.time_step = tk.StringVar(value="1m")
         self.limit_encounters = tk.IntVar(value=0)
+        self.playback_speed = tk.DoubleVar(value=1.0)  # 1x = normal speed
         
         # Point count tracking
         self.dataframes = []
@@ -59,6 +60,7 @@ class AnimationControlsFrame:
         # Labels for dynamic updates
         self.buffer_label = None
         self.trail_label = None
+        self.speed_label = None
         self.limit_label = None
         
         self._load_data_if_available()
@@ -87,7 +89,10 @@ class AnimationControlsFrame:
                 "group_performance": "Performance Options",
                 "label_limit_encounters": "Limit Encounters (0 = all):",
                 "limit_no_limit": "No limit",
-                "limit_encounters": "encounters"
+                "limit_encounters": "encounters",
+                "group_playback": "Playback Controls",
+                "label_playback_speed": "Animation Speed:",
+                "speed_format": "{0:.1f}x"
             }
             if len(args) > 0:
                 return fallbacks.get(key, key).format(*args)
@@ -202,10 +207,24 @@ class AnimationControlsFrame:
         ttk.Label(step_frame, text=self.t("quality_fast"), 
                  font=('Arial', 8)).grid(row=5, column=0, columnspan=2, sticky=tk.W)
         
+        # Playback speed frame
+        playback_frame = ttk.LabelFrame(animation_frame, text=self.t("group_playback"), padding="15")
+        playback_frame.grid(row=3, column=0, sticky=(tk.W, tk.E), pady=(0, 15))
+        
+        ttk.Label(playback_frame, text=self.t("label_playback_speed")).grid(row=0, column=0, sticky=tk.W)
+        speed_scale = ttk.Scale(playback_frame, from_=0.1, to=10.0, 
+                               variable=self.playback_speed, orient=tk.HORIZONTAL)
+        speed_scale.grid(row=0, column=1, sticky=(tk.W, tk.E), padx=(10, 10))
+        self.speed_label = ttk.Label(playback_frame, text="1.0x")
+        self.speed_label.grid(row=0, column=2)
+        speed_scale.configure(command=self.update_speed_label)
+        
+        playback_frame.columnconfigure(1, weight=1)
+        
         # Performance options (only for proximity analysis with encounter limiting)
         if self.include_encounter_limit:
             perf_frame = ttk.LabelFrame(animation_frame, text=self.t("group_performance"), padding="15")
-            perf_frame.grid(row=3, column=0, sticky=(tk.W, tk.E))
+            perf_frame.grid(row=4, column=0, sticky=(tk.W, tk.E))
             
             ttk.Label(perf_frame, text=self.t("label_limit_encounters")).grid(row=0, column=0, sticky=tk.W)
             limit_scale = ttk.Scale(perf_frame, from_=0, to=50, 
@@ -236,6 +255,11 @@ class AnimationControlsFrame:
         if self.trail_label:
             self.trail_label.config(text=f"{float(value):.1f} hours")
     
+    def update_speed_label(self, value):
+        """Update playback speed label"""
+        if self.speed_label:
+            self.speed_label.config(text=f"{float(value):.1f}x")
+    
     def update_limit_label(self, value):
         """Update encounter limit label"""
         if self.limit_label:
@@ -247,6 +271,7 @@ class AnimationControlsFrame:
         config = {
             'trail_length': self.trail_length.get(),
             'time_step': self.time_step.get(),
+            'playback_speed': self.playback_speed.get(),
         }
         
         if self.include_time_buffer:
@@ -266,6 +291,10 @@ class AnimationControlsFrame:
         if 'time_step' in config:
             self.time_step.set(config['time_step'])
         
+        if 'playback_speed' in config:
+            self.playback_speed.set(config['playback_speed'])
+            self.update_speed_label(config['playback_speed'])
+        
         if 'time_buffer' in config and self.include_time_buffer:
             self.time_buffer.set(config['time_buffer'])
             self.update_buffer_label(config['time_buffer'])
@@ -273,3 +302,18 @@ class AnimationControlsFrame:
         if 'limit_encounters' in config and self.include_encounter_limit:
             self.limit_encounters.set(config['limit_encounters'])
             self.update_limit_label(config['limit_encounters'])
+    
+    def get_frame_duration(self, base_duration_ms=800):
+        """
+        Calculate frame duration based on playback speed
+        
+        Args:
+            base_duration_ms: Base duration in milliseconds (default 800ms for 3D, use 600ms for 2D)
+            
+        Returns:
+            Adjusted frame duration in milliseconds
+        """
+        speed = self.playback_speed.get()
+        if speed <= 0:
+            speed = 1.0  # Prevent division by zero
+        return max(50, int(base_duration_ms / speed))  # Minimum 50ms to prevent browser issues

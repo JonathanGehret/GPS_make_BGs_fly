@@ -76,6 +76,15 @@ def main():
         time_step_env = os.environ.get('TIME_STEP')
         show_elevation_env = os.environ.get('SHOW_ELEVATION', 'true')
         show_markers_env = os.environ.get('SHOW_MARKERS', 'true')
+        playback_speed_env = os.environ.get('PLAYBACK_SPEED', '1.0')
+        
+        # Configure playback speed
+        try:
+            playback_speed = float(playback_speed_env)
+            animation_engine.set_playback_speed(playback_speed)
+        except Exception:
+            ui.print_warning(f"Invalid playback speed: {playback_speed_env}, using default 1.0x")
+            animation_engine.set_playback_speed(1.0)
         
         # Show available regions and get user choice
         ui.print_section("🗺️ TERRAIN REGION SELECTION")
