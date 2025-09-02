@@ -1,16 +1,45 @@
 # Python
 __pycache__/
 *.py[cod]
+*$py.class
+*.so
 *.pyo
 *.pyd
 *.env
 .env
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
 venv/
 .venv/
+ENV/
+env/
+
+# PyInstaller
+# Keep spec files but ignore build artifacts
+dist/
+build/
 
 # Data and outputs
 data/*
 !data/.gitkeep
+!data/*.csv
 visualizations/*
 !visualizations/.gitkeep
 
@@ -68,7 +97,52 @@ Session.vim
 
 # OS files
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
 Thumbs.db
+desktop.ini
+
+# IDE and Editor files
+.vscode/
+.idea/
+*.code-workspace
+.history/
+.vscode-server/
+*~
+.#*
+#*#
+.*.swp
+.*.swo
+*.recovery
+*.autosave
+Session.vim
+.pylint.d/
+.mypy_cache/
+.pytest_cache/
+
+# Keep important cross-platform files
+!GPS_Analysis_Suite.bat
+!GPS_Analysis_Suite.sh
+!GPS_Analysis_Suite.desktop
+!GPS_Analysis_Suite_Windows.spec
+!build_windows.bat
+!BUILD_GUIDE.md
+!requirements.txt
+!*.spec
+!README.md
+!QUICK_START.md
+
+# Keep all Python source
+!*.py
+!gui/*.py
+!scripts/*.py
+!scripts/**/*.py
+
+# Keep test data
+!data/*.csv
 
 # Temporary files
 *.tmp
