@@ -690,10 +690,9 @@ class ProximityAnalysisGUI:
             self.log("🚀 Starting Vulture Proximity Analysis...")
             self.log(f"📁 Data folder: {self.data_folder.get()}")
             
-            # Load data
+            # Load data - FIXED: Pass the selected data folder directly to DataLoader
             self.log("📊 Loading GPS data...")
-            data_loader = DataLoader()
-            data_loader.data_folder = self.data_folder.get()
+            data_loader = DataLoader(self.data_folder.get())  # Use selected folder
             
             dataframes = data_loader.load_all_csv_files()
             

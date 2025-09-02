@@ -26,9 +26,17 @@ def main():
     ui.print_header("🔍 PROXIMITY ANALYSIS")
     
     try:
-        # Load GPS data
+        # Load GPS data - Check for custom data directory from environment
         ui.print_section("📁 LOADING DATA")
-        data_loader = DataLoader()
+        
+        # Use custom data directory from environment if available (for GUI integration)
+        custom_data_dir = os.environ.get('GPS_DATA_DIR')
+        if custom_data_dir and os.path.exists(custom_data_dir):
+            data_loader = DataLoader(custom_data_dir)
+            ui.print_success(f"Using custom data directory: {custom_data_dir}")
+        else:
+            data_loader = DataLoader()
+        
         dataframes = data_loader.load_all_csv_files()
         
         if not dataframes:
