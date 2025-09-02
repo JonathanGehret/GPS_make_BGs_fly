@@ -83,9 +83,15 @@ if exist "dist" rmdir /s /q dist
 REM Build executable
 echo.
 echo 🔨 Building Windows executable...
-pyinstaller --clean GPS_Analysis_Suite_Windows.spec
+pyinstaller --clean GPS_Analysis_Suite.spec
 if %errorlevel% neq 0 (
     echo ❌ Error: Build failed
+    echo.
+    echo 💡 Troubleshooting tips:
+    echo    - Make sure all dependencies are installed
+    echo    - Check that the .spec file exists
+    echo    - Try running: python -c "import tkinter; print('GUI OK')"
+    echo.
     pause
     exit /b 1
 )

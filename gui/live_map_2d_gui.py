@@ -14,7 +14,11 @@ from pathlib import Path
 # Try to import shared animation controls
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", "scripts"))
 try:
-    from utils.animation_controls import AnimationControlsFrame
+    # Try multiple import paths to ensure compatibility
+    try:
+        from scripts.utils.animation_controls import AnimationControlsFrame
+    except ImportError:
+        from utils.animation_controls import AnimationControlsFrame
 except ImportError:
     # Fallback if the shared component doesn't exist yet
     AnimationControlsFrame = None

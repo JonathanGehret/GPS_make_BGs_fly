@@ -129,7 +129,12 @@ Session.vim
 !GPS_Analysis_Suite.desktop
 !GPS_Analysis_Suite_Windows.spec
 !build_windows.bat
+!build_windows_enhanced.bat
 !BUILD_GUIDE.md
+!WINDOWS_BUILD_GUIDE.md
+!WINDOWS_QUICK_START.md
+!test_windows_build.py
+!test_compatibility.py
 !requirements.txt
 !*.spec
 !README.md
