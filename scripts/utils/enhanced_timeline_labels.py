@@ -125,11 +125,11 @@ class TimelineLabelSystem:
             time_label = time_obj.strftime('%H:%M:%S')
             elapsed_label = f"+{elapsed_minutes:.0f}min"
             
-            # Show major marks more prominently
+            # Show major marks more prominently  
             if elapsed_minutes % analysis['major_step'] == 0 or i == 0 or i == len(unique_times) - 1:
-                label = f"<b>{time_label}</b><br><small>{elapsed_label}</small>"
+                label = f"{time_label}\n{elapsed_label}"  # Two lines, no HTML
             else:
-                label = f"{time_label}<br><small style='color:#666'>{elapsed_label}</small>"
+                label = f"{time_label}\n{elapsed_label}"  # Consistent formatting
             
             labels.append({
                 'args': [[time_str], dict(mode="immediate", transition=dict(duration=300))],
@@ -160,9 +160,9 @@ class TimelineLabelSystem:
             
             # Show major marks more prominently
             if time_obj.hour % analysis['major_step'] == 0 or i == 0 or i == len(unique_times) - 1:
-                label = f"<b>{time_label}</b><br><small>{day_label}</small>"
+                label = f"{time_label}\n{day_label}"  # Two lines, no HTML
             else:
-                label = f"{time_label}<br><small style='color:#666'>{day_label}</small>"
+                label = f"{time_label}\n{day_label}"  # Consistent formatting
             
             labels.append({
                 'args': [[time_str], dict(mode="immediate", transition=dict(duration=300))],
@@ -191,11 +191,11 @@ class TimelineLabelSystem:
                 if elapsed_days >= 7:
                     time_label += f" (Week {elapsed_days/7:.0f})"
             
-            # Show major marks more prominently
+            # Show major marks more prominently  
             if time_obj.day % analysis['major_step'] == 0 or i == 0 or i == len(unique_times) - 1:
-                label = f"<b>{date_label}</b><br><small>{time_label}</small>"
+                label = f"{date_label}\n{time_label}"  # Two lines, no HTML
             else:
-                label = f"{date_label}<br><small style='color:#666'>{time_label}</small>"
+                label = f"{date_label}\n{time_label}"  # Consistent formatting
             
             labels.append({
                 'args': [[time_str], dict(mode="immediate", transition=dict(duration=300))],
@@ -220,9 +220,9 @@ class TimelineLabelSystem:
             
             # Show major marks more prominently
             if int(elapsed_weeks) % analysis['major_step'] == 0 or i == 0 or i == len(unique_times) - 1:
-                label = f"<b>{week_info}</b><br><small>{date_label}</small>"
+                label = f"{week_info}\n{date_label}"  # Two lines, no HTML
             else:
-                label = f"{week_info}<br><small style='color:#666'>{date_label}</small>"
+                label = f"{week_info}\n{date_label}"  # Consistent formatting
             
             labels.append({
                 'args': [[time_str], dict(mode="immediate", transition=dict(duration=300))],
@@ -244,7 +244,7 @@ class TimelineLabelSystem:
         """Format a single time for display"""
         try:
             time_obj = pd.to_datetime(time_str, format='%d.%m.%Y %H:%M:%S')
-            return f"{time_obj.strftime('%H:%M')}<br><small>{time_obj.strftime('%d.%m.%Y')}</small>"
+            return f"{time_obj.strftime('%H:%M')}\n{time_obj.strftime('%d.%m.%Y')}"  # No HTML
         except Exception:
             return time_str
     
@@ -309,7 +309,11 @@ def create_enhanced_slider_config(unique_times: List[str],
     improved_steps = []
     for step in enhanced_labels:
         improved_step = {
-            'args': step['args'],
+            'args': [[step['args'][0][0]], {  # Extract frame name properly
+                "frame": {"duration": 0, "redraw": False},  # No auto-advance
+                "mode": "immediate",
+                "transition": {"duration": 0}
+            }],
             'label': step['label'],
             'method': 'animate',
             'execute': True  # Ensure step execution

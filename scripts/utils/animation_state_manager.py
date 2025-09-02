@@ -48,11 +48,11 @@ class AnimationStateManager:
                     "redraw": True  # Force redraw for reliability
                 },
                 "transition": {
-                    "duration": min(200, duration // 2),
+                    "duration": min(100, duration // 3),  # Faster transitions
                     "easing": "linear"
                 },
                 "fromcurrent": True,  # Continue from current position
-                "mode": "afterall"    # Wait for previous animations to complete
+                "mode": "immediate"   # Start immediately, don't wait
             }],
             "execute": True  # Ensure execution regardless of state
         }
@@ -120,24 +120,16 @@ class AnimationStateManager:
         
         speed_buttons = []
         for speed in speeds:
-            duration = int(self.frame_duration / speed)
+            duration = max(50, int(self.frame_duration / speed))  # Minimum 50ms
             label = f"{speed}x" if speed != 1.0 else "1x"
             
             speed_buttons.append({
                 "label": label,
-                "method": "animate",
-                "args": [None, {
-                    "frame": {
-                        "duration": duration,
-                        "redraw": True
-                    },
-                    "transition": {
-                        "duration": min(100, duration // 3),
-                        "easing": "linear"
-                    },
-                    "fromcurrent": True,
-                    "mode": "afterall"
-                }],
+                "method": "relayout",  # Use relayout instead of animate for better reliability
+                "args": [{"sliders": [{
+                    "active": 0,  # Keep current position
+                    "transition": {"duration": duration}
+                }]}],
                 "execute": True
             })
         
