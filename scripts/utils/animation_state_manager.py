@@ -125,11 +125,19 @@ class AnimationStateManager:
             
             speed_buttons.append({
                 "label": label,
-                "method": "relayout",  # Use relayout instead of animate for better reliability
-                "args": [{"sliders": [{
-                    "active": 0,  # Keep current position
-                    "transition": {"duration": duration}
-                }]}],
+                "method": "animate",  # Back to animate method
+                "args": [None, {
+                    "frame": {
+                        "duration": duration,
+                        "redraw": True
+                    },
+                    "transition": {
+                        "duration": min(100, duration // 3),
+                        "easing": "linear"
+                    },
+                    "fromcurrent": True,
+                    "mode": "immediate"  # Changed to immediate for consistency
+                }],
                 "execute": True
             })
         
@@ -150,7 +158,7 @@ class AnimationStateManager:
         """
         duration = frame_duration or self.frame_duration
         
-        # Main playback controls
+        # Main playback controls (fixed positioning)
         main_controls = {
             "type": "buttons",
             "direction": "left",
@@ -167,18 +175,20 @@ class AnimationStateManager:
                 self.create_robust_play_button(duration),
                 self.create_robust_pause_button(),
                 self.create_robust_restart_button(duration)
-            ]
+            ],
+            # Add fixed positioning to prevent movement
+            "pad": {"t": 5, "b": 5, "l": 10, "r": 10}
         }
         
         updatemenus = [main_controls]
         
-        # Speed controls (positioned above main controls)
+        # Speed controls (positioned above main controls with fixed positioning)
         if include_speed_controls:
             speed_controls = {
                 "type": "buttons",
                 "direction": "left",
                 "x": 0.5,
-                "y": 0.12,
+                "y": 0.15,  # Higher position to avoid interference
                 "xanchor": "center",
                 "yanchor": "bottom",
                 "showactive": True,
@@ -186,7 +196,9 @@ class AnimationStateManager:
                 "bordercolor": "rgba(0,0,0,0.2)",
                 "borderwidth": 1,
                 "font": {"size": 11, "color": "#666"},
-                "buttons": self.create_speed_control_buttons()
+                "buttons": self.create_speed_control_buttons(),
+                # Add fixed positioning to prevent jumping
+                "pad": {"t": 5, "b": 5, "l": 5, "r": 5}
             }
             updatemenus.append(speed_controls)
         

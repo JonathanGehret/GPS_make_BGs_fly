@@ -308,8 +308,11 @@ def create_enhanced_slider_config(unique_times: List[str],
     # Create robust slider steps with improved animation handling
     improved_steps = []
     for step in enhanced_labels:
+        # Extract frame name safely
+        frame_name = step['args'][0][0] if isinstance(step['args'][0], list) else step['args'][0]
+        
         improved_step = {
-            'args': [[step['args'][0][0]], {  # Extract frame name properly
+            'args': [[frame_name], {
                 "frame": {"duration": 0, "redraw": False},  # No auto-advance
                 "mode": "immediate",
                 "transition": {"duration": 0}
@@ -357,5 +360,6 @@ def create_enhanced_slider_config(unique_times: List[str],
         # Enhanced slider styling with valid properties only
         'pad': {'t': 20, 'b': 20},
         'minorticklen': 4,  # Valid property
-        'tickwidth': 2
+        'tickwidth': 2,
+        'visible': True  # Ensure slider stays visible
     }
