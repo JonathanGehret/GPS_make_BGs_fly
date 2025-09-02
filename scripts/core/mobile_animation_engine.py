@@ -154,14 +154,35 @@ class MobileAnimationEngine:
             for vulture_id in vulture_ids:
                 # Get cumulative data up to this time for each vulture
                 vulture_data = df[df['vulture_id'] == vulture_id]
-                cumulative_data = vulture_data[vulture_data['timestamp_str'] <= time_str]
+                cumulative_data = vulture_data[vulture_data['timestamp_str'] <= time_str].sort_values('Timestamp [UTC]')
                 
                 if len(cumulative_data) > 0:
-                    # Prepare custom data for hover
+                    # Calculate visual effects for fading trail
+                    trail_points = len(cumulative_data)
+                    marker_sizes = []
+                    marker_opacities = []
+                    
+                    # Prepare custom data for hover and calculate fading effects
                     customdata = []
-                    for _, row in cumulative_data.iterrows():
+                    for i, (_, row) in enumerate(cumulative_data.iterrows()):
                         height_display = format_height_display(row['Height'])
                         customdata.append([row['timestamp_mobile'], height_display])
+                        
+                        # Calculate age factor (0 = oldest, 1 = newest)
+                        age_factor = i / max(1, trail_points - 1) if trail_points > 1 else 1.0
+                        
+                        # Create fading effect for markers (mobile-optimized sizes)
+                        if i == trail_points - 1:  # Current position (newest point)
+                            marker_sizes.append(self.mobile_marker_size + 4)  # Even larger for mobile touch
+                            marker_opacities.append(1.0)  # Full opacity for current position
+                        else:
+                            # Fade trail markers based on age (mobile-friendly sizes)
+                            base_size = max(6, self.mobile_marker_size - 4)
+                            fade_size = base_size + (4 * age_factor)
+                            marker_sizes.append(fade_size)
+                            # Fade opacity (min 0.4, max 0.8 for trail)
+                            fade_opacity = 0.4 + (0.4 * age_factor)
+                            marker_opacities.append(fade_opacity)
                     
                     frame_data.append(
                         go.Scattermap(  # MapLibre compatible
@@ -170,7 +191,11 @@ class MobileAnimationEngine:
                             mode='lines+markers',
                             name=vulture_id,
                             line=dict(color=color_map[vulture_id], width=4),
-                            marker=dict(color=color_map[vulture_id], size=self.mobile_marker_size),
+                            marker=dict(
+                                color=color_map[vulture_id], 
+                                size=marker_sizes,
+                                opacity=marker_opacities
+                            ),
                             customdata=customdata,
                             hovertemplate=(
                                 f"<b>{vulture_id}</b><br>"
