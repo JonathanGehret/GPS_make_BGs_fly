@@ -319,22 +319,16 @@ def create_enhanced_slider_config(unique_times: List[str],
     # Enhanced current value display with prominent styling
     if enable_prominent_display:
         current_value_config = {
-            'prefix': '',  # Remove prefix to make room for custom styling
+            'prefix': '🕒 ',
+            'suffix': '',
             'font': {
-                'size': 16,
-                'family': 'Arial, sans-serif',
-                'color': '#ffffff'
+                'size': 18,
+                'family': 'Arial Black, Arial, sans-serif',
+                'color': '#2c3e50'
             },
             'visible': True,
             'xanchor': 'center',
-            'offset': 10,
-            # Custom background styling for visibility
-            'template': '<span style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); '
-                       'color: white; padding: 8px 16px; border-radius: 20px; '
-                       'box-shadow: 0 4px 15px rgba(0,0,0,0.3); '
-                       'font-weight: 600; font-size: 16px; '
-                       'text-shadow: 1px 1px 2px rgba(0,0,0,0.5);">'
-                       '🕒 %{label}</span>'
+            'offset': 15  # More space above slider
         }
     else:
         current_value_config = {
@@ -356,9 +350,8 @@ def create_enhanced_slider_config(unique_times: List[str],
         'bordercolor': 'rgba(0,0,0,0.4)',
         'borderwidth': 2,
         'bgcolor': 'rgba(255,255,255,0.9)',
-        # Enhanced slider styling
+        # Enhanced slider styling with valid properties only
         'pad': {'t': 20, 'b': 20},
-        'minorticklen': 4,
-        'majorticklen': 8,
+        'minorticklen': 4,  # Valid property
         'tickwidth': 2
     }
