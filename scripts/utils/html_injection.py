@@ -54,6 +54,7 @@ body.fullscreen-mode {
     padding: 0;
     background-color: white;
     align-items: center;
+    justify-content: center;
 }
 
 body.fullscreen-mode .plotly-graph-div {
@@ -76,16 +77,35 @@ document.addEventListener('DOMContentLoaded', function() {
                     e.stopPropagation();
 
                     if (!document.fullscreenElement) {
+                        // Capture current (windowed) size and margins BEFORE entering fullscreen
+                        const plotDiv = document.querySelector('.plotly-graph-div');
+                        if (plotDiv) {
+                            const rect = plotDiv.getBoundingClientRect();
+                            plotDiv.dataset.initialWidth = String(Math.floor(rect.width));
+                            plotDiv.dataset.initialHeight = String(Math.floor(rect.height));
+                            try {
+                                if (plotDiv.layout && plotDiv.layout.margin) {
+                                    plotDiv.dataset.initialMargin = JSON.stringify(plotDiv.layout.margin);
+                                }
+                            } catch (err) {
+                                // Safe-guard if accessing layout fails
+                                delete plotDiv.dataset.initialMargin;
+                            }
+                        }
                         // Enter fullscreen
                         document.documentElement.requestFullscreen().then(() => {
                             // Add fullscreen class for styling
                             document.body.classList.add('fullscreen-mode');
 
-                            // Trigger Plotly resize with slight delay
+                            // After entering fullscreen, relayout to fill viewport
                             setTimeout(() => {
                                 const plotDiv = document.querySelector('.plotly-graph-div');
                                 if (plotDiv && window.Plotly) {
-                                    window.Plotly.Plots.resize(plotDiv);
+                                    window.Plotly.relayout(plotDiv, {
+                                        width: Math.floor(window.innerWidth * 0.98),
+                                        height: Math.floor(window.innerHeight * 0.95),
+                                        margin: {l: 30, r: 30, t: 80, b: 130}
+                                    });
                                 }
                             }, 100);
                         }).catch(err => {
@@ -106,23 +126,66 @@ document.addEventListener('DOMContentLoaded', function() {
     // Listen for fullscreen changes
     document.addEventListener('fullscreenchange', function() {
         const plotDiv = document.querySelector('.plotly-graph-div');
+        // On exit fullscreen
         if (!document.fullscreenElement) {
-            // Remove fullscreen class when exiting fullscreen
+            // Restore windowed mode styles and centering
             document.body.classList.remove('fullscreen-mode');
+            document.body.style.margin = '';
+            document.body.style.padding = '';
+            document.body.style.width = '';
+            document.body.style.height = '';
+            document.body.style.overflow = '';
+            document.documentElement.style.margin = '';
+            document.documentElement.style.padding = '';
+
+            setTimeout(() => {
+                if (plotDiv && window.Plotly) {
+                    const initW = plotDiv.dataset.initialWidth ? parseInt(plotDiv.dataset.initialWidth) : null;
+                    const initH = plotDiv.dataset.initialHeight ? parseInt(plotDiv.dataset.initialHeight) : null;
+                    let relayoutProps = {};
+                    if (initW && initH) {
+                        relayoutProps = { width: initW, height: initH };
+                    }
+                    // Restore initial margins if we captured them
+                    if (plotDiv.dataset.initialMargin) {
+                        try {
+                            const m = JSON.parse(plotDiv.dataset.initialMargin);
+                            relayoutProps['margin'] = m;
+                        } catch (err) {
+                            // Ignore parse errors
+                        }
+                    }
+                    if (Object.keys(relayoutProps).length > 0) {
+                        window.Plotly.relayout(plotDiv, relayoutProps);
+                    }
+                    window.Plotly.Plots.resize(plotDiv);
+                }
+            }, 100);
+        } else {
+            // On entering fullscreen, ensure a relayout to viewport size
+            setTimeout(() => {
+                if (plotDiv && window.Plotly) {
+                    window.Plotly.relayout(plotDiv, {
+                        width: Math.floor(window.innerWidth * 0.98),
+                        height: Math.floor(window.innerHeight * 0.95)
+                    });
+                }
+            }, 100);
         }
-        // Trigger resize on both enter and exit
-        setTimeout(() => {
-            if (plotDiv && window.Plotly) {
-                window.Plotly.Plots.resize(plotDiv);
-            }
-        }, 100);
     });
 
     // Also handle window resize within fullscreen
     window.addEventListener('resize', function() {
         const plotDiv = document.querySelector('.plotly-graph-div');
         if (plotDiv && window.Plotly) {
-            window.Plotly.Plots.resize(plotDiv);
+            if (document.fullscreenElement) {
+                window.Plotly.relayout(plotDiv, {
+                    width: Math.floor(window.innerWidth * 0.98),
+                    height: Math.floor(window.innerHeight * 0.95)
+                });
+            } else {
+                window.Plotly.Plots.resize(plotDiv);
+            }
         }
     });
 
