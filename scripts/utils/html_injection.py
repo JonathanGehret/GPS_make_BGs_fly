@@ -199,6 +199,76 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     observer.observe(document.body, {childList: true, subtree: true});
+
+    // Ensure slider stays in sync with animation even after manual drag
+    function enableSliderSync() {
+        const gd = document.querySelector('.plotly-graph-div');
+        if (!gd || !window.Plotly) return;
+
+        function getFrameNames() {
+            try {
+                const fl = gd._fullLayout;
+                if (fl && fl.sliders && fl.sliders.length && fl.sliders[0].steps) {
+                    return fl.sliders[0].steps.map(s => Array.isArray(s.args[0]) ? s.args[0][0] : s.args[0]);
+                }
+            } catch (_) {}
+            return [];
+        }
+
+        function startSyncLoop() {
+            if (gd._sliderSyncTimer) clearInterval(gd._sliderSyncTimer);
+            gd._sliderSyncTimer = setInterval(() => {
+                try {
+                    const t = gd._transitionData;
+                    let name = null;
+                    if (t && t._frame && t._frame.name) name = t._frame.name;
+                    else if (t && t._frames && t._frameIndex != null) {
+                        const fi = t._frameIndex;
+                        if (t._frames[fi]) name = t._frames[fi].name || null;
+                    }
+                    if (!name) return;
+                    const names = getFrameNames();
+                    const idx = names.indexOf(name);
+                    if (idx >= 0) {
+                        window.Plotly.relayout(gd, {'sliders[0].active': idx});
+                    }
+                    if (t && t._animating === false) {
+                        clearInterval(gd._sliderSyncTimer);
+                        gd._sliderSyncTimer = null;
+                    }
+                } catch (_) {}
+            }, 80);
+        }
+
+        // Start sync when animation starts
+        function stopSync() {
+            if (gd._sliderSyncTimer) { clearInterval(gd._sliderSyncTimer); gd._sliderSyncTimer = null; }
+        }
+
+        // Also listen to animation events (best-effort)
+        if (gd.on) {
+            gd.on('plotly_animationstart', startSyncLoop);
+            gd.on('plotly_animationinterrupted', stopSync);
+            gd.on('plotly_animated', stopSync);
+        }
+
+        // As a fallback, watch Play clicks without overriding handlers
+        document.addEventListener('click', function(ev) {
+            const el = ev.target.closest('.updatemenu-button');
+            if (el && el.textContent && el.textContent.includes('▶️ Play')) {
+                setTimeout(startSyncLoop, 50);
+            }
+        }, true);
+    }
+
+    // Enable sync now and after DOM changes
+    enableSliderSync();
+    const syncObserver = new MutationObserver(function(muts) {
+        for (const m of muts) {
+            if (m.addedNodes && m.addedNodes.length > 0) { enableSliderSync(); break; }
+        }
+    });
+    syncObserver.observe(document.body, {childList: true, subtree: true});
 });
 </script>
 """
