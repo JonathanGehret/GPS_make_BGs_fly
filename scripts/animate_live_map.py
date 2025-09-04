@@ -14,7 +14,8 @@ from pathlib import Path
 from utils.user_interface import UserInterface
 from utils.performance_optimizer import PerformanceOptimizer
 from utils.enhanced_timeline_labels import create_enhanced_slider_config
-from utils.animation_state_manager import AnimationStateManager, create_reliable_animation_controls
+from utils.animation_state_manager import create_reliable_animation_controls
+from utils.html_injection import inject_fullscreen
 from core.trail_system import TrailSystem
 from gps_utils import (
     get_numbered_output_path, ensure_output_directories, logger,
@@ -285,42 +286,18 @@ class LiveMapAnimator:
             colors = px.colors.qualitative.Set1[:len(vulture_ids)]
             color_map = dict(zip(vulture_ids, colors))
             
-            # Calculate optimal center and zoom for the entire dataset with buffer
+            # Calculate optimal center and zoom using helper (with ~10% padding)
+            map_cfg = self.viz_helper.calculate_map_bounds(df, padding_percent=0.1)
+            center_lat = map_cfg['center']['lat']
+            center_lon = map_cfg['center']['lon']
+            zoom_level = map_cfg['zoom']
+            
+            # For logs, also compute raw ranges without padding
             lat_min, lat_max = df['Latitude'].min(), df['Latitude'].max()
             lon_min, lon_max = df['Longitude'].min(), df['Longitude'].max()
-            
-            # Add buffer to ensure all points are visible (10% padding)
-            lat_range = lat_max - lat_min
-            lon_range = lon_max - lon_min
-            lat_buffer = max(0.001, lat_range * 0.1)  # Minimum 100m buffer
-            lon_buffer = max(0.001, lon_range * 0.1)  # Minimum 100m buffer
-            
-            # Buffered bounds
-            lat_min_buffered = lat_min - lat_buffer
-            lat_max_buffered = lat_max + lat_buffer
-            lon_min_buffered = lon_min - lon_buffer
-            lon_max_buffered = lon_max + lon_buffer
-            
-            center_lat = (lat_min_buffered + lat_max_buffered) / 2
-            center_lon = (lon_min_buffered + lon_max_buffered) / 2
-            
-            # Calculate zoom level based on buffered data extent
-            lat_range_buffered = lat_max_buffered - lat_min_buffered
-            lon_range_buffered = lon_max_buffered - lon_min_buffered
-            max_range = max(lat_range_buffered, lon_range_buffered)
-            
-            # Calculate zoom level (rough approximation)
-            # Zoom level 12 is good for ~5km, each zoom level halves the distance
-            if max_range < 0.01:  # Very small area (< 1km)
-                zoom_level = 14  # Reduced slightly to ensure visibility
-            elif max_range < 0.05:  # Small area (< 5km)
-                zoom_level = 12  # Reduced slightly to ensure visibility
-            elif max_range < 0.1:  # Medium area (< 10km)
-                zoom_level = 11  # Reduced slightly to ensure visibility
-            elif max_range < 0.2:  # Large area (< 20km)
-                zoom_level = 10  # Reduced slightly to ensure visibility
-            else:  # Very large area
-                zoom_level = 9   # Reduced slightly to ensure visibility
+            lat_range_raw = lat_max - lat_min
+            lon_range_raw = lon_max - lon_min
+            max_range = max(lat_range_raw, lon_range_raw)
             
             print(f"📍 Map center: Lat {center_lat:.4f}, Lon {center_lon:.4f}")
             print(f"🔍 Optimal zoom level: {zoom_level} (data range: {max_range:.4f}°)")
@@ -413,141 +390,9 @@ class LiveMapAnimator:
                 'showTips': True,    # Show tooltips on modebar buttons
             }
             
-            # Save HTML with custom fullscreen JavaScript
+            # Save HTML and inject fullscreen assets
             html_string = fig.to_html(config=config)
-            
-            # Add custom fullscreen JavaScript
-            fullscreen_js = """
-<style>
-/* Improve centering for windowed mode */
-body {
-    display: flex;
-    justify-content: center;
-    align-items: flex-start;
-    min-height: 100vh;
-    margin: 0;
-    padding: 20px;
-    background-color: #f5f5f5;
-    box-sizing: border-box;
-}
-
-.plotly-graph-div {
-    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-    border-radius: 8px;
-    background: white;
-    max-width: 100%;
-}
-
-/* Fullscreen mode styles */
-body.fullscreen-mode {
-    padding: 0;
-    background-color: white;
-    align-items: center;
-}
-
-body.fullscreen-mode .plotly-graph-div {
-    box-shadow: none;
-    border-radius: 0;
-    width: 98vw !important;
-    height: 95vh !important;
-}
-</style>
-<script>
-// Custom fullscreen functionality
-document.addEventListener('DOMContentLoaded', function() {
-    // Find all buttons and add fullscreen functionality
-    function addFullscreenHandler() {
-        const buttons = document.querySelectorAll('.updatemenu-button');
-        buttons.forEach(button => {
-            if (button.textContent.includes('⛶ Fullscreen')) {
-                button.onclick = function(e) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    
-                    if (!document.fullscreenElement) {
-                        // Enter fullscreen
-                        document.documentElement.requestFullscreen().then(() => {
-                            // Adjust layout for fullscreen - more aggressive styling
-                            document.body.style.margin = '0';
-                            document.body.style.padding = '0';
-                            document.body.style.width = '100vw';
-                            document.body.style.height = '100vh';
-                            document.body.style.overflow = 'hidden';
-                            document.documentElement.style.margin = '0';
-                            document.documentElement.style.padding = '0';
-                            
-                            const plotDiv = document.querySelector('.plotly-graph-div');
-                            if (plotDiv) {
-                                // Store original styles for restoration
-                                plotDiv.dataset.originalStyle = plotDiv.style.cssText;
-                                
-                                // Apply fullscreen styles
-                                plotDiv.style.position = 'fixed';
-                                plotDiv.style.top = '0';
-                                plotDiv.style.left = '0';
-                                plotDiv.style.width = '100vw';
-                                plotDiv.style.height = '100vh';
-                                plotDiv.style.zIndex = '9999';
-                                plotDiv.style.backgroundColor = 'white';
-                                
-                                // Force plot to use full space
-                                setTimeout(() => {
-                                    if (window.Plotly) {
-                                        window.Plotly.relayout(plotDiv, {
-                                            width: window.innerWidth,
-                                            height: window.innerHeight,
-                                            margin: {l: 40, r: 40, t: 60, b: 100}
-                                        });
-                                    }
-                                }, 100);
-                            }
-                                }
-                            }
-                        }).catch(err => {
-                            console.log('Fullscreen failed:', err);
-                        });
-                    } else {
-                        // Exit fullscreen
-                        document.exitFullscreen();
-                    }
-                };
-            }
-        });
-    }
-    
-    // Add handlers initially and after any DOM updates
-    addFullscreenHandler();
-    
-    // Listen for fullscreen changes
-    document.addEventListener('fullscreenchange', function() {
-        const plotDiv = document.querySelector('.plotly-graph-div');
-        if (!document.fullscreenElement && plotDiv) {
-            // Restore normal layout when exiting fullscreen
-            document.body.style.margin = '';
-            document.body.style.padding = '';
-            plotDiv.style.width = '';
-            plotDiv.style.height = '';
-            if (window.Plotly) {
-                window.Plotly.Plots.resize(plotDiv);
-            }
-        }
-    });
-    
-    // Re-add handlers after Plotly updates (for dynamic buttons)
-    const observer = new MutationObserver(function(mutations) {
-        mutations.forEach(function(mutation) {
-            if (mutation.addedNodes.length > 0) {
-                addFullscreenHandler();
-            }
-        });
-    });
-    observer.observe(document.body, {childList: true, subtree: true});
-});
-</script>
-"""
-            
-            # Insert the JavaScript before the closing body tag
-            html_string = html_string.replace('</body>', fullscreen_js + '</body>')
+            html_string = inject_fullscreen(html_string)
             
             # Write the modified HTML
             with open(output_path, 'w', encoding='utf-8') as f:
