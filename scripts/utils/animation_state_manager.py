@@ -110,13 +110,13 @@ class AnimationStateManager:
         Create speed control buttons for dynamic playback speed
         
         Args:
-            speeds: List of speed multipliers (default: [0.25, 0.5, 1.0, 2.0, 5.0])
+            speeds: List of speed multipliers (default: [1.0, 2.0, 3.0, 5.0, 10.0])
             
         Returns:
             List of speed control button configurations
         """
         if speeds is None:
-            speeds = [0.25, 0.5, 1.0, 2.0, 5.0]
+            speeds = [1.0, 2.0, 3.0, 5.0, 10.0]
         
         speed_buttons = []
         for speed in speeds:
@@ -142,6 +142,77 @@ class AnimationStateManager:
             })
         
         return speed_buttons
+    
+    def create_speed_control_slider(self, min_speed: float = 1.0, max_speed: float = 10.0, 
+                                   step: float = 0.5, position_y: float = 0.25) -> Dict[str, Any]:
+        """
+        Create a speed control slider for continuous speed adjustment
+        
+        Args:
+            min_speed: Minimum speed multiplier
+            max_speed: Maximum speed multiplier  
+            step: Step size for speed increments
+            position_y: Y position of the slider (0-1)
+            
+        Returns:
+            Speed slider configuration dict
+        """
+        # Create speed steps from min to max
+        speeds = []
+        current = min_speed
+        while current <= max_speed:
+            speeds.append(current)
+            current += step
+            
+        # Ensure max_speed is included
+        if speeds[-1] != max_speed:
+            speeds.append(max_speed)
+        
+        speed_steps = []
+        for speed in speeds:
+            duration = max(50, int(self.frame_duration / speed))
+            label = f"{speed:g}x"  # Format without unnecessary decimals
+            
+            speed_steps.append({
+                'args': [None, {
+                    "frame": {
+                        "duration": duration,
+                        "redraw": True
+                    },
+                    "transition": {
+                        "duration": min(100, duration // 3),
+                        "easing": "linear"
+                    },
+                    "fromcurrent": True,
+                    "mode": "immediate"
+                }],
+                'label': label,
+                'method': 'animate',
+                'execute': True
+            })
+        
+        return {
+            'active': 0,  # Default to first speed (1x)
+            'currentvalue': {
+                'prefix': '⚡ Speed: ',
+                'suffix': '',
+                'font': {'size': 12, 'color': '#2c3e50'},
+                'visible': True,
+                'xanchor': 'left',
+                'offset': 10
+            },
+            'x': 0.75,  # Right side position
+            'y': position_y,
+            'len': 0.2,  # Compact slider
+            'steps': speed_steps,
+            'transition': {'duration': 100},
+            'tickcolor': 'rgba(0,0,0,0.4)',
+            'bordercolor': 'rgba(0,0,0,0.4)', 
+            'borderwidth': 1,
+            'bgcolor': 'rgba(255,255,255,0.9)',
+            'pad': {'t': 10, 'b': 10},
+            'visible': True
+        }
     
     def create_enhanced_updatemenus(self, 
                                    include_speed_controls: bool = True,
