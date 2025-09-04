@@ -377,7 +377,7 @@ class LiveMapAnimator:
                         )
                     )
                 ],
-                # Configure legend to stay in fixed position
+                # Configure legend to stay in fixed position (top-left)
                 legend=dict(
                     x=0.02,
                     y=0.98,
@@ -387,14 +387,16 @@ class LiveMapAnimator:
                     bordercolor='rgba(0, 0, 0, 0.2)',
                     borderwidth=1
                 ),
-                # Enhanced reliable animation controls
+                # Enhanced reliable animation controls  
                 **create_reliable_animation_controls(
                     frame_duration=self.get_frame_duration(),
                     include_speed_controls=True
                 ),
                 sliders=[create_enhanced_slider_config(
                     unique_times, 
-                    position_y=0.08, 
+                    position_y=0.02,  # Bottom position 
+                    position_x=0.05,  # Slightly more centered
+                    length=0.9,       # Wider for better fit
                     enable_prominent_display=True
                 )]
             )

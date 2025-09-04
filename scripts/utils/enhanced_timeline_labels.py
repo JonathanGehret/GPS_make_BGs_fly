@@ -285,7 +285,7 @@ class TimelineLabelSystem:
 
 
 def create_enhanced_slider_config(unique_times: List[str], 
-                                 position_y: float = 0.08, 
+                                 position_y: float = 0.02, 
                                  position_x: float = 0.1, 
                                  length: float = 0.8,
                                  enable_prominent_display: bool = False) -> Dict:
@@ -335,14 +335,15 @@ def create_enhanced_slider_config(unique_times: List[str],
             },
             'visible': True,
             'xanchor': 'center',
-            'offset': 15  # More space above slider
+            'offset': 25  # Higher offset to avoid overlap with controls
         }
     else:
         current_value_config = {
             'prefix': '🕒 Time: ',
             'font': {'size': 12},
             'visible': True,
-            'xanchor': 'center'
+            'xanchor': 'center',
+            'offset': 20  # Consistent spacing
         }
     
     return {

@@ -158,12 +158,12 @@ class AnimationStateManager:
         """
         duration = frame_duration or self.frame_duration
         
-        # Main playback controls (fixed positioning)
+        # Main playback controls (centered, bottom position)
         main_controls = {
             "type": "buttons",
             "direction": "left",
             "x": 0.5,
-            "y": 0.02,
+            "y": 0.05,  # Moved up slightly from slider
             "xanchor": "center",
             "yanchor": "bottom",
             "showactive": True,
@@ -176,19 +176,19 @@ class AnimationStateManager:
                 self.create_robust_pause_button(),
                 self.create_robust_restart_button(duration)
             ],
-            # Add fixed positioning to prevent movement
-            "pad": {"t": 5, "b": 5, "l": 10, "r": 10}
+            # Fixed positioning to prevent movement
+            "pad": {"t": 8, "b": 8, "l": 12, "r": 12}
         }
         
         updatemenus = [main_controls]
         
-        # Speed controls (positioned above main controls with fixed positioning)
+        # Speed controls (well separated above main controls)
         if include_speed_controls:
             speed_controls = {
                 "type": "buttons",
                 "direction": "left",
                 "x": 0.5,
-                "y": 0.15,  # Higher position to avoid interference
+                "y": 0.18,  # Much higher to avoid overlap
                 "xanchor": "center",
                 "yanchor": "bottom",
                 "showactive": True,
@@ -197,8 +197,8 @@ class AnimationStateManager:
                 "borderwidth": 1,
                 "font": {"size": 11, "color": "#666"},
                 "buttons": self.create_speed_control_buttons(),
-                # Add fixed positioning to prevent jumping
-                "pad": {"t": 5, "b": 5, "l": 5, "r": 5}
+                # Compact padding to keep buttons tight
+                "pad": {"t": 4, "b": 4, "l": 8, "r": 8}
             }
             updatemenus.append(speed_controls)
         
@@ -290,19 +290,22 @@ def create_memory_optimized_frames(vulture_data: Dict,
 def create_reliable_animation_controls(frame_duration: int = 500,
                                      include_speed_controls: bool = True) -> Dict[str, Any]:
     """
-    Factory function to create reliable animation controls
+    Factory function to create reliable animation controls with centered layout
     
     Args:
         frame_duration: Default frame duration in milliseconds
         include_speed_controls: Whether to include speed control buttons
         
     Returns:
-        Dictionary containing updatemenus configuration
+        Dictionary containing updatemenus configuration and layout settings
     """
     manager = AnimationStateManager(frame_duration)
     return {
         "updatemenus": manager.create_enhanced_updatemenus(
             include_speed_controls=include_speed_controls,
             frame_duration=frame_duration
-        )
+        ),
+        # Center the plot area with balanced margins
+        "margin": dict(l=60, r=60, t=90, b=130),  # More space for controls
+        "autosize": True
     }
