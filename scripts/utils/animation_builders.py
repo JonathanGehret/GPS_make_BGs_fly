@@ -26,21 +26,51 @@ def build_color_map(vulture_ids: Sequence[str]) -> Dict[str, str]:
     return dict(zip(vulture_ids, colors))
 
 
-def create_base_figure(vulture_ids: Sequence[str], color_map: Dict[str, str]) -> go.Figure:
-    """Create a base figure with empty Scattermap traces for each vulture."""
+def create_base_figure(vulture_ids: Sequence[str], color_map: Dict[str, str], *, strategy: str = "markers_fade") -> go.Figure:
+    """Create a base figure with empty traces matching the animation strategy.
+
+    strategy:
+      - "markers_fade": one trace per vulture (lines+markers)
+      - "line_head": two traces per vulture (line trail + current head marker)
+    """
     fig = go.Figure()
     for vulture_id in vulture_ids:
-        fig.add_trace(
-            go.Scattermap(
-                lat=[],
-                lon=[],
-                mode="lines+markers",
-                name=vulture_id,
-                line=dict(color=color_map[vulture_id], width=3),
-                marker=dict(color=color_map[vulture_id], size=8),
-                showlegend=True,
+        if strategy == "line_head":
+            # Trail line trace
+            fig.add_trace(
+                go.Scattermap(
+                    lat=[],
+                    lon=[],
+                    mode="lines",
+                    name=vulture_id,
+                    line=dict(color=color_map[vulture_id], width=3),
+                    hoverinfo="skip",
+                    showlegend=True,
+                )
             )
-        )
+            # Head marker trace
+            fig.add_trace(
+                go.Scattermap(
+                    lat=[],
+                    lon=[],
+                    mode="markers",
+                    name=f"{vulture_id} (current)",
+                    marker=dict(color=color_map[vulture_id], size=12),
+                    showlegend=False,
+                )
+            )
+        else:
+            fig.add_trace(
+                go.Scattermap(
+                    lat=[],
+                    lon=[],
+                    mode="lines+markers",
+                    name=vulture_id,
+                    line=dict(color=color_map[vulture_id], width=3),
+                    marker=dict(color=color_map[vulture_id], size=8),
+                    showlegend=True,
+                )
+            )
     return fig
 
 
@@ -116,6 +146,7 @@ def attach_frames(
     color_map: Dict[str, str],
     unique_times: Sequence[str],
     enable_prominent_time_display: bool = False,
+    strategy: str = "markers_fade",
 ) -> None:
     """Use the TrailSystem to generate and attach frames to the figure."""
     frames = trail_system.create_frames_with_trail(
@@ -124,5 +155,6 @@ def attach_frames(
         color_map,
         list(unique_times),
         enable_prominent_time_display=enable_prominent_time_display,
+        strategy=strategy,
     )
     fig.frames = frames

@@ -26,6 +26,8 @@ from gps_utils import (
     get_numbered_output_path, ensure_output_directories, logger,
     DataLoader, VisualizationHelper
 )
+from export.video_export import export_animation_video
+from utils.lod import LODConfig, apply_lod
 
 # Add the scripts directory to the Python path
 scripts_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -47,17 +49,19 @@ class LiveMapAnimator:
             self.ui.print_success(f"Using GUI data directory: {custom_data_dir}")
         else:
             self.data_loader = DataLoader()
-        
+
         self.optimizer = PerformanceOptimizer()
         self.viz_helper = VisualizationHelper()
         self.trail_system = TrailSystem(self.ui)
-        
+
         # Configuration
         self.selected_time_step: Optional[int] = None
         self.dataframes: List[pd.DataFrame] = []
         self.combined_data: Optional[pd.DataFrame] = None
         self.base_animation_speed = 600  # ms per frame at 1x speed for 2D maps
         self.playback_speed = 1.0  # Default playback speed multiplier
+        self.performance_mode = os.environ.get('PERFORMANCE_MODE', '0') == '1'
+        self.export_mp4 = os.environ.get('EXPORT_MP4', '0') == '1'
         
         # Read playback speed from environment if available (from GUI)
         playback_speed_env = os.environ.get('PLAYBACK_SPEED')
@@ -115,6 +119,12 @@ class LiveMapAnimator:
             self.ui.print_header("🦅 BEARDED VULTURE GPS VISUALIZATION", 80)
             print("Live Map Animation with Performance Optimization")
             print()
+            if self.performance_mode:
+                self.ui.print_success("Performance mode: ON (line+head + adaptive LOD)")
+            else:
+                self.ui.print_info("Performance mode: OFF (fading markers)")
+            if self.export_mp4:
+                self.ui.print_info("Video export enabled: MP4 will be created")
             print("Features:")
             print("  ✅ Interactive real-time map visualization")
             print("  ✅ Configurable trail length system")
@@ -307,11 +317,31 @@ class LiveMapAnimator:
             print(f"🔍 Optimal zoom level: {zoom_level} (data range: {max_range:.4f}°)")
             print(f"📏 Bounds: Lat [{lat_min:.4f}, {lat_max:.4f}], Lon [{lon_min:.4f}, {lon_max:.4f}]")
             
-            # Create figure with empty traces
-            fig = create_base_figure(vulture_ids, color_map)
+            # Create figure with empty traces (match strategy)
+            strategy = "line_head" if self.performance_mode else "markers_fade"
+            fig = create_base_figure(vulture_ids, color_map, strategy=strategy)
             
-            # Create frames using trail system
+            # Optionally apply LOD for interactive performance
             unique_times = sorted(df['timestamp_str'].unique())
+            full_df_for_video = df.copy()
+            if self.performance_mode:
+                lod_cfg = LODConfig(
+                    max_points_per_track=20_000,
+                    target_points_per_min=600,
+                    rdp_epsilon_meters=5.0,
+                    use_rdp=True,
+                )
+                per_vulture = []
+                for vid in vulture_ids:
+                    seg = df[df['vulture_id'] == vid].copy()
+                    if len(seg) > lod_cfg.max_points_per_track:
+                        seg = apply_lod(seg, 'Timestamp [UTC]', 'Latitude', 'Longitude', lod_cfg)
+                        # Ensure strings are consistent after decimation
+                        seg['timestamp_str'] = seg['Timestamp [UTC]'].dt.strftime('%d.%m.%Y %H:%M:%S')
+                        seg['timestamp_display'] = seg['Timestamp [UTC]'].dt.strftime('%d.%m %H:%M')
+                    per_vulture.append(seg)
+                df = pd.concat(per_vulture, ignore_index=True)
+                unique_times = sorted(df['timestamp_str'].unique())
             attach_frames(
                 fig,
                 trail_system=self.trail_system,
@@ -320,6 +350,7 @@ class LiveMapAnimator:
                 color_map=color_map,
                 unique_times=unique_times,
                 enable_prominent_time_display=False,
+                strategy=strategy,
             )
             
             # Configure layout with FIXED center, zoom, and dimensions to prevent jumping
@@ -365,6 +396,27 @@ class LiveMapAnimator:
             print("🎯 Fullscreen: Click the '⛶ Fullscreen' button in the controls to view entire interface fullscreen")
             print("📱 Features: All controls, slider, and map included in fullscreen mode")
             
+            # Optional MP4 export (full data, original visual style)
+            if self.export_mp4:
+                try:
+                    fig_full = create_base_figure(vulture_ids, color_map, strategy="markers_fade")
+                    full_times = sorted(full_df_for_video['timestamp_str'].unique())
+                    attach_frames(
+                        fig_full,
+                        trail_system=self.trail_system,
+                        df=full_df_for_video,
+                        vulture_ids=vulture_ids,
+                        color_map=color_map,
+                        unique_times=full_times,
+                        enable_prominent_time_display=False,
+                        strategy="markers_fade",
+                    )
+                    mp4_path = export_animation_video(fig_full, str(Path(output_path).with_suffix('')),
+                                                      fps=30, width=1280, height=720, quality=20)
+                    print(f"🎬 Wrote video: {mp4_path}")
+                except Exception as ve:
+                    self.ui.print_warning(f"Video export failed: {ve}")
+
             return True
             
         except Exception as e:

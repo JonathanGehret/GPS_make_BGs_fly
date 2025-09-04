@@ -71,8 +71,14 @@ class TrailSystem:
     
     def create_frames_with_trail(self, df: pd.DataFrame, vulture_ids: List[str], 
                                 color_map: Dict[str, str], unique_times: List[str], 
-                                enable_prominent_time_display: bool = True) -> List[go.Frame]:
-        """Create animation frames with trail length support and visual fading effects"""
+                                enable_prominent_time_display: bool = True,
+                                strategy: str = "markers_fade") -> List[go.Frame]:
+        """Create animation frames with trail length support and visual effects.
+
+        strategy:
+            - "markers_fade": original behavior (lines+markers with fading trail)
+            - "line_head": performance mode (single line trail + one head marker)
+        """
         frames = []
         
         for time_str in unique_times:
@@ -96,60 +102,81 @@ class TrailSystem:
                 if len(trail_data) > 0:
                     # Sort by timestamp to ensure correct order
                     trail_data = trail_data.sort_values('Timestamp [UTC]')
-                    
-                    # Calculate visual effects for fading trail
-                    trail_points = len(trail_data)
-                    marker_sizes = []
-                    marker_opacities = []
-                    
-                    # Prepare custom data for hover
-                    customdata = []
-                    for i, (_, row) in enumerate(trail_data.iterrows()):
-                        height_display = format_height_display(row['Height'])
-                        customdata.append([row['timestamp_display'], height_display])
-                        
-                        # Calculate age factor (0 = oldest, 1 = newest)
-                        age_factor = i / max(1, trail_points - 1) if trail_points > 1 else 1.0
-                        
-                        # Create fading effect for markers
-                        if i == trail_points - 1:  # Current position (newest point)
-                            marker_sizes.append(12)  # Larger current position marker
-                            marker_opacities.append(1.0)  # Full opacity for current position
-                        else:
-                            # Fade trail markers based on age (min size 3, max size 6)
-                            fade_size = 3 + (3 * age_factor)
-                            marker_sizes.append(fade_size)
-                            # Fade opacity (min 0.3, max 0.8 for trail)
-                            fade_opacity = 0.3 + (0.5 * age_factor)
-                            marker_opacities.append(fade_opacity)
-                    
-                    # Create enhanced trail with fading effects
-                    frame_data.append(
-                        go.Scattermap(
-                            lat=trail_data['Latitude'].tolist(),
-                            lon=trail_data['Longitude'].tolist(),
-                            mode='lines+markers',
-                            name=vulture_id,
-                            line=dict(
-                                color=color_map[vulture_id], 
-                                width=3
-                            ),
-                            marker=dict(
-                                color=color_map[vulture_id], 
-                                size=marker_sizes,
-                                opacity=marker_opacities
-                            ),
-                            customdata=customdata,
-                            hovertemplate=(
-                                f"<b>{vulture_id}</b><br>"
-                                "Time: %{customdata[0]}<br>"
-                                "Lat: %{lat:.6f}°<br>"
-                                "Lon: %{lon:.6f}°<br>"
-                                "Alt: %{customdata[1]}"
-                                "<extra></extra>"
+
+                    if strategy == "line_head":
+                        # Performance: draw the trail once as a line (no per-point styling) and the current head as a single marker
+                        # Trail line
+                        frame_data.append(
+                            go.Scattermap(
+                                lat=trail_data['Latitude'].tolist(),
+                                lon=trail_data['Longitude'].tolist(),
+                                mode='lines',
+                                name=vulture_id,
+                                line=dict(color=color_map[vulture_id], width=3),
+                                hoverinfo='skip',
+                                showlegend=True,
                             )
                         )
-                    )
+                        # Head marker (latest point only)
+                        head = trail_data.iloc[-1]
+                        height_display = format_height_display(head['Height'])
+                        frame_data.append(
+                            go.Scattermap(
+                                lat=[head['Latitude']],
+                                lon=[head['Longitude']],
+                                mode='markers',
+                                name=f"{vulture_id} (current)",
+                                marker=dict(color=color_map[vulture_id], size=12),
+                                customdata=[[head['timestamp_display'], height_display]],
+                                hovertemplate=(
+                                    f"<b>{vulture_id}</b><br>"
+                                    "Time: %{customdata[0]}<br>"
+                                    "Lat: %{lat:.6f}°<br>"
+                                    "Lon: %{lon:.6f}°<br>"
+                                    "Alt: %{customdata[1]}"
+                                    "<extra></extra>"
+                                ),
+                                showlegend=False,
+                            )
+                        )
+                    else:
+                        # Original: fading markers along the trail
+                        trail_points = len(trail_data)
+                        marker_sizes = []
+                        marker_opacities = []
+                        customdata = []
+                        for i, (_, row) in enumerate(trail_data.iterrows()):
+                            height_display = format_height_display(row['Height'])
+                            customdata.append([row['timestamp_display'], height_display])
+                            age_factor = i / max(1, trail_points - 1) if trail_points > 1 else 1.0
+                            if i == trail_points - 1:
+                                marker_sizes.append(12)
+                                marker_opacities.append(1.0)
+                            else:
+                                fade_size = 3 + (3 * age_factor)
+                                marker_sizes.append(fade_size)
+                                fade_opacity = 0.3 + (0.5 * age_factor)
+                                marker_opacities.append(fade_opacity)
+
+                        frame_data.append(
+                            go.Scattermap(
+                                lat=trail_data['Latitude'].tolist(),
+                                lon=trail_data['Longitude'].tolist(),
+                                mode='lines+markers',
+                                name=vulture_id,
+                                line=dict(color=color_map[vulture_id], width=3),
+                                marker=dict(color=color_map[vulture_id], size=marker_sizes, opacity=marker_opacities),
+                                customdata=customdata,
+                                hovertemplate=(
+                                    f"<b>{vulture_id}</b><br>"
+                                    "Time: %{customdata[0]}<br>"
+                                    "Lat: %{lat:.6f}°<br>"
+                                    "Lon: %{lon:.6f}°<br>"
+                                    "Alt: %{customdata[1]}"
+                                    "<extra></extra>"
+                                ),
+                            )
+                        )
                 else:
                     # Empty trace for vultures with no data in the trail window
                     frame_data.append(

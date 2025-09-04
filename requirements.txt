@@ -5,6 +5,7 @@ numpy>=1.21.0
 
 # Interactive visualizations and mapping
 plotly>=5.15.0  # MapLibre GL JS support for modern mapping
+kaleido>=0.2.1  # Static image export for video rendering
 
 # HTTP requests for elevation data
 requests>=2.25.0
