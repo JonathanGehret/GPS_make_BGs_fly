@@ -144,7 +144,7 @@ class AnimationStateManager:
         speed_buttons = []
         for speed in speeds:
             duration = max(50, int(self.frame_duration / speed))  # Minimum 50ms
-            label = f"{speed}x" if speed != 1.0 else "1x"
+            label = f"{speed:g}x"  # Format without unnecessary .0 decimals
             
             speed_buttons.append({
                 "label": label,

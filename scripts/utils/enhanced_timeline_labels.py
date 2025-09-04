@@ -104,69 +104,55 @@ class TimelineLabelSystem:
         else:
             return self._create_fallback_labels(unique_times)
     
+    def _format_elegant_time(self, time_str: str) -> str:
+        """
+        Create elegant, human-friendly time format for slider display
+        
+        Args:
+            time_str: Time string in format '%d.%m.%Y %H:%M:%S'
+            
+        Returns:
+            Elegant formatted time string
+        """
+        try:
+            time_obj = pd.to_datetime(time_str, format='%d.%m.%Y %H:%M:%S')
+            # Format: "15:30 • 4 Sep" (time • short date)
+            time_part = time_obj.strftime('%H:%M')
+            date_part = time_obj.strftime('%-d %b')  # Remove leading zero from day
+            return f"{time_part} • {date_part}"
+        except Exception:
+            # Fallback to original format if parsing fails
+            return time_str
+    
     def _create_single_point_labels(self, unique_times: List[str]) -> List[Dict]:
         """Create labels for single time point"""
         return [{
             'args': [[time_str], dict(mode="immediate", transition=dict(duration=300))],
-            'label': self._format_single_time(time_str),
+            'label': self._format_elegant_time(time_str),
             'method': 'animate'
         } for time_str in unique_times]
     
     def _create_minute_labels(self, unique_times: List[str], analysis: Dict) -> List[Dict]:
-        """Create labels for minute-scale animations"""
+        """Create labels for minute-scale animations with elegant formatting"""
         labels = []
-        times = [pd.to_datetime(time_str, format='%d.%m.%Y %H:%M:%S') for time_str in unique_times]
-        start_time = analysis['start_time']
         
-        for i, (time_str, time_obj) in enumerate(zip(unique_times, times)):
-            elapsed_minutes = (time_obj - start_time).total_seconds() / 60
-            
-            # First line: time, second line: elapsed minutes
-            time_label = time_obj.strftime('%H:%M:%S')
-            elapsed_label = f"+{elapsed_minutes:.0f}min"
-            
-            # Show major marks more prominently  
-            if elapsed_minutes % analysis['major_step'] == 0 or i == 0 or i == len(unique_times) - 1:
-                label = f"{time_label}\n{elapsed_label}"  # Two lines, no HTML
-            else:
-                label = f"{time_label}\n{elapsed_label}"  # Consistent formatting
-            
+        for time_str in unique_times:
             labels.append({
                 'args': [[time_str], dict(mode="immediate", transition=dict(duration=300))],
-                'label': label,
+                'label': self._format_elegant_time(time_str),
                 'method': 'animate'
             })
         
         return labels
     
     def _create_hour_labels(self, unique_times: List[str], analysis: Dict) -> List[Dict]:
-        """Create labels for hour-scale animations"""
+        """Create labels for hour-scale animations with elegant formatting"""
         labels = []
-        times = [pd.to_datetime(time_str, format='%d.%m.%Y %H:%M:%S') for time_str in unique_times]
-        start_time = analysis['start_time']
         
-        for i, (time_str, time_obj) in enumerate(zip(unique_times, times)):
-            elapsed_hours = (time_obj - start_time).total_seconds() / 3600
-            
-            # First line: time, second line: day if multi-day
-            time_label = time_obj.strftime('%H:%M')
-            
-            if analysis['total_days'] > 1:
-                day_label = time_obj.strftime('%d.%m')
-                if elapsed_hours >= 24:
-                    day_label += f" (+{elapsed_hours/24:.0f}d)"
-            else:
-                day_label = f"+{elapsed_hours:.1f}h"
-            
-            # Show major marks more prominently
-            if time_obj.hour % analysis['major_step'] == 0 or i == 0 or i == len(unique_times) - 1:
-                label = f"{time_label}\n{day_label}"  # Two lines, no HTML
-            else:
-                label = f"{time_label}\n{day_label}"  # Consistent formatting
-            
+        for time_str in unique_times:
             labels.append({
                 'args': [[time_str], dict(mode="immediate", transition=dict(duration=300))],
-                'label': label,
+                'label': self._format_elegant_time(time_str),
                 'method': 'animate'
             })
         
@@ -326,11 +312,11 @@ def create_enhanced_slider_config(unique_times: List[str],
     # Enhanced current value display with prominent styling
     if enable_prominent_display:
         current_value_config = {
-            'prefix': '🕒 ',
+            'prefix': '',  # No prefix for cleaner look
             'suffix': '',
             'font': {
-                'size': 18,
-                'family': 'Arial Black, Arial, sans-serif',
+                'size': 16,  # Slightly smaller for elegance
+                'family': 'Arial, sans-serif',  # Cleaner font
                 'color': '#2c3e50'
             },
             'visible': True,
@@ -339,8 +325,8 @@ def create_enhanced_slider_config(unique_times: List[str],
         }
     else:
         current_value_config = {
-            'prefix': '🕒 Time: ',
-            'font': {'size': 12},
+            'prefix': '',  # No prefix for cleaner look
+            'font': {'size': 12, 'family': 'Arial, sans-serif'},
             'visible': True,
             'xanchor': 'center',
             'offset': 20  # Consistent spacing
