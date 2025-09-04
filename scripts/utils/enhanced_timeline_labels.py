@@ -313,7 +313,7 @@ def create_enhanced_slider_config(unique_times: List[str],
         
         improved_step = {
             'args': [[frame_name], {
-                "frame": {"duration": 0, "redraw": False},  # No auto-advance
+                "frame": {"duration": 0, "redraw": True},  # Enable immediate redraw
                 "mode": "immediate",
                 "transition": {"duration": 0}
             }],
