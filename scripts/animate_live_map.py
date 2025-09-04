@@ -13,9 +13,14 @@ from typing import Optional, List
 from pathlib import Path
 from utils.user_interface import UserInterface
 from utils.performance_optimizer import PerformanceOptimizer
-from utils.enhanced_timeline_labels import create_enhanced_slider_config
-from utils.animation_state_manager import create_reliable_animation_controls
 from utils.html_injection import inject_fullscreen
+from utils.animation_builders import (
+    build_color_map,
+    create_base_figure,
+    apply_standard_layout,
+    apply_controls_and_slider,
+    attach_frames,
+)
 from core.trail_system import TrailSystem
 from gps_utils import (
     get_numbered_output_path, ensure_output_directories, logger,
@@ -283,8 +288,7 @@ class LiveMapAnimator:
             
             # Get unique vultures and assign colors
             vulture_ids = df['vulture_id'].unique()
-            colors = px.colors.qualitative.Set1[:len(vulture_ids)]
-            color_map = dict(zip(vulture_ids, colors))
+            color_map = build_color_map(vulture_ids)
             
             # Calculate optimal center and zoom using helper (with ~10% padding)
             map_cfg = self.viz_helper.calculate_map_bounds(df, padding_percent=0.1)
@@ -304,72 +308,30 @@ class LiveMapAnimator:
             print(f"📏 Bounds: Lat [{lat_min:.4f}, {lat_max:.4f}], Lon [{lon_min:.4f}, {lon_max:.4f}]")
             
             # Create figure with empty traces
-            import plotly.graph_objects as go
-            fig = go.Figure()
-            
-            for vulture_id in vulture_ids:
-                fig.add_trace(
-                    go.Scattermap(
-                        lat=[], lon=[], mode='lines+markers', name=vulture_id,
-                        line=dict(color=color_map[vulture_id], width=3),
-                        marker=dict(color=color_map[vulture_id], size=8),
-                        showlegend=True  # Ensure all birds always show in legend
-                    )
-                )
+            fig = create_base_figure(vulture_ids, color_map)
             
             # Create frames using trail system
             unique_times = sorted(df['timestamp_str'].unique())
-            frames = self.trail_system.create_frames_with_trail(
-                df, vulture_ids, color_map, unique_times, enable_prominent_time_display=False
+            attach_frames(
+                fig,
+                trail_system=self.trail_system,
+                df=df,
+                vulture_ids=vulture_ids,
+                color_map=color_map,
+                unique_times=unique_times,
+                enable_prominent_time_display=False,
             )
-            fig.frames = frames
             
             # Configure layout with FIXED center, zoom, and dimensions to prevent jumping
-            fig.update_layout(
-                # Fixed map configuration
-                map=dict(
-                    style="open-street-map",
-                    center=dict(lat=center_lat, lon=center_lon),
-                    zoom=zoom_level
-                ),
-                # Responsive dimensions for better centering
-                width=1200,
-                height=800,
-                # Enable responsive behavior for better centering
-                autosize=True,
-                # Balanced margins for centering
-                margin=dict(l=40, r=40, t=100, b=140),
-                title=dict(
-                    text="🦅 Bearded Vulture GPS Flight Paths - Live Map Visualization",
-                    x=0.5,
-                    xanchor='center'
-                ),
-                showlegend=True,
-                # Configure legend to stay in fixed position (top-left)
-                legend=dict(
-                    x=0.02,
-                    y=0.98,
-                    xanchor='left',
-                    yanchor='top',
-                    bgcolor='rgba(255, 255, 255, 0.8)',
-                    bordercolor='rgba(0, 0, 0, 0.2)',
-                    borderwidth=1
-                ),
-                # Enhanced reliable animation controls  
-                **create_reliable_animation_controls(
-                    frame_duration=self.get_frame_duration(),
-                    include_speed_controls=True,
-                    center_lat=center_lat,
-                    center_lon=center_lon,
-                    zoom_level=zoom_level
-                ),
-                sliders=[create_enhanced_slider_config(
-                    unique_times, 
-                    position_y=0.02,  # Bottom position 
-                    position_x=0.05,  # Slightly more centered
-                    length=0.9,       # Wider for better fit
-                    enable_prominent_display=True
-                )]
+            apply_standard_layout(fig, center_lat=center_lat, center_lon=center_lon, zoom_level=zoom_level)
+            apply_controls_and_slider(
+                fig,
+                unique_times=unique_times,
+                frame_duration_ms=self.get_frame_duration(),
+                center_lat=center_lat,
+                center_lon=center_lon,
+                zoom_level=zoom_level,
+                include_speed_controls=True,
             )
             
             # Save visualization with fullscreen support
