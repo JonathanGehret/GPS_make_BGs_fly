@@ -355,13 +355,13 @@ class LiveMapAnimator:
                     center=dict(lat=center_lat, lon=center_lon),
                     zoom=zoom_level
                 ),
-                # Fixed dimensions to prevent responsive resizing
-                width=1000,
-                height=700,
-                # Disable automatic layout adjustments
-                autosize=False,
-                # Centered margins with space for controls
-                margin=dict(l=60, r=60, t=90, b=130),
+                # Responsive dimensions for better centering
+                width=1200,
+                height=800,
+                # Enable responsive behavior for better centering
+                autosize=True,
+                # Balanced margins for centering
+                margin=dict(l=40, r=40, t=100, b=140),
                 title=dict(
                     text="🦅 Bearded Vulture GPS Flight Paths - Live Map Visualization",
                     x=0.5,
@@ -418,6 +418,40 @@ class LiveMapAnimator:
             
             # Add custom fullscreen JavaScript
             fullscreen_js = """
+<style>
+/* Improve centering for windowed mode */
+body {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    min-height: 100vh;
+    margin: 0;
+    padding: 20px;
+    background-color: #f5f5f5;
+    box-sizing: border-box;
+}
+
+.plotly-graph-div {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    border-radius: 8px;
+    background: white;
+    max-width: 100%;
+}
+
+/* Fullscreen mode styles */
+body.fullscreen-mode {
+    padding: 0;
+    background-color: white;
+    align-items: center;
+}
+
+body.fullscreen-mode .plotly-graph-div {
+    box-shadow: none;
+    border-radius: 0;
+    width: 98vw !important;
+    height: 95vh !important;
+}
+</style>
 <script>
 // Custom fullscreen functionality
 document.addEventListener('DOMContentLoaded', function() {
@@ -433,16 +467,40 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (!document.fullscreenElement) {
                         // Enter fullscreen
                         document.documentElement.requestFullscreen().then(() => {
-                            // Adjust layout for fullscreen
+                            // Adjust layout for fullscreen - more aggressive styling
                             document.body.style.margin = '0';
                             document.body.style.padding = '0';
+                            document.body.style.width = '100vw';
+                            document.body.style.height = '100vh';
+                            document.body.style.overflow = 'hidden';
+                            document.documentElement.style.margin = '0';
+                            document.documentElement.style.padding = '0';
+                            
                             const plotDiv = document.querySelector('.plotly-graph-div');
                             if (plotDiv) {
+                                // Store original styles for restoration
+                                plotDiv.dataset.originalStyle = plotDiv.style.cssText;
+                                
+                                // Apply fullscreen styles
+                                plotDiv.style.position = 'fixed';
+                                plotDiv.style.top = '0';
+                                plotDiv.style.left = '0';
                                 plotDiv.style.width = '100vw';
                                 plotDiv.style.height = '100vh';
-                                // Trigger Plotly resize
-                                if (window.Plotly) {
-                                    window.Plotly.Plots.resize(plotDiv);
+                                plotDiv.style.zIndex = '9999';
+                                plotDiv.style.backgroundColor = 'white';
+                                
+                                // Force plot to use full space
+                                setTimeout(() => {
+                                    if (window.Plotly) {
+                                        window.Plotly.relayout(plotDiv, {
+                                            width: window.innerWidth,
+                                            height: window.innerHeight,
+                                            margin: {l: 40, r: 40, t: 60, b: 100}
+                                        });
+                                    }
+                                }, 100);
+                            }
                                 }
                             }
                         }).catch(err => {
