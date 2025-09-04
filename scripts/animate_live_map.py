@@ -343,7 +343,7 @@ class LiveMapAnimator:
             # Create frames using trail system
             unique_times = sorted(df['timestamp_str'].unique())
             frames = self.trail_system.create_frames_with_trail(
-                df, vulture_ids, color_map, unique_times, enable_prominent_time_display=True
+                df, vulture_ids, color_map, unique_times, enable_prominent_time_display=False
             )
             fig.frames = frames
             
@@ -368,28 +368,6 @@ class LiveMapAnimator:
                     xanchor='center'
                 ),
                 showlegend=True,
-                # Add prominent current time annotation
-                annotations=[
-                    dict(
-                        text=f"<b>📅 Current Time:</b><br><span style='font-size: 20px; color: #2E86AB; text-shadow: 1px 1px 3px rgba(0,0,0,0.3);'>{unique_times[0] if unique_times else 'No data'}</span>",
-                        x=0.98,
-                        y=0.98,
-                        xref='paper',
-                        yref='paper',
-                        xanchor='right',
-                        yanchor='top',
-                        showarrow=False,
-                        bgcolor='rgba(255, 255, 255, 0.95)',
-                        bordercolor='rgba(46, 134, 171, 0.8)',
-                        borderwidth=2,
-                        borderpad=10,
-                        font=dict(
-                            size=16,
-                            color='#333',
-                            family='Arial, sans-serif'
-                        )
-                    )
-                ],
                 # Configure legend to stay in fixed position (top-left)
                 legend=dict(
                     x=0.02,
