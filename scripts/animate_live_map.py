@@ -285,33 +285,46 @@ class LiveMapAnimator:
             colors = px.colors.qualitative.Set1[:len(vulture_ids)]
             color_map = dict(zip(vulture_ids, colors))
             
-            # Calculate optimal center and zoom for the entire dataset
+            # Calculate optimal center and zoom for the entire dataset with buffer
             lat_min, lat_max = df['Latitude'].min(), df['Latitude'].max()
             lon_min, lon_max = df['Longitude'].min(), df['Longitude'].max()
             
-            center_lat = df['Latitude'].mean()
-            center_lon = df['Longitude'].mean()
-            
-            # Calculate zoom level based on data extent
+            # Add buffer to ensure all points are visible (10% padding)
             lat_range = lat_max - lat_min
             lon_range = lon_max - lon_min
-            max_range = max(lat_range, lon_range)
+            lat_buffer = max(0.001, lat_range * 0.1)  # Minimum 100m buffer
+            lon_buffer = max(0.001, lon_range * 0.1)  # Minimum 100m buffer
+            
+            # Buffered bounds
+            lat_min_buffered = lat_min - lat_buffer
+            lat_max_buffered = lat_max + lat_buffer
+            lon_min_buffered = lon_min - lon_buffer
+            lon_max_buffered = lon_max + lon_buffer
+            
+            center_lat = (lat_min_buffered + lat_max_buffered) / 2
+            center_lon = (lon_min_buffered + lon_max_buffered) / 2
+            
+            # Calculate zoom level based on buffered data extent
+            lat_range_buffered = lat_max_buffered - lat_min_buffered
+            lon_range_buffered = lon_max_buffered - lon_min_buffered
+            max_range = max(lat_range_buffered, lon_range_buffered)
             
             # Calculate zoom level (rough approximation)
             # Zoom level 12 is good for ~5km, each zoom level halves the distance
             if max_range < 0.01:  # Very small area (< 1km)
-                zoom_level = 15
+                zoom_level = 14  # Reduced slightly to ensure visibility
             elif max_range < 0.05:  # Small area (< 5km)
-                zoom_level = 13
+                zoom_level = 12  # Reduced slightly to ensure visibility
             elif max_range < 0.1:  # Medium area (< 10km)
-                zoom_level = 12
+                zoom_level = 11  # Reduced slightly to ensure visibility
             elif max_range < 0.2:  # Large area (< 20km)
-                zoom_level = 11
+                zoom_level = 10  # Reduced slightly to ensure visibility
             else:  # Very large area
-                zoom_level = 10
+                zoom_level = 9   # Reduced slightly to ensure visibility
             
             print(f"📍 Map center: Lat {center_lat:.4f}, Lon {center_lon:.4f}")
             print(f"🔍 Optimal zoom level: {zoom_level} (data range: {max_range:.4f}°)")
+            print(f"📏 Bounds: Lat [{lat_min:.4f}, {lat_max:.4f}], Lon [{lon_min:.4f}, {lon_max:.4f}]")
             
             # Create figure with empty traces
             import plotly.graph_objects as go
@@ -390,7 +403,10 @@ class LiveMapAnimator:
                 # Enhanced reliable animation controls  
                 **create_reliable_animation_controls(
                     frame_duration=self.get_frame_duration(),
-                    include_speed_controls=True
+                    include_speed_controls=True,
+                    center_lat=center_lat,
+                    center_lon=center_lon,
+                    zoom_level=zoom_level
                 ),
                 sliders=[create_enhanced_slider_config(
                     unique_times, 

@@ -105,6 +105,29 @@ class AnimationStateManager:
             "execute": True
         }
     
+    def create_recenter_button(self, center_lat: float, center_lon: float, zoom_level: int) -> Dict[str, Any]:
+        """
+        Create a recenter button that resets the map view to original bounds
+        
+        Args:
+            center_lat: Original center latitude
+            center_lon: Original center longitude  
+            zoom_level: Original zoom level
+            
+        Returns:
+            Recenter button configuration dict
+        """
+        return {
+            "label": "🎯 Recenter",
+            "method": "relayout",
+            "args": [{
+                "map.center.lat": center_lat,
+                "map.center.lon": center_lon,
+                "map.zoom": zoom_level
+            }],
+            "execute": True
+        }
+    
     def create_speed_control_buttons(self, speeds: List[float] = None) -> List[Dict[str, Any]]:
         """
         Create speed control buttons for dynamic playback speed
@@ -216,13 +239,19 @@ class AnimationStateManager:
     
     def create_enhanced_updatemenus(self, 
                                    include_speed_controls: bool = True,
-                                   frame_duration: Optional[int] = None) -> List[Dict[str, Any]]:
+                                   frame_duration: Optional[int] = None,
+                                   center_lat: Optional[float] = None,
+                                   center_lon: Optional[float] = None,
+                                   zoom_level: Optional[int] = None) -> List[Dict[str, Any]]:
         """
         Create enhanced animation control menus with improved reliability
         
         Args:
             include_speed_controls: Whether to include speed control buttons
             frame_duration: Frame duration in milliseconds
+            center_lat: Map center latitude for recenter button
+            center_lon: Map center longitude for recenter button
+            zoom_level: Map zoom level for recenter button
             
         Returns:
             List of updatemenu configurations
@@ -246,7 +275,8 @@ class AnimationStateManager:
                 self.create_robust_play_button(duration),
                 self.create_robust_pause_button(),
                 self.create_robust_restart_button(duration)
-            ],
+            ] + ([self.create_recenter_button(center_lat, center_lon, zoom_level)] 
+                 if all(x is not None for x in [center_lat, center_lon, zoom_level]) else []),
             # Fixed positioning to prevent movement
             "pad": {"t": 8, "b": 8, "l": 12, "r": 12}
         }
@@ -359,13 +389,19 @@ def create_memory_optimized_frames(vulture_data: Dict,
 
 # Factory function for easy integration
 def create_reliable_animation_controls(frame_duration: int = 500,
-                                     include_speed_controls: bool = True) -> Dict[str, Any]:
+                                     include_speed_controls: bool = True,
+                                     center_lat: Optional[float] = None,
+                                     center_lon: Optional[float] = None,
+                                     zoom_level: Optional[int] = None) -> Dict[str, Any]:
     """
     Factory function to create reliable animation controls
     
     Args:
         frame_duration: Default frame duration in milliseconds
         include_speed_controls: Whether to include speed control buttons
+        center_lat: Map center latitude for recenter button
+        center_lon: Map center longitude for recenter button
+        zoom_level: Map zoom level for recenter button
         
     Returns:
         Dictionary containing updatemenus configuration
@@ -374,6 +410,9 @@ def create_reliable_animation_controls(frame_duration: int = 500,
     return {
         "updatemenus": manager.create_enhanced_updatemenus(
             include_speed_controls=include_speed_controls,
-            frame_duration=frame_duration
+            frame_duration=frame_duration,
+            center_lat=center_lat,
+            center_lon=center_lon,
+            zoom_level=zoom_level
         )
     }
