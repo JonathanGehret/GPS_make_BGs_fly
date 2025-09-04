@@ -413,11 +413,92 @@ class LiveMapAnimator:
                 'showTips': True,    # Show tooltips on modebar buttons
             }
             
-            fig.write_html(output_path, config=config)
+            # Save HTML with custom fullscreen JavaScript
+            html_string = fig.to_html(config=config)
             
-            self.ui.print_success("✨ Interactive live map animation created with fullscreen support!")
+            # Add custom fullscreen JavaScript
+            fullscreen_js = """
+<script>
+// Custom fullscreen functionality
+document.addEventListener('DOMContentLoaded', function() {
+    // Find all buttons and add fullscreen functionality
+    function addFullscreenHandler() {
+        const buttons = document.querySelectorAll('.updatemenu-button');
+        buttons.forEach(button => {
+            if (button.textContent.includes('⛶ Fullscreen')) {
+                button.onclick = function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
+                    if (!document.fullscreenElement) {
+                        // Enter fullscreen
+                        document.documentElement.requestFullscreen().then(() => {
+                            // Adjust layout for fullscreen
+                            document.body.style.margin = '0';
+                            document.body.style.padding = '0';
+                            const plotDiv = document.querySelector('.plotly-graph-div');
+                            if (plotDiv) {
+                                plotDiv.style.width = '100vw';
+                                plotDiv.style.height = '100vh';
+                                // Trigger Plotly resize
+                                if (window.Plotly) {
+                                    window.Plotly.Plots.resize(plotDiv);
+                                }
+                            }
+                        }).catch(err => {
+                            console.log('Fullscreen failed:', err);
+                        });
+                    } else {
+                        // Exit fullscreen
+                        document.exitFullscreen();
+                    }
+                };
+            }
+        });
+    }
+    
+    // Add handlers initially and after any DOM updates
+    addFullscreenHandler();
+    
+    // Listen for fullscreen changes
+    document.addEventListener('fullscreenchange', function() {
+        const plotDiv = document.querySelector('.plotly-graph-div');
+        if (!document.fullscreenElement && plotDiv) {
+            // Restore normal layout when exiting fullscreen
+            document.body.style.margin = '';
+            document.body.style.padding = '';
+            plotDiv.style.width = '';
+            plotDiv.style.height = '';
+            if (window.Plotly) {
+                window.Plotly.Plots.resize(plotDiv);
+            }
+        }
+    });
+    
+    // Re-add handlers after Plotly updates (for dynamic buttons)
+    const observer = new MutationObserver(function(mutations) {
+        mutations.forEach(function(mutation) {
+            if (mutation.addedNodes.length > 0) {
+                addFullscreenHandler();
+            }
+        });
+    });
+    observer.observe(document.body, {childList: true, subtree: true});
+});
+</script>
+"""
+            
+            # Insert the JavaScript before the closing body tag
+            html_string = html_string.replace('</body>', fullscreen_js + '</body>')
+            
+            # Write the modified HTML
+            with open(output_path, 'w', encoding='utf-8') as f:
+                f.write(html_string)
+            
+            self.ui.print_success("✨ Interactive live map animation created with custom fullscreen support!")
             print(f"📁 Saved: {output_path}")
-            print("🎯 Fullscreen: Click the fullscreen button (⛶) in the top-right corner of the plot")
+            print("🎯 Fullscreen: Click the '⛶ Fullscreen' button in the controls to view entire interface fullscreen")
+            print("📱 Features: All controls, slider, and map included in fullscreen mode")
             
             return True
             

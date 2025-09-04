@@ -128,6 +128,20 @@ class AnimationStateManager:
             "execute": True
         }
     
+    def create_fullscreen_button(self) -> Dict[str, Any]:
+        """
+        Create a fullscreen button that makes the entire page fullscreen
+        
+        Returns:
+            Fullscreen button configuration dict
+        """
+        return {
+            "label": "⛶ Fullscreen",
+            "method": "restyle",  # We'll use custom JavaScript for this
+            "args": [{}],  # Empty args, functionality handled by custom JS
+            "execute": True
+        }
+    
     def create_speed_control_buttons(self, speeds: List[float] = None) -> List[Dict[str, Any]]:
         """
         Create speed control buttons for dynamic playback speed
@@ -274,7 +288,8 @@ class AnimationStateManager:
             "buttons": [
                 self.create_robust_play_button(duration),
                 self.create_robust_pause_button(),
-                self.create_robust_restart_button(duration)
+                self.create_robust_restart_button(duration),
+                self.create_fullscreen_button()
             ] + ([self.create_recenter_button(center_lat, center_lon, zoom_level)] 
                  if all(x is not None for x in [center_lat, center_lon, zoom_level]) else []),
             # Fixed positioning to prevent movement
