@@ -293,7 +293,7 @@ def create_enhanced_slider_config(unique_times: List[str],
     
     # Create robust slider steps with improved animation handling
     improved_steps = []
-    for step in enhanced_labels:
+    for idx, step in enumerate(enhanced_labels):
         # Extract frame name safely
         frame_name = step['args'][0][0] if isinstance(step['args'][0], list) else step['args'][0]
         
@@ -305,7 +305,8 @@ def create_enhanced_slider_config(unique_times: List[str],
             }],
             'label': step['label'],
             'method': 'animate',
-            'execute': True  # Ensure step execution
+            'execute': True,  # Ensure step execution
+            'value': idx      # Track position so play can resume correctly
         }
         improved_steps.append(improved_step)
     
@@ -339,7 +340,7 @@ def create_enhanced_slider_config(unique_times: List[str],
         'y': position_y,
         'len': length,
         'steps': improved_steps,
-        'transition': {'duration': 250},  # Slightly faster transitions
+    'transition': {'duration': 0},  # Immediate slider updates for reliable play-after-drag
         'tickcolor': 'rgba(0,0,0,0.4)',
         'bordercolor': 'rgba(0,0,0,0.4)',
         'borderwidth': 2,
