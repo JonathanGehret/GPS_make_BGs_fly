@@ -290,22 +290,19 @@ def create_memory_optimized_frames(vulture_data: Dict,
 def create_reliable_animation_controls(frame_duration: int = 500,
                                      include_speed_controls: bool = True) -> Dict[str, Any]:
     """
-    Factory function to create reliable animation controls with centered layout
+    Factory function to create reliable animation controls
     
     Args:
         frame_duration: Default frame duration in milliseconds
         include_speed_controls: Whether to include speed control buttons
         
     Returns:
-        Dictionary containing updatemenus configuration and layout settings
+        Dictionary containing updatemenus configuration
     """
     manager = AnimationStateManager(frame_duration)
     return {
         "updatemenus": manager.create_enhanced_updatemenus(
             include_speed_controls=include_speed_controls,
             frame_duration=frame_duration
-        ),
-        # Center the plot area with balanced margins
-        "margin": dict(l=60, r=60, t=90, b=130),  # More space for controls
-        "autosize": True
+        )
     }

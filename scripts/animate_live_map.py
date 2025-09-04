@@ -347,8 +347,8 @@ class LiveMapAnimator:
                 height=700,
                 # Disable automatic layout adjustments
                 autosize=False,
-                # Fixed margins to ensure consistent layout
-                margin=dict(l=50, r=50, t=80, b=50),
+                # Centered margins with space for controls
+                margin=dict(l=60, r=60, t=90, b=130),
                 title=dict(
                     text="🦅 Bearded Vulture GPS Flight Paths - Live Map Visualization",
                     x=0.5,
