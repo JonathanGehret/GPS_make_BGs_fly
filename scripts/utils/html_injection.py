@@ -51,9 +51,9 @@ body {
 
 /* Updatemenu active glow (centralized) */
 .updatemenu-button.control-active {
-    /* Keep a soft glow for HTML-based controls */
-    box-shadow: 0 0 0 3px rgba(60, 140, 220, 0.12), 0 0 12px 3px rgba(60, 140, 220, 0.55);
-    border-color: rgba(60, 140, 220, 0.85) !important;
+    /* Stronger golden glow for visibility */
+    box-shadow: 0 0 0 4px rgba(255, 210, 90, 0.20), 0 0 28px 8px rgba(255, 200, 60, 0.90) !important;
+    border-color: rgba(255, 200, 60, 0.98) !important;
 }
 /* SVG-aware styling: Plotly often renders updatemenu buttons as SVG <g>/<rect>/<text> elements.
    box-shadow doesn't apply to SVG elements, so add stroke + drop-shadow to make the glow visible. */
@@ -61,19 +61,21 @@ body {
 .updatemenu-button.control-active .updatemenu-item-rect,
 .updatemenu-button.control-active .updatemenu-dropdown-button,
 .updatemenu-button.control-active .dropdown-button-rect {
-    stroke: rgba(60, 140, 220, 0.92);
-    stroke-width: 2px;
-    fill-opacity: 0.95;
-    filter: drop-shadow(0 0 8px rgba(60,140,220,0.45));
+    /* SVG-aware golden stroke + drop-shadow for visible glow */
+    stroke: rgba(255, 200, 60, 0.98);
+    stroke-width: 2.5px;
+    fill-opacity: 0.98;
+    filter: drop-shadow(0 0 14px rgba(255,200,60,0.95));
 }
 
 /* Precip-specific active style for SVG buttons */
 .updatemenu-button.precip-active rect,
 .updatemenu-button.precip-active .updatemenu-item-rect,
 .updatemenu-button.precip-active .updatemenu-dropdown-button {
-    stroke: rgba(30, 100, 200, 0.95);
-    stroke-width: 2px;
-    filter: drop-shadow(0 0 8px rgba(30,100,200,0.6));
+    /* Make Precip button match the golden highlight for extra visibility */
+    stroke: rgba(255, 185, 55, 0.98);
+    stroke-width: 2.5px;
+    filter: drop-shadow(0 0 14px rgba(255,185,55,0.9));
 }
 
 /* Fullscreen mode styles */
@@ -100,15 +102,34 @@ document.addEventListener('DOMContentLoaded', function() {
     (function(){
         if (window.__CONTROL) return; // already injected
         window.__CONTROL = {
+            // Robust label matching: normalize emoji/variation selectors and read SVG <text> children
             setControlActive: function(label, on) {
                 try {
+                    function normalize(s) {
+                        if (!s) return '';
+                        // strip variation selectors (U+FE0E/U+FE0F) and collapse whitespace
+                        return s.replace(/\uFE0E|\uFE0F/g, '').replace(/\s+/g, ' ').trim();
+                    }
+                    function getLabelFromButton(b) {
+                        // Prefer explicit textContent, then search for SVG text nodes
+                        let txt = (b.textContent || '') + '';
+                        if (!txt || txt.trim().length === 0) {
+                            const t = b.querySelector && (b.querySelector('text') || b.querySelector('tspan'));
+                            if (t) txt = t.textContent || '';
+                        }
+                        return normalize(txt);
+                    }
+                    const want = normalize(label);
                     const btns = document.querySelectorAll('.updatemenu-button');
                     btns.forEach(b => {
-                        if (b.textContent && b.textContent.includes(label)) {
-                            if (on) b.classList.add('control-active'); else b.classList.remove('control-active');
-                        }
+                        try {
+                            const txt = getLabelFromButton(b);
+                            if (txt && txt.indexOf(want) !== -1) {
+                                if (on) b.classList.add('control-active'); else b.classList.remove('control-active');
+                            }
+                        } catch(_){}
                     });
-                } catch(_){}
+                } catch(_){ }
             },
             findMapAndStoreOriginal: function() {
                 try {
@@ -133,29 +154,38 @@ document.addEventListener('DOMContentLoaded', function() {
             },
             bindControlInterceptors: function() {
                 try {
+                    function normalize(s) { return (s||'').replace(/\uFE0E|\uFE0F/g,'').replace(/\s+/g,' ').trim(); }
+                    function getLabelFromButton(b) {
+                        let txt = (b.textContent || '') + '';
+                        if (!txt || txt.trim().length === 0) {
+                            const t = b.querySelector && (b.querySelector('text') || b.querySelector('tspan'));
+                            if (t) txt = t.textContent || '';
+                        }
+                        return normalize(txt);
+                    }
                     const btns = document.querySelectorAll('.updatemenu-button');
-                            btns.forEach(b => {
-                                // don't capture textContent at bind-time (Plotly may render later) — read on click
-                                b.addEventListener('click', function(e) {
-                                    try {
-                                        const textNow = (b.textContent || '').trim();
-                                        if (textNow.includes('▶️ Play')) {
-                                            window.__CONTROL.setControlActive('▶️ Play', true);
-                                            window.__CONTROL.setControlActive('⏸️ Pause', false);
-                                        } else if (textNow.includes('⏸️ Pause')) {
-                                            window.__CONTROL.setControlActive('⏸️ Pause', true);
-                                            window.__CONTROL.setControlActive('▶️ Play', false);
-                                        } else if (textNow.includes('⛶ Fullscreen')) {
-                                            const willBe = !document.fullscreenElement;
-                                            window.__CONTROL.setControlActive('⛶ Fullscreen', willBe);
-                                        } else if (textNow.includes('🎯 Recenter')) {
-                                            window.__CONTROL.setControlActive('🎯 Recenter', true);
-                                            setTimeout(()=>{ window.__CONTROL.checkRecenterState(); }, 250);
-                                        }
-                                    } catch(_){ }
-                                }, true);
-                            });
-                } catch(_){}
+                    btns.forEach(b => {
+                        // don't capture textContent at bind-time (Plotly may render later) — read on click
+                        b.addEventListener('click', function(e) {
+                            try {
+                                const textNow = getLabelFromButton(b);
+                                if (textNow.indexOf(normalize('▶️ Play')) !== -1) {
+                                    window.__CONTROL.setControlActive('▶️ Play', true);
+                                    window.__CONTROL.setControlActive('⏸️ Pause', false);
+                                } else if (textNow.indexOf(normalize('⏸️ Pause')) !== -1) {
+                                    window.__CONTROL.setControlActive('⏸️ Pause', true);
+                                    window.__CONTROL.setControlActive('▶️ Play', false);
+                                } else if (textNow.indexOf(normalize('⛶ Fullscreen')) !== -1) {
+                                    const willBe = !document.fullscreenElement;
+                                    window.__CONTROL.setControlActive('⛶ Fullscreen', willBe);
+                                } else if (textNow.indexOf(normalize('🎯 Recenter')) !== -1) {
+                                    window.__CONTROL.setControlActive('🎯 Recenter', true);
+                                    setTimeout(()=>{ window.__CONTROL.checkRecenterState(); }, 250);
+                                }
+                            } catch(_){ }
+                        }, true);
+                    });
+                } catch(_){ }
             }
         };
 
@@ -188,26 +218,10 @@ document.addEventListener('DOMContentLoaded', function() {
         });
         ctrlObserver.observe(document.body, {childList:true, subtree:true});
 
-        // Initial bind
-        window.__CONTROL.bindControlInterceptors();
-        window.__CONTROL.findMapAndStoreOriginal();
-        window.__CONTROL.checkRecenterState();
-        // Small debug mark to visually confirm which buttons we bound (temporary)
-        try {
-            const dbg = function() {
-                const btns = document.querySelectorAll('.updatemenu-button');
-                btns.forEach(b => {
-                    const txt = (b.textContent || '').trim();
-                    if (txt) {
-                        try { console.debug('CONTROL BOUND:', txt); } catch(_) {}
-                        b.classList.add('control-bound');
-                        // Remove highlight after 2s
-                        setTimeout(() => { try { b.classList.remove('control-bound'); } catch(_){} }, 2000);
-                    }
-                });
-            };
-            setTimeout(dbg, 250);
-        } catch(_){}
+    // Initial bind
+    window.__CONTROL.bindControlInterceptors();
+    window.__CONTROL.findMapAndStoreOriginal();
+    window.__CONTROL.checkRecenterState();
     })();
     // Find all buttons and add fullscreen functionality
     function addFullscreenHandler() {

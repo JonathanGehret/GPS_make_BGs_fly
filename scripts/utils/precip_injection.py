@@ -194,7 +194,15 @@ document.addEventListener('DOMContentLoaded', function() {
   // Initial bind and observer for dynamic UI
   bindPrecipToggle();
   bindFrameAndRelayout();
-  bindControlInterceptors();
+  // Prefer the centralized control binder when available (injected by html_injection).
+  try {
+    if (window.__CONTROL && window.__CONTROL.bindControlInterceptors) {
+      window.__CONTROL.bindControlInterceptors();
+    } else if (typeof bindControlInterceptors === 'function') {
+      // defensive: call local binder only if present
+      bindControlInterceptors();
+    }
+  } catch (_){ }
   // Show initial frame (use current quantized time if available, else first hour)
   try {
     const c = ensureCanvas(); if (c) c.style.display = 'block';
@@ -203,10 +211,20 @@ document.addEventListener('DOMContentLoaded', function() {
     drawHeatmapForTime(nowQ);
     updatePrecipButtonState();
     // Also update other control visual states
-    setControlActive('⏸️ Pause', false);
-    setControlActive('▶️ Play', false);
-    setControlActive('⛶ Fullscreen', !!document.fullscreenElement);
-    checkRecenterState();
+    // Update control visuals using centralized API when available, else fallback to local toggles
+    try {
+      if (window.__CONTROL && window.__CONTROL.setControlActive) {
+        window.__CONTROL.setControlActive('⏸️ Pause', false);
+        window.__CONTROL.setControlActive('▶️ Play', false);
+        window.__CONTROL.setControlActive('⛶ Fullscreen', !!document.fullscreenElement);
+        if (window.__CONTROL.checkRecenterState) window.__CONTROL.checkRecenterState();
+      } else {
+        localSetControlActive('⏸️ Pause', false);
+        localSetControlActive('▶️ Play', false);
+        localSetControlActive('⛶ Fullscreen', !!document.fullscreenElement);
+        // no centralized recenter checker available here
+      }
+    } catch (_){ }
     if (!window._precipEnabled) {
       const keys = Object.keys((window.__PRECIP && window.__PRECIP.hours) || {});
       if (keys && keys.length) { drawHeatmapForTime(new Date(keys[0])); }
