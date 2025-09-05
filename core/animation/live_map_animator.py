@@ -17,20 +17,20 @@ from utils.animation_builders import (
     apply_controls_and_slider,
     attach_frames,
 )
-from core.trail_system import TrailSystem
-from gps_utils import (
+from core.data.trail_system import TrailSystem
+from core.gps_utils import (
     get_numbered_output_path,
     ensure_output_directories,
     logger,
     DataLoader,
     VisualizationHelper,
 )
-from export.video_export import export_animation_video
-from export.browser_video_export import export_animation_video_browser
+from core.export.video_export import export_animation_video
+from core.export.browser_video_export import export_animation_video_browser
 from utils.lod import LODConfig, apply_lod
 from utils.offline_tiles import ensure_offline_style_for_bounds
-from precip.precip_providers import BBox
-from precip.precip_overlay import build_precip_dataset
+from utils.precip_providers import BBox
+from utils.precip_overlay import build_precip_dataset
 from utils.precip_injection import inject_precip_overlay
 
 

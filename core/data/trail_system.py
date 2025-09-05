@@ -9,7 +9,7 @@ import pandas as pd
 import plotly.graph_objects as go
 from typing import Optional, Dict, List
 from utils.user_interface import UserInterface
-from gps_utils import format_height_display
+from core.gps_utils import format_height_display
 
 
 class TrailSystem:
