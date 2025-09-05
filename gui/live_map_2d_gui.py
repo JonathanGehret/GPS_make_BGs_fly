@@ -319,6 +319,16 @@ class ScrollableGUI:
                     # tolerate any detection failures and fall back to basic parsing
                     pass
 
+                # Cross-field validation: if end is present, ensure start <= end
+                try:
+                    other_s = self.end_time_var.get()
+                    other_dt = self._parse_time_str(other_s) if other_s and other_s.strip() else None
+                    if other_dt is not None and dt is not None and dt > other_dt:
+                        self.start_error_label.config(text='After end')
+                        return False
+                except Exception:
+                    pass
+
                 self.start_error_label.config(text='')
                 return True
 
@@ -346,6 +356,16 @@ class ScrollableGUI:
                         if data_start and dt < data_start:
                             self.end_error_label.config(text='Before data start')
                             return False
+                except Exception:
+                    pass
+
+                # Cross-field validation: if start is present, ensure start <= end
+                try:
+                    other_s = self.start_time_var.get()
+                    other_dt = self._parse_time_str(other_s) if other_s and other_s.strip() else None
+                    if other_dt is not None and dt is not None and dt < other_dt:
+                        self.end_error_label.config(text='Before start')
+                        return False
                 except Exception:
                     pass
 
