@@ -331,12 +331,6 @@ class ProximityUIBuilder:
         
         ttk.Button(
             anim_actions_frame,
-            text="View Timeline",
-            command=self.event_handler.view_timeline
-        ).pack(fill='x', pady=2)
-
-        ttk.Button(
-            anim_actions_frame,
             text="Generate Map (Time Range)",
             command=self.event_handler.generate_map_for_timeframe
         ).pack(fill='x', pady=2)
