@@ -559,16 +559,37 @@ class ScrollableGUI:
                     self.point_count_label.config(text="Cannot parse timestamp format in CSV file")
                     return
                 
+                # Get original number of points in the file
+                original_points = len(df)
+                
                 total_duration = (df[timestamp_col].max() - df[timestamp_col].min()).total_seconds()
                 
                 # Calculate expected number of points
                 if total_duration > 0:
                     estimated_points = int(total_duration / time_step_seconds) + 1
                     total_files = len(csv_files)
-                    self.point_count_label.config(
-                        text=f"≈ {estimated_points:,} points per file ({total_files} files) with {time_step_str} steps",
-                        foreground="darkgreen"
-                    )
+                    
+                    # Calculate percentage reduction
+                    if original_points > 0:
+                        reduction_percent = ((original_points - estimated_points) / original_points) * 100
+                        
+                        if reduction_percent > 0:
+                            self.point_count_label.config(
+                                text=f"≈ {estimated_points:,} points per file (was {original_points:,}, {reduction_percent:.1f}% reduction) • {total_files} files • {time_step_str} steps",
+                                foreground="darkgreen"
+                            )
+                        else:
+                            # If estimated points >= original points (very fine time step)
+                            increase_percent = ((estimated_points - original_points) / original_points) * 100
+                            self.point_count_label.config(
+                                text=f"≈ {estimated_points:,} points per file (was {original_points:,}, {increase_percent:.1f}% increase) • {total_files} files • {time_step_str} steps",
+                                foreground="darkorange"
+                            )
+                    else:
+                        self.point_count_label.config(
+                            text=f"≈ {estimated_points:,} points per file ({total_files} files) with {time_step_str} steps",
+                            foreground="darkgreen"
+                        )
                 else:
                     self.point_count_label.config(text="Cannot calculate: insufficient time data")
                     
