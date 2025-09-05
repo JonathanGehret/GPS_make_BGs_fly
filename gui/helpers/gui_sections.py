@@ -52,7 +52,7 @@ class GUISections:
         folder_frame.pack(fill="x", pady=(0, 10))
         
         # Initialize folder variables
-        data_folder = tk.StringVar(value=os.path.join(os.getcwd(), "data"))
+        data_folder = tk.StringVar(value=os.path.join(os.getcwd(), "assets", "data"))
         output_folder = tk.StringVar(value=os.path.join(os.getcwd(), "visualizations"))
         
         # Browse methods
