@@ -451,6 +451,135 @@ class LiveMap2DGUI:
         y = (self.root.winfo_screenheight() // 2) - (height // 2)
         self.root.geometry(f"{width}x{height}+{x}+{y}")
     
+    def show_success_dialog(self, output_folder, html_file_path=None):
+        """Show a custom success dialog with buttons to open output folder and HTML file"""
+        # Create custom dialog window
+        dialog = tk.Toplevel(self.root)
+        if self.language == "de":
+            dialog.title("Erfolg")
+            message = "2D Live Karte erfolgreich erstellt!"
+            folder_text = f"Ausgabeordner: {output_folder}"
+            open_folder_btn_text = "📁 Ordner öffnen"
+            open_html_btn_text = "🌐 HTML öffnen"
+            close_btn_text = "Schließen"
+        else:
+            dialog.title("Success")
+            message = "2D Live Map created successfully!"
+            folder_text = f"Output folder: {output_folder}"
+            open_folder_btn_text = "📁 Open Folder"
+            open_html_btn_text = "🌐 Open HTML"
+            close_btn_text = "Close"
+        
+        dialog.geometry("550x250")
+        dialog.resizable(False, False)
+        dialog.transient(self.root)
+        dialog.grab_set()
+        
+        # Center the dialog
+        dialog.update_idletasks()
+        x = (dialog.winfo_screenwidth() // 2) - (dialog.winfo_width() // 2)
+        y = (dialog.winfo_screenheight() // 2) - (dialog.winfo_height() // 2)
+        dialog.geometry(f"+{x}+{y}")
+        
+        # Main frame
+        main_frame = ttk.Frame(dialog, padding="20")
+        main_frame.pack(fill=tk.BOTH, expand=True)
+        
+        # Success icon and message
+        icon_label = ttk.Label(main_frame, text="✅", font=("Arial", 24))
+        icon_label.pack(pady=(0, 10))
+        
+        message_label = ttk.Label(main_frame, text=message, font=("Arial", 12, "bold"))
+        message_label.pack(pady=(0, 5))
+        
+        folder_label = ttk.Label(main_frame, text=folder_text, font=("Arial", 9))
+        folder_label.pack(pady=(0, 10))
+        
+        # Show HTML file path if available
+        if html_file_path:
+            html_filename = os.path.basename(html_file_path) if html_file_path else "Unknown"
+            if self.language == "de":
+                html_text = f"HTML-Datei: {html_filename}"
+            else:
+                html_text = f"HTML file: {html_filename}"
+            html_label = ttk.Label(main_frame, text=html_text, font=("Arial", 9), foreground="blue")
+            html_label.pack(pady=(0, 20))
+        else:
+            ttk.Label(main_frame, text="", font=("Arial", 2)).pack(pady=(0, 10))  # Spacer
+        
+        # Buttons frame
+        buttons_frame = ttk.Frame(main_frame)
+        buttons_frame.pack(pady=(10, 0))
+        
+        # Function to close dialog only (keep main window open)
+        def close_dialog_only():
+            dialog.destroy()
+        
+        # Open folder button
+        open_folder_btn = ttk.Button(
+            buttons_frame, 
+            text=open_folder_btn_text,
+            command=lambda: self.open_output_folder(output_folder)
+        )
+        open_folder_btn.pack(side=tk.LEFT, padx=(0, 10))
+        
+        # Open HTML button (only if HTML file path is available)
+        if html_file_path:
+            open_html_btn = ttk.Button(
+                buttons_frame, 
+                text=open_html_btn_text,
+                command=lambda: self.open_html_file(html_file_path)
+            )
+            open_html_btn.pack(side=tk.LEFT, padx=(0, 10))
+        
+        # Close button - this will only close the dialog, keeping main window open
+        close_btn = ttk.Button(buttons_frame, text=close_btn_text, command=close_dialog_only)
+        close_btn.pack(side=tk.LEFT)
+        
+        # Set focus to close button
+        close_btn.focus_set()
+        
+        # Bind Enter key and window close to close only the dialog
+        dialog.bind('<Return>', lambda e: close_dialog_only())
+        dialog.bind('<Escape>', lambda e: close_dialog_only())
+        dialog.protocol("WM_DELETE_WINDOW", close_dialog_only)
+    
+    def open_html_file(self, html_file_path):
+        """Open the generated HTML file directly in the default browser"""
+        try:
+            if html_file_path and os.path.exists(html_file_path):
+                import webbrowser
+                webbrowser.open(f"file://{os.path.abspath(html_file_path)}")
+                print(f"🌐 Opened HTML file: {html_file_path}")
+            else:
+                if self.language == "de":
+                    messagebox.showerror("Fehler", f"HTML-Datei nicht gefunden: {html_file_path}")
+                else:
+                    messagebox.showerror("Error", f"HTML file not found: {html_file_path}")
+        except Exception as e:
+            if self.language == "de":
+                messagebox.showerror("Fehler", f"Fehler beim Öffnen der HTML-Datei: {e}")
+            else:
+                messagebox.showerror("Error", f"Failed to open HTML file: {e}")
+    
+    def open_output_folder(self, folder_path):
+        """Open the output folder in the system file manager"""
+        try:
+            if os.path.exists(folder_path):
+                import webbrowser
+                webbrowser.open(f"file://{os.path.abspath(folder_path)}")
+                print(f"📁 Opened output folder: {folder_path}")
+            else:
+                if self.language == "de":
+                    messagebox.showerror("Fehler", f"Ordner nicht gefunden: {folder_path}")
+                else:
+                    messagebox.showerror("Error", f"Folder not found: {folder_path}")
+        except Exception as e:
+            if self.language == "de":
+                messagebox.showerror("Fehler", f"Fehler beim Öffnen des Ordners: {e}")
+            else:
+                messagebox.showerror("Error", f"Failed to open folder: {e}")
+    
     def launch_map(self):
         """Launch the 2D live map with configuration"""
         if not os.path.exists(self.data_folder.get()):
@@ -498,41 +627,65 @@ class LiveMap2DGUI:
             env['PLAYBACK_SPEED'] = str(config.get('playback_speed', 1.0))
             env['PERFORMANCE_MODE'] = '1' if self.performance_mode.get() else '0'
             
-            # Check if we're running in a PyInstaller bundle
-            if getattr(sys, '_MEIPASS', False):
-                # In bundle mode, we need to find the Python interpreter
-                bundle_dir = sys._MEIPASS
-                
-                # Try to find python executable in the bundle
-                python_exe = None
-                possible_python_paths = [
-                    os.path.join(bundle_dir, 'python'),
-                    os.path.join(bundle_dir, 'python3'),
-                    'python3',  # System python
-                    'python'    # Fallback
-                ]
-                
-                for py_path in possible_python_paths:
-                    if os.path.exists(py_path) or py_path in ['python3', 'python']:
-                        python_exe = py_path
-                        break
-                
-                if python_exe:
-                    # Launch the script with the found Python interpreter
-                    subprocess.Popen([python_exe, script_path], env=env)
+            # Launch the animation script and wait for completion to get the HTML file path
+            try:
+                if getattr(sys, '_MEIPASS', False):
+                    # In bundle mode, we need to find the Python interpreter
+                    bundle_dir = sys._MEIPASS
+                    
+                    # Try to find python executable in the bundle
+                    python_exe = None
+                    possible_python_paths = [
+                        os.path.join(bundle_dir, 'python'),
+                        os.path.join(bundle_dir, 'python3'),
+                        'python3',  # System python
+                        'python'    # Fallback
+                    ]
+                    
+                    for py_path in possible_python_paths:
+                        if os.path.exists(py_path) or py_path in ['python3', 'python']:
+                            python_exe = py_path
+                            break
+                    
+                    if python_exe:
+                        # Launch the script with the found Python interpreter
+                        process = subprocess.run([python_exe, script_path], env=env, 
+                                               capture_output=True, text=True, timeout=300)
+                    else:
+                        # Fallback: try to run script directly (might work on some systems)
+                        process = subprocess.run([script_path], env=env, 
+                                               capture_output=True, text=True, timeout=300)
                 else:
-                    # Fallback: try to run script directly (might work on some systems)
-                    subprocess.Popen([script_path], env=env)
-            else:
-                # Development mode - use system Python
-                subprocess.Popen([sys.executable, script_path], env=env)
-            
-            if self.language == "de":
-                messagebox.showinfo("Erfolg", f"2D Live Karte gestartet!\nAusgabe: {self.output_folder.get()}")
-            else:
-                messagebox.showinfo("Success", f"2D Live Map launched!\nOutput: {self.output_folder.get()}")
-            
-            self.root.destroy()
+                    # Development mode - use system Python
+                    process = subprocess.run([sys.executable, script_path], env=env, 
+                                           capture_output=True, text=True, timeout=300)
+                
+                # Parse the output to find the generated HTML file path
+                html_file_path = None
+                if process.stdout:
+                    for line in process.stdout.split('\n'):
+                        if 'Saved:' in line and '.html' in line:
+                            # Extract the path after "Saved: "
+                            html_file_path = line.split('Saved: ')[-1].strip()
+                            break
+                
+                if self.language == "de":
+                    self.show_success_dialog(self.output_folder.get(), html_file_path)
+                else:
+                    self.show_success_dialog(self.output_folder.get(), html_file_path)
+                
+                # Note: The main window will stay open when the success dialog is closed
+                
+            except subprocess.TimeoutExpired:
+                if self.language == "de":
+                    messagebox.showerror("Fehler", "Zeitüberschreitung beim Erstellen der Animation (5 Minuten)")
+                else:
+                    messagebox.showerror("Error", "Timeout while creating animation (5 minutes)")
+            except Exception as launch_error:
+                if self.language == "de":
+                    messagebox.showerror("Fehler", f"Fehler beim Erstellen der Animation: {launch_error}")
+                else:
+                    messagebox.showerror("Error", f"Error creating animation: {launch_error}")
             
         except Exception as e:
             if self.language == "de":
