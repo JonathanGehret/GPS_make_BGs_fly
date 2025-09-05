@@ -63,10 +63,9 @@ class ProximityUIBuilder:
         # Create notebook for tabs
         self.config.notebook = ttk.Notebook(self.config.root)
         self.config.notebook.pack(fill='both', expand=True, padx=10, pady=5)
-        
+
         # Create tabs
-        self._create_data_tab()
-        self._create_analysis_tab()
+        self._create_data_analysis_tab()
         self._create_animation_tab()
         self._create_results_tab()
         self._create_log_tab()
@@ -127,72 +126,66 @@ class ProximityUIBuilder:
         )
         self.config.progress_bar.pack(side='right', padx=(10, 5), fill='x', expand=True)
     
-    def _create_data_tab(self):
-        """Create the data configuration tab"""
-        data_frame = ttk.Frame(self.config.notebook)
-        self.config.notebook.add(data_frame, text="Data")
-        
+    def _create_data_analysis_tab(self):
+        """Create a combined Data & Analysis configuration tab"""
+        tab_frame = ttk.Frame(self.config.notebook)
+        self.config.notebook.add(tab_frame, text="Data & Analysis")
+
+        # Layout: Left = Data, Right = Analysis
+        tab_frame.columnconfigure(0, weight=1)
+        tab_frame.columnconfigure(1, weight=1)
+
+        # Left: Data section
+        data_frame = ttk.Frame(tab_frame)
+        data_frame.grid(row=0, column=0, sticky='nsew', padx=(10, 5), pady=5)
+
         # Data folder selection
         folder_frame = ttk.LabelFrame(data_frame, text="Data Folder", padding=10)
-        folder_frame.pack(fill='x', padx=10, pady=5)
-        
+        folder_frame.pack(fill='x')
+
         folder_path_frame = ttk.Frame(folder_frame)
         folder_path_frame.pack(fill='x')
-        
+
         ttk.Entry(
             folder_path_frame,
             textvariable=self.config.data_folder,
             state='readonly'
         ).pack(side='left', fill='x', expand=True)
-        
+
         ttk.Button(
             folder_path_frame,
             text="Browse",
             command=self.event_handler.browse_folder
         ).pack(side='right', padx=(5, 0))
-        
+
         # Data preview
         preview_frame = ttk.LabelFrame(data_frame, text="Data Preview", padding=10)
-        preview_frame.pack(fill='both', expand=True, padx=10, pady=5)
-        
-        # Preview table
+        preview_frame.pack(fill='both', expand=True, pady=(5, 0))
+
         columns = ('File', 'Vulture ID', 'Records')
-        self.config.data_preview = ttk.Treeview(preview_frame, columns=columns, show='headings', height=10)
-        
+        self.config.data_preview = ttk.Treeview(preview_frame, columns=columns, show='headings', height=14)
         for col in columns:
             self.config.data_preview.heading(col, text=col)
             self.config.data_preview.column(col, width=150)
-        
-        # Scrollbar for preview
         preview_scroll = ttk.Scrollbar(preview_frame, orient='vertical', command=self.config.data_preview.yview)
         self.config.data_preview.configure(yscrollcommand=preview_scroll.set)
-        
         self.config.data_preview.pack(side='left', fill='both', expand=True)
         preview_scroll.pack(side='right', fill='y')
-        
+
         # Refresh button
-        ttk.Button(
-            preview_frame,
-            text="Refresh",
-            command=self.event_handler.refresh_data_preview
-        ).pack(pady=(10, 0))
-        
-        # Initial data refresh
-        self.event_handler.refresh_data_preview()
-    
-    def _create_analysis_tab(self):
-        """Create the analysis configuration tab"""
-        analysis_frame = ttk.Frame(self.config.notebook)
-        self.config.notebook.add(analysis_frame, text="Analysis")
-        
+        ttk.Button(preview_frame, text="Refresh", command=self.event_handler.refresh_data_preview).pack(pady=(10, 0))
+
+        # Right: Analysis section
+        analysis_frame = ttk.Frame(tab_frame)
+        analysis_frame.grid(row=0, column=1, sticky='nsew', padx=(5, 10), pady=5)
+
         # Analysis parameters
         params_frame = ttk.LabelFrame(analysis_frame, text="Analysis Parameters", padding=10)
-        params_frame.pack(fill='x', padx=10, pady=5)
-        
+        params_frame.pack(fill='x')
+
         # Proximity threshold
         proximity_frame = ttk.Frame(params_frame)
         proximity_frame.pack(fill='x', pady=2)
-
         ttk.Label(proximity_frame, text="Proximity Threshold (kilometers):").pack(side='left')
         proximity_scale = ttk.Scale(
             proximity_frame,
@@ -203,14 +196,12 @@ class ProximityUIBuilder:
             command=self._update_proximity_label
         )
         proximity_scale.pack(side='left', fill='x', expand=True, padx=(10, 5))
-
         self.proximity_label = ttk.Label(proximity_frame, text=f"{self.config.proximity_threshold.get():.1f} km")
         self.proximity_label.pack(side='right')
-        
+
         # Time threshold
         time_frame = ttk.Frame(params_frame)
         time_frame.pack(fill='x', pady=2)
-        
         ttk.Label(time_frame, text="Time Threshold (minutes):").pack(side='left')
         time_scale = ttk.Scale(
             time_frame,
@@ -221,29 +212,22 @@ class ProximityUIBuilder:
             command=self._update_time_label
         )
         time_scale.pack(side='left', fill='x', expand=True, padx=(10, 5))
-        
         self.time_label = ttk.Label(time_frame, text=f"{self.config.time_threshold.get()}min")
         self.time_label.pack(side='right')
-        
+
         # Output folder selection
         output_frame = ttk.LabelFrame(analysis_frame, text="Output Folder", padding=10)
-        output_frame.pack(fill='x', padx=10, pady=5)
-        
+        output_frame.pack(fill='x', pady=(10, 0))
         output_path_frame = ttk.Frame(output_frame)
         output_path_frame.pack(fill='x')
-        
-        ttk.Entry(
-            output_path_frame,
-            textvariable=self.config.output_folder,
-            state='readonly'
-        ).pack(side='left', fill='x', expand=True)
-        
-        self.config.browse_output_button = ttk.Button(
-            output_path_frame,
-            text="Browse",
-            command=self.event_handler.browse_output_folder
-        )
+        ttk.Entry(output_path_frame, textvariable=self.config.output_folder, state='readonly').pack(side='left', fill='x', expand=True)
+        self.config.browse_output_button = ttk.Button(output_path_frame, text="Browse", command=self.event_handler.browse_output_folder)
         self.config.browse_output_button.pack(side='right', padx=(5, 0))
+
+        # Initial data refresh
+        self.event_handler.refresh_data_preview()
+    
+    # Removed separate _create_analysis_tab in favor of combined tab
     
     def _create_animation_tab(self):
         """Create the animation configuration tab"""
