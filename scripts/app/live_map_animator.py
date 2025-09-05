@@ -1,0 +1,472 @@
+from __future__ import annotations
+
+import os
+from pathlib import Path
+from typing import Optional, List
+
+import pandas as pd
+import plotly.express as px
+
+from utils.user_interface import UserInterface
+from utils.performance_optimizer import PerformanceOptimizer
+from utils.html_injection import inject_fullscreen
+from utils.animation_builders import (
+    build_color_map,
+    create_base_figure,
+    apply_standard_layout,
+    apply_controls_and_slider,
+    attach_frames,
+)
+from core.trail_system import TrailSystem
+from gps_utils import (
+    get_numbered_output_path,
+    ensure_output_directories,
+    logger,
+    DataLoader,
+    VisualizationHelper,
+)
+from export.video_export import export_animation_video
+from export.browser_video_export import export_animation_video_browser
+from utils.lod import LODConfig, apply_lod
+from utils.offline_tiles import ensure_offline_style_for_bounds
+from precip.precip_providers import BBox
+from precip.precip_overlay import build_precip_dataset
+from utils.precip_injection import inject_precip_overlay
+
+
+class LiveMapAnimator:
+    """Orchestrates the live map animation workflow."""
+
+    def __init__(self):
+        self.ui = UserInterface()
+
+        # Use custom data directory from GUI if available
+        custom_data_dir = os.environ.get('GPS_DATA_DIR')
+        if custom_data_dir and os.path.exists(custom_data_dir):
+            self.data_loader = DataLoader(custom_data_dir)
+            self.ui.print_success(f"Using GUI data directory: {custom_data_dir}")
+        else:
+            self.data_loader = DataLoader()
+
+        self.optimizer = PerformanceOptimizer()
+        self.viz_helper = VisualizationHelper()
+        self.trail_system = TrailSystem(self.ui)
+
+        # Configuration
+        self.selected_time_step: Optional[int] = None
+        self.dataframes: List[pd.DataFrame] = []
+        self.combined_data: Optional[pd.DataFrame] = None
+        self.base_animation_speed = 800  # ms per frame at 1x speed for 2D maps
+        self.playback_speed = 1.0
+        self.performance_mode = os.environ.get('PERFORMANCE_MODE', '0') == '1'
+        self.export_mp4 = os.environ.get('EXPORT_MP4', '0') == '1'
+        self.export_mp4_browser = os.environ.get('EXPORT_MP4_BROWSER', '0') == '1'
+        self.offline_map = os.environ.get('OFFLINE_MAP', '0') == '1'
+        self.offline_map_download = os.environ.get('OFFLINE_MAP_DOWNLOAD', '1') == '1'
+        self.tiles_dir = (
+            os.path.join(os.path.dirname(os.path.dirname(__file__)), 'tiles_cache')
+            if os.environ.get('TILES_DIR') is None
+            else os.environ.get('TILES_DIR')
+        )
+        self.tile_server_url = os.environ.get('TILE_SERVER_URL', 'https://tile.openstreetmap.org/{z}/{x}/{y}.png')
+
+        # Read playback speed from environment if available (from GUI)
+        playback_speed_env = os.environ.get('PLAYBACK_SPEED')
+        if playback_speed_env:
+            try:
+                self.playback_speed = float(playback_speed_env)
+                self.playback_speed = max(0.1, min(10.0, self.playback_speed))
+                print(f"🎬 Using GUI playback speed: {self.playback_speed:.1f}x")
+            except Exception:
+                print(f"⚠️ Invalid playback speed from GUI: {playback_speed_env}, using default 1.0x")
+
+    def set_playback_speed(self, speed_multiplier: float) -> None:
+        self.playback_speed = max(0.1, min(10.0, speed_multiplier))
+        print(f"🎬 2D Animation playback speed set to {self.playback_speed:.1f}x")
+
+    def get_frame_duration(self) -> int:
+        return max(50, int(self.base_animation_speed / self.playback_speed))
+
+    def _parse_time_step_from_gui(self, time_step_str: str) -> int:
+        s = time_step_str.lower().strip()
+        if s.endswith('seconds') or s.endswith('second'):
+            return int(s.split()[0])
+        elif s.endswith('minutes') or s.endswith('minute'):
+            return int(s.split()[0]) * 60
+        elif s.endswith('hours') or s.endswith('hour'):
+            return int(s.split()[0]) * 3600
+        elif s.endswith('s'):
+            return int(s[:-1])
+        elif s.endswith('m'):
+            return int(s[:-1]) * 60
+        elif s.endswith('h'):
+            return int(s[:-1]) * 3600
+        else:
+            return int(s)
+
+    def run(self) -> bool:
+        try:
+            self.ui.print_header("🦅 BEARDED VULTURE GPS VISUALIZATION", 80)
+            print("Live Map Animation with Performance Optimization")
+            print()
+            if self.performance_mode:
+                self.ui.print_success("Performance mode: ON (line+head + adaptive LOD)")
+            else:
+                self.ui.print_info("Performance mode: OFF (fading markers)")
+            if self.export_mp4 or self.export_mp4_browser:
+                mode = "Browser" if self.export_mp4_browser else "Offline"
+                self.ui.print_info(f"Video export enabled ({mode}): MP4 will be created")
+
+            # Data analysis
+            if not self.analyze_data():
+                return False
+            if not self.configure_performance():
+                return False
+            if not self.configure_trail_system():
+                return False
+            if not self.process_data():
+                return False
+            if not self.create_visualization():
+                return False
+
+            self.show_completion_summary()
+            return True
+        except KeyboardInterrupt:
+            self.ui.print_info("\nOperation cancelled by user")
+            return False
+        except Exception as e:
+            self.ui.print_error(f"Unexpected error: {e}")
+            logger.exception("Unexpected error in main workflow")
+            return False
+
+    def analyze_data(self) -> bool:
+        self.ui.print_section("📊 DATA ANALYSIS")
+        try:
+            csv_files = self.data_loader.find_csv_files()
+            if not csv_files:
+                self.ui.print_error("No CSV files found in data directory!")
+                self.ui.print_info("Please add GPS data files to the 'data/' folder")
+                return False
+            total_points = 0
+            print(f"Found {len(csv_files)} GPS data file(s):")
+            for i, csv_file in enumerate(csv_files, 1):
+                try:
+                    df = self.data_loader.load_single_csv(csv_file)
+                    if df is not None:
+                        points = len(df)
+                        total_points += points
+                        print(f"    {i}. {Path(csv_file).name:<25} ({points:4d} GPS points)")
+                        self.dataframes.append(df)
+                except Exception as e:
+                    self.ui.print_warning(f"Could not analyze {Path(csv_file).name}: {e}")
+            if not self.dataframes:
+                self.ui.print_error("No valid GPS data found!")
+                return False
+            print(f"\n📈 Total GPS points available: {total_points}")
+            return True
+        except Exception as e:
+            self.ui.print_error(f"Failed to analyze data: {e}")
+            return False
+
+    def configure_performance(self) -> bool:
+        time_step_env = os.environ.get('TIME_STEP')
+        if time_step_env:
+            try:
+                self.selected_time_step = self._parse_time_step_from_gui(time_step_env)
+                self.ui.print_success(f"Using GUI time step: {time_step_env} ({self.selected_time_step}s)")
+                return True
+            except Exception:
+                self.ui.print_warning(f"Invalid time step from GUI: {time_step_env}, falling back to manual selection")
+        self.ui.print_info("Using default 1 minute time step for testing")
+        self.selected_time_step = 60
+        return True
+
+    def configure_trail_system(self) -> bool:
+        try:
+            trail_length = self.trail_system.select_trail_length()
+            if trail_length is False:
+                return False
+            self.trail_system.trail_length_minutes = trail_length
+            return True
+        except Exception as e:
+            self.ui.print_error(f"Failed to configure trail system: {e}")
+            return False
+
+    def process_data(self) -> bool:
+        self.ui.print_section("🔄 DATA PROCESSING")
+        print(f"Applying {self.selected_time_step/60:.1f} minute time step filter...")
+        print()
+        try:
+            processed: List[pd.DataFrame] = []
+            for i, df in enumerate(self.dataframes):
+                filename = df['source_file'].iloc[0] if 'source_file' in df.columns else f"File {i+1}"
+                print(f"   📁 Processing {filename}...")
+                original_count = len(df)
+                filtered_df = self.optimizer.filter_by_time_step(df, self.selected_time_step)
+                filtered_count = len(filtered_df)
+                if filtered_count == 0:
+                    self.ui.print_warning(f"No data points remain after filtering {filename}")
+                    continue
+                reduction = ((original_count - filtered_count) / original_count * 100) if original_count > 0 else 0
+                print(f"   ✅ Filtered: {original_count} → {filtered_count} points ({reduction:.1f}% reduction)")
+                filtered_df = filtered_df.copy()
+                filtered_df['color'] = px.colors.qualitative.Set1[i % len(px.colors.qualitative.Set1)]
+                processed.append(filtered_df)
+            if not processed:
+                self.ui.print_error("No data remained after processing!")
+                return False
+            self.combined_data = pd.concat(processed, ignore_index=True)
+            total_points = len(self.combined_data)
+            rating = self.optimizer.get_performance_rating(total_points)
+            print(f"\n✅ Total processed data points: {total_points}")
+            print(f"⚡ Expected performance: {rating}")
+            return True
+        except Exception as e:
+            self.ui.print_error(f"Failed to process data: {e}")
+            return False
+
+    def create_visualization(self, base_name: str = 'live_map_animation') -> bool:
+        if self.combined_data is None or len(self.combined_data) == 0:
+            return False
+        self.ui.print_section("🎬 VISUALIZATION CREATION")
+        print("Creating interactive live map animation...")
+        try:
+            df = self.combined_data.copy()
+            df['timestamp_str'] = df['Timestamp [UTC]'].dt.strftime('%d.%m.%Y %H:%M:%S')
+            df['timestamp_display'] = df['Timestamp [UTC]'].dt.strftime('%d.%m %H:%M')
+            df = df.sort_values('Timestamp [UTC]')
+            vulture_ids = df['vulture_id'].unique()
+            color_map = build_color_map(vulture_ids)
+            map_cfg = self.viz_helper.calculate_map_bounds(df, padding_percent=0.1)
+            center_lat = map_cfg['center']['lat']
+            center_lon = map_cfg['center']['lon']
+            zoom_level = map_cfg['zoom']
+            lat_min, lat_max = df['Latitude'].min(), df['Latitude'].max()
+            lon_min, lon_max = df['Longitude'].min(), df['Longitude'].max()
+            strategy = "line_head" if self.performance_mode else "markers_fade"
+            fig = create_base_figure(vulture_ids, color_map, strategy=strategy)
+            unique_times = sorted(df['timestamp_str'].unique())
+            full_df_for_video = df.copy()
+            if self.performance_mode:
+                lod_cfg = LODConfig(
+                    max_points_per_track=20_000,
+                    target_points_per_min=600,
+                    rdp_epsilon_meters=5.0,
+                    use_rdp=True,
+                )
+                per_vulture = []
+                for vid in vulture_ids:
+                    seg = df[df['vulture_id'] == vid].copy()
+                    if len(seg) > lod_cfg.max_points_per_track:
+                        seg = apply_lod(seg, 'Timestamp [UTC]', 'Latitude', 'Longitude', lod_cfg)
+                        seg['timestamp_str'] = seg['Timestamp [UTC]'].dt.strftime('%d.%m.%Y %H:%M:%S')
+                        seg['timestamp_display'] = seg['Timestamp [UTC]'].dt.strftime('%d.%m %H:%M')
+                    per_vulture.append(seg)
+                df = pd.concat(per_vulture, ignore_index=True)
+                unique_times = sorted(df['timestamp_str'].unique())
+            attach_frames(
+                fig,
+                trail_system=self.trail_system,
+                df=df,
+                vulture_ids=vulture_ids,
+                color_map=color_map,
+                unique_times=unique_times,
+                enable_prominent_time_display=False,
+                strategy=strategy,
+            )
+            map_style = "open-street-map"
+            if self.offline_map:
+                try:
+                    map_style = ensure_offline_style_for_bounds(
+                        lat_min=float(lat_min),
+                        lat_max=float(lat_max),
+                        lon_min=float(lon_min),
+                        lon_max=float(lon_max),
+                        zoom_level=zoom_level,
+                        tiles_dir=self.tiles_dir,
+                        download=self.offline_map_download,
+                        zoom_pad=1,
+                        tile_url_template=self.tile_server_url,
+                        tiles_href="./tiles_cache" if os.path.isabs(self.tiles_dir) else self.tiles_dir,
+                    )
+                    print(f"🗺️ Using offline tiles from: {self.tiles_dir}")
+                except Exception as te:
+                    self.ui.print_warning(f"Offline map setup failed, using online tiles: {te}")
+                    map_style = "open-street-map"
+            apply_standard_layout(fig, center_lat=center_lat, center_lon=center_lon, zoom_level=zoom_level, map_style=map_style)
+            apply_controls_and_slider(
+                fig,
+                unique_times=unique_times,
+                frame_duration_ms=self.get_frame_duration(),
+                center_lat=center_lat,
+                center_lon=center_lon,
+                zoom_level=zoom_level,
+                include_speed_controls=True,
+            )
+            PRECIP_ENABLE = os.environ.get('PRECIP_ENABLE', '0') == '1'
+            PRECIP_PROVIDER = os.environ.get('PRECIP_PROVIDER', 'open-meteo')
+            PRECIP_ZMAX = float(os.environ.get('PRECIP_ZMAX', '10.0'))
+            PRECIP_INTERVAL_MIN = int(os.environ.get('PRECIP_INTERVAL_MIN','60'))
+            serial = None
+            try:
+                if PRECIP_ENABLE:
+                    unique_dt = pd.to_datetime(unique_times, format='%d.%m.%Y %H:%M:%S', utc=True).to_pydatetime().tolist()
+                    bbox = BBox(lat_min=float(lat_min), lat_max=float(lat_max), lon_min=float(lon_min), lon_max=float(lon_max))
+                    data_by_hour, hours = build_precip_dataset(unique_dt, bbox, provider_name=PRECIP_PROVIDER, cache_dir=Path('.cache/precip'))
+                    try:
+                        Path('.cache/precip').mkdir(parents=True, exist_ok=True)
+                    except Exception:
+                        pass
+                    serial = {}
+                    for h, dfh in data_by_hour.items():
+                        ts = pd.Timestamp(h)
+                        if ts.tz is None:
+                            ts = ts.tz_localize('UTC')
+                        else:
+                            ts = ts.tz_convert('UTC')
+                        key = ts.isoformat()
+                        arr = dfh[['lat','lon','precip_mm']].astype(float).values.tolist()
+                        serial[key] = arr
+                    print(f"🌧️ Precipitation overlay enabled (provider: {PRECIP_PROVIDER})")
+            except Exception as pe:
+                self.ui.print_warning(f"Precipitation overlay disabled: {pe}")
+            filename = self.trail_system.get_output_filename(base_name=base_name, bird_names=list(vulture_ids))
+            output_path = get_numbered_output_path(filename)
+            config = {
+                'displayModeBar': True,
+                'displaylogo': False,
+                'modeBarButtonsToAdd': [
+                    'pan2d', 'select2d', 'lasso2d', 'zoomIn2d', 'zoomOut2d', 'autoScale2d', 'resetScale2d'
+                ],
+                'modeBarButtonsToRemove': ['sendDataToCloud'],
+                'responsive': False,
+                'scrollZoom': True,
+                'doubleClick': 'reset',
+                'showTips': True,
+            }
+            html_string = fig.to_html(config=config)
+            try:
+                if PRECIP_ENABLE and isinstance(serial, dict):
+                    html_string = inject_precip_overlay(html_string, data_by_hour=serial, interval_min=PRECIP_INTERVAL_MIN, zmax=PRECIP_ZMAX)
+            except Exception:
+                pass
+            html_string = inject_fullscreen(html_string)
+            with open(output_path, 'w', encoding='utf-8') as f:
+                f.write(html_string)
+            if self.offline_map:
+                try:
+                    html_dir = os.path.dirname(output_path)
+                    if os.path.isabs(self.tiles_dir):
+                        import shutil
+                        dst_tiles = os.path.join(html_dir, 'tiles_cache')
+                        if not os.path.exists(dst_tiles):
+                            shutil.copytree(self.tiles_dir, dst_tiles, dirs_exist_ok=True)
+                except Exception as ce:
+                    self.ui.print_warning(f"Could not copy offline tiles next to HTML: {ce}")
+            self.ui.print_success("✨ Interactive live map animation created with custom fullscreen support!")
+            print(f"📁 Saved: {output_path}")
+            print("🎯 Fullscreen: Click the '⛶ Fullscreen' button in the controls to view entire interface fullscreen")
+            print("📱 Features: All controls, slider, and map included in fullscreen mode")
+            if self.export_mp4 or self.export_mp4_browser:
+                try:
+                    if self.export_mp4_browser:
+                        try:
+                            mp4_path = export_animation_video_browser(
+                                html_path=str(output_path),
+                                out_basename=str(Path(output_path).with_suffix('')),
+                                fps=30,
+                                width=1280,
+                                height=720,
+                                quality_crf=20,
+                                headless=True,
+                            )
+                            print(f"🎬 Wrote video (browser capture with tiles): {mp4_path}")
+                        except Exception as be:
+                            self.ui.print_warning(f"Browser video export failed, falling back to offline export: {be}")
+                            fig_full = create_base_figure(vulture_ids, color_map, strategy="markers_fade")
+                            full_times = sorted(full_df_for_video['timestamp_str'].unique())
+                            attach_frames(
+                                fig_full,
+                                trail_system=self.trail_system,
+                                df=full_df_for_video,
+                                vulture_ids=vulture_ids,
+                                color_map=color_map,
+                                unique_times=full_times,
+                                enable_prominent_time_display=False,
+                                strategy="markers_fade",
+                            )
+                            mp4_path = export_animation_video(
+                                fig_full,
+                                str(Path(output_path).with_suffix('')),
+                                fps=30,
+                                width=1280,
+                                height=720,
+                                quality_crf=20,
+                                precip_hours=serial if (PRECIP_ENABLE and isinstance(serial, dict)) else None,
+                                precip_zmax=PRECIP_ZMAX,
+                            )
+                            print(f"🎬 Wrote video (offline): {mp4_path}")
+                    else:
+                        fig_full = create_base_figure(vulture_ids, color_map, strategy="markers_fade")
+                        full_times = sorted(full_df_for_video['timestamp_str'].unique())
+                        attach_frames(
+                            fig_full,
+                            trail_system=self.trail_system,
+                            df=full_df_for_video,
+                            vulture_ids=vulture_ids,
+                            color_map=color_map,
+                            unique_times=full_times,
+                            enable_prominent_time_display=False,
+                            strategy="markers_fade",
+                        )
+                        mp4_path = export_animation_video(
+                            fig_full,
+                            str(Path(output_path).with_suffix('')),
+                            fps=30,
+                            width=1280,
+                            height=720,
+                            quality_crf=20,
+                            precip_hours=serial if (PRECIP_ENABLE and isinstance(serial, dict)) else None,
+                            precip_zmax=PRECIP_ZMAX,
+                        )
+                        print(f"🎬 Wrote video: {mp4_path}")
+                except Exception as ve:
+                    self.ui.print_warning(f"Video export failed: {ve}")
+            return True
+        except Exception as e:
+            self.ui.print_error(f"Error creating visualization: {str(e)}")
+            return False
+
+    def show_completion_summary(self):
+        self.ui.print_section("🎉 COMPLETION SUMMARY")
+        print("Your optimized GPS visualization is ready!")
+        print()
+        print("🎯 Features:")
+        print("   • Fullscreen mode: Click ⛶ button in the top-right corner")
+        print("   • Interactive controls: Pan, zoom, select, and reset view")
+        print("   • Smooth animation: No jumping or layout shifts")
+        print("   • Professional quality: Fixed layout and stable positioning")
+        print()
+        print("💡 Performance Tips:")
+        print("   • Use larger time steps (10m+) for older computers")
+        print("   • Use smaller time steps (1-2m) for detailed analysis")
+        print("   • The visualization will load much faster now!")
+        print()
+        print("� Controls:")
+        print("   • ▶ Play/Pause: Control animation playback")
+        print("   • ⛶ Fullscreen: Immersive viewing experience")
+        print("   • 🖱️ Hover: Detailed information for each point")
+        print("   • 🔍 Zoom/Pan: Navigate the map interactively")
+
+
+def run_live_map_cli() -> int:
+    """Thin CLI wrapper for the LiveMapAnimator."""
+    try:
+        ensure_output_directories()
+        animator = LiveMapAnimator()
+        success = animator.run()
+        return 0 if success else 1
+    except Exception as e:
+        print(f"❌ Critical error: {e}")
+        logger.exception("Critical error in main")
+        return 1
