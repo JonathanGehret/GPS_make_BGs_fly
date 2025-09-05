@@ -7,6 +7,7 @@ Creates individual GUI sections like title, folders, data preview, etc.
 import tkinter as tk
 from tkinter import ttk, filedialog
 import os
+from datetime import datetime
 
 
 class GUISections:
@@ -180,6 +181,82 @@ class GUISections:
             
             def get_total_points(self):
                 return self.get_file_count() * 40  # Rough estimate
+
+            def get_time_range(self):
+                """Scan CSV files in the data folder and return (min_dt, max_dt) or None.
+
+                Expects timestamp column header containing 'timestamp' (case-insensitive)
+                and timestamps in formats like '15.06.2024 08:02:00'.
+                """
+                if not self.data_folder_var:
+                    return None
+                data_folder = self.data_folder_var.get()
+                if not data_folder or not os.path.exists(data_folder):
+                    return None
+
+                csv_files = [f for f in os.listdir(data_folder) if f.endswith('.csv')]
+                if not csv_files:
+                    return None
+
+                import csv
+
+                min_dt = None
+                max_dt = None
+
+                # Candidate formats; add more if needed
+                formats = ['%d.%m.%Y %H:%M:%S', '%Y-%m-%d %H:%M:%S']
+
+                for filename in csv_files:
+                    path = os.path.join(data_folder, filename)
+                    try:
+                        with open(path, 'r', encoding='utf-8') as fh:
+                            reader = csv.reader(fh, delimiter=';')
+                            headers = next(reader, None)
+                            if not headers:
+                                continue
+
+                            # Find timestamp column
+                            ts_idx = None
+                            for i, h in enumerate(headers):
+                                if h and 'timestamp' in h.lower():
+                                    ts_idx = i
+                                    break
+                            if ts_idx is None:
+                                ts_idx = 0
+
+                            for row in reader:
+                                if len(row) <= ts_idx:
+                                    continue
+                                s = row[ts_idx].strip()
+                                if not s:
+                                    continue
+                                dt = None
+                                for fmt in formats:
+                                    try:
+                                        dt = datetime.strptime(s, fmt)
+                                        break
+                                    except Exception:
+                                        dt = None
+
+                                if dt is None:
+                                    # Try ISO parse as fallback
+                                    try:
+                                        dt = datetime.fromisoformat(s)
+                                    except Exception:
+                                        dt = None
+
+                                if dt:
+                                    if min_dt is None or dt < min_dt:
+                                        min_dt = dt
+                                    if max_dt is None or dt > max_dt:
+                                        max_dt = dt
+                    except Exception:
+                        # ignore file read/parse errors per-file
+                        continue
+
+                if min_dt and max_dt:
+                    return (min_dt, max_dt)
+                return None
         
         return DataPreview()
     

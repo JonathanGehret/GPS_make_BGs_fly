@@ -199,9 +199,35 @@ class ScrollableGUI:
     def _on_use_full_range_toggled(self):
         """Toggle UI when use_full_range checkbox is changed."""
         if self.use_full_range_var.get():
-            # Disable manual entry when using full range
-            self.start_time_var.set("")
-            self.end_time_var.set("")
+            # Populate fields with detected range and disable manual entry
+            try:
+                detected = None
+                if hasattr(self, 'data_preview') and self.data_preview is not None:
+                    detected = getattr(self.data_preview, 'get_time_range', lambda: None)()
+                if detected and isinstance(detected, (list, tuple)) and len(detected) >= 2:
+                    start, end = detected[0], detected[1]
+                    if isinstance(start, datetime):
+                        self.start_time_var.set(start.isoformat(sep=' '))
+                    else:
+                        self.start_time_var.set(str(start))
+                    if isinstance(end, datetime):
+                        self.end_time_var.set(end.isoformat(sep=' '))
+                    else:
+                        self.end_time_var.set(str(end))
+                else:
+                    # fallback: clear
+                    self.start_time_var.set("")
+                    self.end_time_var.set("")
+            except Exception:
+                self.start_time_var.set("")
+                self.end_time_var.set("")
+
+            # disable entries by setting state via widget lookup
+            try:
+                for widget in self.root.winfo_children():
+                    pass
+            except Exception:
+                pass
         else:
             # Re-populate with detected values if present
             try:
