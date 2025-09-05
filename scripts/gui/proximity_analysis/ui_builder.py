@@ -192,8 +192,8 @@ class ProximityUIBuilder:
         # Proximity threshold
         proximity_frame = ttk.Frame(params_frame)
         proximity_frame.pack(fill='x', pady=2)
-        
-        ttk.Label(proximity_frame, text="Proximity Threshold (meters):").pack(side='left')
+
+        ttk.Label(proximity_frame, text="Proximity Threshold (kilometers):").pack(side='left')
         proximity_scale = ttk.Scale(
             proximity_frame,
             from_=0.5,
@@ -203,8 +203,8 @@ class ProximityUIBuilder:
             command=self._update_proximity_label
         )
         proximity_scale.pack(side='left', fill='x', expand=True, padx=(10, 5))
-        
-        self.proximity_label = ttk.Label(proximity_frame, text=f"{self.config.proximity_threshold.get():.1f}m")
+
+        self.proximity_label = ttk.Label(proximity_frame, text=f"{self.config.proximity_threshold.get():.1f} km")
         self.proximity_label.pack(side='right')
         
         # Time threshold
@@ -417,20 +417,24 @@ class ProximityUIBuilder:
     
     def _update_proximity_label(self, value):
         """Update proximity threshold label"""
-        self.proximity_label.config(text=f"{float(value):.1f}m")
-    
+        try:
+            val = float(value)
+        except Exception:
+            val = self.config.proximity_threshold.get()
+        self.proximity_label.config(text=f"{val:.1f} km")
+
     def _update_time_label(self, value):
         """Update time threshold label"""
         self.time_label.config(text=f"{int(float(value))}min")
-    
+
     def _update_buffer_label(self, value):
         """Update time buffer label"""
         self.buffer_label.config(text=f"{float(value):.1f}min")
-    
+
     def _update_trail_label(self, value):
         """Update trail length label"""
         self.trail_label.config(text=f"{float(value):.1f}min")
-    
+
     def _update_limit_label(self, value):
         """Update limit encounters label"""
         self.limit_label.config(text=str(int(float(value))))

@@ -383,8 +383,7 @@ Data Tab:
 - Select the folder containing your GPS CSV files
 - Preview the data files that will be analyzed
 
-Analysis Tab:
-- Set proximity threshold (meters)
+- Set proximity threshold (kilometers)
 - Set time threshold (minutes)
 - Configure other analysis parameters
 
