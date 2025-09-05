@@ -531,8 +531,18 @@ class ScrollableGUI:
             try:
                 import pandas as pd
                 df = pd.read_csv(first_csv, sep=';')
-                if 'timestamp' not in df.columns:
-                    self.point_count_label.config(text="CSV file missing timestamp column")
+                
+                # Look for timestamp column with different possible names
+                timestamp_col = None
+                possible_timestamp_cols = ['timestamp', 'Timestamp', 'Timestamp [UTC]', 'time', 'Time', 'datetime', 'DateTime']
+                
+                for col in possible_timestamp_cols:
+                    if col in df.columns:
+                        timestamp_col = col
+                        break
+                
+                if not timestamp_col:
+                    self.point_count_label.config(text="No timestamp column found in CSV file")
                     return
                 
                 # Convert time step to seconds for calculation
@@ -540,8 +550,16 @@ class ScrollableGUI:
                 time_step_seconds = self.convert_time_step_to_seconds(time_step_str)
                 
                 # Calculate total timespan
-                df['timestamp'] = pd.to_datetime(df['timestamp'])
-                total_duration = (df['timestamp'].max() - df['timestamp'].min()).total_seconds()
+                df[timestamp_col] = pd.to_datetime(df[timestamp_col], format='%d.%m.%Y %H:%M:%S', errors='coerce')
+                
+                # Drop rows where timestamp conversion failed
+                df = df.dropna(subset=[timestamp_col])
+                
+                if len(df) == 0:
+                    self.point_count_label.config(text="Cannot parse timestamp format in CSV file")
+                    return
+                
+                total_duration = (df[timestamp_col].max() - df[timestamp_col].min()).total_seconds()
                 
                 # Calculate expected number of points
                 if total_duration > 0:
