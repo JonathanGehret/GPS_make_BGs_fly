@@ -1,0 +1,93 @@
+#!/usr/bin/env python3
+"""
+Launch Manager for GPS Animation Suite
+Handles launching different animation modes with proper configuration
+"""
+
+import os
+import subprocess
+import sys
+
+
+class AnimationLauncher:
+    """Manages launching of different animation scripts with configuration"""
+    
+    def __init__(self, get_language_func):
+        self.get_language = get_language_func
+        
+    def launch_selected_mode(self, mode_manager, folder_manager, settings_manager, status_callback=None):
+        """Launch based on selected mode"""
+        try:
+            mode_key = mode_manager.get_selected_mode_key()
+            mode_info = mode_manager.get_selected_mode_info()
+            
+            if status_callback:
+                status_callback(f"Launching {mode_info['name']}...")
+            
+            if mode_key == "2d_live_map":
+                # Use existing LaunchManager for 2D maps
+                try:
+                    from components.launch_manager import LaunchManager
+                    launch_manager = LaunchManager(self.get_language)
+                    result = launch_manager.launch_map(folder_manager, settings_manager)
+                    status = "2D Live Map launched!" if result else "2D Live Map launch failed"
+                except ImportError:
+                    result = self.launch_script(mode_info['script'], folder_manager, settings_manager)
+                    status = f"{mode_info['name']} launched!" if result else f"{mode_info['name']} launch failed"
+            else:
+                # For mobile_animation and 3d_animation
+                result = self.launch_script(mode_info['script'], folder_manager, settings_manager)
+                status = f"{mode_info['name']} launched!" if result else f"{mode_info['name']} launch failed"
+            
+            if status_callback:
+                status_callback(status)
+            
+            return result
+            
+        except Exception as e:
+            print(f"Launch error: {e}")
+            if status_callback:
+                status_callback(f"Launch error: {str(e)}")
+            return False
+    
+    def launch_script(self, script_name, folder_manager, settings_manager):
+        """Launch a script with proper configuration"""
+        try:
+            # Validate folders first
+            issues = folder_manager.validate_folders()
+            if issues:
+                print(f"Folder validation issues: {issues}")
+                return False
+            
+            # Get configuration
+            config = settings_manager.get_config()
+            data_folder = folder_manager.get_data_folder()
+            output_folder = folder_manager.get_output_folder()
+            
+            script_path = os.path.join("scripts", script_name)
+            if os.path.exists(script_path):
+                print(f"Launching {script_path} with configuration:")
+                print(f"  Data folder: {data_folder}")
+                print(f"  Output folder: {output_folder}")
+                print(f"  Trail length: {config['trail_length']} hours")
+                print(f"  Time step: {config['time_step']}")
+                print(f"  Performance mode: {config['performance_mode']}")
+                
+                # Set environment variables for configuration
+                env = os.environ.copy()
+                env['GPS_DATA_DIR'] = data_folder
+                env['OUTPUT_DIR'] = output_folder
+                env['TRAIL_LENGTH_HOURS'] = str(config['trail_length'])
+                env['TIME_STEP'] = config['time_step']
+                env['PLAYBACK_SPEED'] = str(config.get('playback_speed', 1.0))
+                env['PERFORMANCE_MODE'] = '1' if config['performance_mode'] else '0'
+                
+                # Launch the script with environment variables
+                subprocess.Popen([sys.executable, script_path], env=env)
+                return True
+            else:
+                print(f"Script not found: {script_path}")
+                return False
+        except Exception as e:
+            print(f"Error launching script: {e}")
+            return False

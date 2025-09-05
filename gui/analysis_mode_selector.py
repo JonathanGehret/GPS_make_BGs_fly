@@ -326,7 +326,7 @@ class AnalysisModeSelector:
         else:
             print("🔧 DEBUG: Running in development mode")
             # Running in development mode - use subprocess
-            script_path = os.path.join(os.path.dirname(__file__), "live_map_2d_gui_clean.py")
+            script_path = os.path.join(os.path.dirname(__file__), "live_map_2d_gui_clean_modular.py")
             if os.path.exists(script_path):
                 try:
                     # Set environment variable for language persistence
