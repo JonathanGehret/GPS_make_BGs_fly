@@ -155,7 +155,7 @@ class LiveMap2DGUI:
         self.performance_frame.columnconfigure(0, weight=1)
         
         # Performance mode checkbox
-        self.performance_mode = tk.BooleanVar(value=False)
+        self.performance_mode = tk.BooleanVar(value=True)
         self.performance_checkbox = ttk.Checkbutton(
             self.performance_frame, 
             text="Enable Performance Mode",
