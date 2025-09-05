@@ -48,20 +48,27 @@ class ProximityI18nHandler:
             if self.config.notebook:
                 try:
                     tab_count = len(self.config.notebook.tabs())
-                    if tab_count == 5:
+                    if tab_count == 3:
+                        # New merged layout: Data & Analysis, Animation & Results, Log
+                        label0 = self.translator.t("tab_data") + " & " + self.translator.t("tab_analysis")
+                        label1 = self.translator.t("tab_animation") + " & " + self.translator.t("tab_results")
+                        self.config.notebook.tab(0, text=label0)
+                        self.config.notebook.tab(1, text=label1)
+                        self.config.notebook.tab(2, text=self.translator.t("tab_log"))
+                    elif tab_count == 4:
+                        # Previous merged layout: Data & Analysis, Animation, Results, Log
+                        label0 = self.translator.t("tab_data") + " & " + self.translator.t("tab_analysis")
+                        self.config.notebook.tab(0, text=label0)
+                        self.config.notebook.tab(1, text=self.translator.t("tab_animation"))
+                        self.config.notebook.tab(2, text=self.translator.t("tab_results"))
+                        self.config.notebook.tab(3, text=self.translator.t("tab_log"))
+                    elif tab_count == 5:
                         # Legacy layout: Data, Analysis, Animation, Results, Log
                         self.config.notebook.tab(0, text=self.translator.t("tab_data"))
                         self.config.notebook.tab(1, text=self.translator.t("tab_analysis"))
                         self.config.notebook.tab(2, text=self.translator.t("tab_animation"))
                         self.config.notebook.tab(3, text=self.translator.t("tab_results"))
                         self.config.notebook.tab(4, text=self.translator.t("tab_log"))
-                    else:
-                        # Merged layout: Data & Analysis, Animation, Results, Log
-                        label0 = self.translator.t("tab_data") + " & " + self.translator.t("tab_analysis")
-                        self.config.notebook.tab(0, text=label0)
-                        self.config.notebook.tab(1, text=self.translator.t("tab_animation"))
-                        self.config.notebook.tab(2, text=self.translator.t("tab_results"))
-                        self.config.notebook.tab(3, text=self.translator.t("tab_log"))
                 except Exception:
                     pass
             

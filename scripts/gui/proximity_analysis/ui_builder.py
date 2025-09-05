@@ -66,8 +66,7 @@ class ProximityUIBuilder:
 
         # Create tabs
         self._create_data_analysis_tab()
-        self._create_animation_tab()
-        self._create_results_tab()
+        self._create_animation_results_tab()
         self._create_log_tab()
     
     def _create_footer(self):
@@ -229,19 +228,28 @@ class ProximityUIBuilder:
     
     # Removed separate _create_analysis_tab in favor of combined tab
     
-    def _create_animation_tab(self):
-        """Create the animation configuration tab"""
-        animation_frame = ttk.Frame(self.config.notebook)
-        self.config.notebook.add(animation_frame, text="Animation")
+    def _create_animation_results_tab(self):
+        """Create the combined animation configuration and results tab"""
+        tab_frame = ttk.Frame(self.config.notebook)
+        self.config.notebook.add(tab_frame, text="Animation & Results")
+        
+        # Layout: Left = Animation, Right = Results
+        tab_frame.columnconfigure(0, weight=1)
+        tab_frame.columnconfigure(1, weight=1)
+        
+        # Left: Animation section
+        animation_frame = ttk.Frame(tab_frame)
+        animation_frame.grid(row=0, column=0, sticky='nsew', padx=(10, 5), pady=5)
         
         # Animation options
         anim_frame = ttk.LabelFrame(animation_frame, text="Animation Options", padding=10)
-        anim_frame.pack(fill='x', padx=10, pady=5)
+        anim_frame.pack(fill='x')
+        
         # Note: animation/map generation is now performed on-demand after analysis
         info_label = ttk.Label(
             anim_frame,
-            text="Map/animation generation is available after analysis in the Results tab.",
-            wraplength=600
+            text="Map/animation generation is available after analysis.",
+            wraplength=300
         )
         info_label.pack(anchor='w', pady=(0, 8))
         
@@ -253,7 +261,7 @@ class ProximityUIBuilder:
         buffer_frame = ttk.Frame(self.anim_params_frame)
         buffer_frame.pack(fill='x', pady=2)
         
-        ttk.Label(buffer_frame, text="Time Buffer (minutes):").pack(side='left')
+        ttk.Label(buffer_frame, text="Time Buffer (min):").pack(side='left')
         buffer_scale = ttk.Scale(
             buffer_frame,
             from_=0.5,
@@ -271,7 +279,7 @@ class ProximityUIBuilder:
         trail_frame = ttk.Frame(self.anim_params_frame)
         trail_frame.pack(fill='x', pady=2)
         
-        ttk.Label(trail_frame, text="Trail Length (minutes):").pack(side='left')
+        ttk.Label(trail_frame, text="Trail Length (min):").pack(side='left')
         trail_scale = ttk.Scale(
             trail_frame,
             from_=0.5,
@@ -316,15 +324,30 @@ class ProximityUIBuilder:
         
         self.limit_label = ttk.Label(limit_frame, text=str(self.config.limit_encounters.get()))
         self.limit_label.pack(side='right')
-    
-    def _create_results_tab(self):
-        """Create the results display tab"""
-        results_frame = ttk.Frame(self.config.notebook)
-        self.config.notebook.add(results_frame, text="Results")
+        
+        # Animation actions
+        anim_actions_frame = ttk.Frame(animation_frame)
+        anim_actions_frame.pack(fill='x', pady=(10, 0))
+        
+        ttk.Button(
+            anim_actions_frame,
+            text="View Timeline",
+            command=self.event_handler.view_timeline
+        ).pack(fill='x', pady=2)
+
+        ttk.Button(
+            anim_actions_frame,
+            text="Generate Map (Time Range)",
+            command=self.event_handler.generate_map_for_timeframe
+        ).pack(fill='x', pady=2)
+        
+        # Right: Results section
+        results_frame = ttk.Frame(tab_frame)
+        results_frame.grid(row=0, column=1, sticky='nsew', padx=(5, 10), pady=5)
         
         # Results display
         results_display_frame = ttk.LabelFrame(results_frame, text="Analysis Results", padding=10)
-        results_display_frame.pack(fill='both', expand=True, padx=10, pady=5)
+        results_display_frame.pack(fill='both', expand=True)
         
         # Results tree
         columns = ('Metric', 'Value')
@@ -332,7 +355,7 @@ class ProximityUIBuilder:
         
         for col in columns:
             self.config.results_tree.heading(col, text=col)
-            self.config.results_tree.column(col, width=200)
+            self.config.results_tree.column(col, width=150)
         
         # Scrollbar for results
         results_scroll = ttk.Scrollbar(results_display_frame, orient='vertical', command=self.config.results_tree.yview)
@@ -346,24 +369,13 @@ class ProximityUIBuilder:
         
         # Results actions
         results_actions_frame = ttk.Frame(results_frame)
-        results_actions_frame.pack(fill='x', padx=10, pady=5)
+        results_actions_frame.pack(fill='x', pady=(10, 0))
+        
         ttk.Button(
             results_actions_frame,
             text="Show in Folder",
             command=self.event_handler.show_in_folder
-        ).pack(side='left', padx=(0, 5))
-
-        ttk.Button(
-            results_actions_frame,
-            text="View Timeline",
-            command=self.event_handler.view_timeline
-        ).pack(side='left', padx=(0, 5))
-
-        ttk.Button(
-            results_actions_frame,
-            text="Generate Map (Time Range)",
-            command=self.event_handler.generate_map_for_timeframe
-        ).pack(side='left', padx=(0, 5))
+        ).pack(fill='x', pady=2)
     
     def _create_log_tab(self):
         """Create the log display tab"""
