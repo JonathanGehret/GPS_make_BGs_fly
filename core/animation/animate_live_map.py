@@ -5,7 +5,7 @@ Thin entrypoint for the Live Map Animation. Delegates to app.live_map_animator.
 
 import sys
 
-from app.live_map_animator import run_live_map_cli
+from live_map_animator import run_live_map_cli
 
 
 def main():
