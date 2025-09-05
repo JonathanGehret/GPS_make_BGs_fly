@@ -566,9 +566,20 @@ class LiveMap2DGUI:
         """Open the output folder in the system file manager"""
         try:
             if os.path.exists(folder_path):
-                import webbrowser
-                webbrowser.open(f"file://{os.path.abspath(folder_path)}")
-                print(f"📁 Opened output folder: {folder_path}")
+                import platform
+                system = platform.system()
+                
+                if system == "Windows":
+                    # Windows: use explorer
+                    subprocess.run(['explorer', folder_path], check=True)
+                elif system == "Darwin":
+                    # macOS: use open
+                    subprocess.run(['open', folder_path], check=True)
+                else:
+                    # Linux and others: use xdg-open
+                    subprocess.run(['xdg-open', folder_path], check=True)
+                
+                print(f"📁 Opened output folder in file manager: {folder_path}")
             else:
                 if self.language == "de":
                     messagebox.showerror("Fehler", f"Ordner nicht gefunden: {folder_path}")
