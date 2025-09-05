@@ -27,6 +27,7 @@ from gps_utils import (
     DataLoader, VisualizationHelper
 )
 from export.video_export import export_animation_video
+from export.browser_video_export import export_animation_video_browser
 from utils.lod import LODConfig, apply_lod
 
 # Add the scripts directory to the Python path
@@ -58,11 +59,12 @@ class LiveMapAnimator:
         self.selected_time_step: Optional[int] = None
         self.dataframes: List[pd.DataFrame] = []
         self.combined_data: Optional[pd.DataFrame] = None
-        self.base_animation_speed = 600  # ms per frame at 1x speed for 2D maps
+        self.base_animation_speed = 800  # ms per frame at 1x speed for 2D maps (slightly slower default)
         self.playback_speed = 1.0  # Default playback speed multiplier
         self.performance_mode = os.environ.get('PERFORMANCE_MODE', '0') == '1'
         self.export_mp4 = os.environ.get('EXPORT_MP4', '0') == '1'
-        
+        self.export_mp4_browser = os.environ.get('EXPORT_MP4_BROWSER', '0') == '1'
+
         # Read playback speed from environment if available (from GUI)
         playback_speed_env = os.environ.get('PLAYBACK_SPEED')
         if playback_speed_env:
@@ -123,8 +125,9 @@ class LiveMapAnimator:
                 self.ui.print_success("Performance mode: ON (line+head + adaptive LOD)")
             else:
                 self.ui.print_info("Performance mode: OFF (fading markers)")
-            if self.export_mp4:
-                self.ui.print_info("Video export enabled: MP4 will be created")
+            if self.export_mp4 or self.export_mp4_browser:
+                mode = "Browser" if self.export_mp4_browser else "Offline"
+                self.ui.print_info(f"Video export enabled ({mode}): MP4 will be created")
             print("Features:")
             print("  ✅ Interactive real-time map visualization")
             print("  ✅ Configurable trail length system")
@@ -397,29 +400,68 @@ class LiveMapAnimator:
             print("📱 Features: All controls, slider, and map included in fullscreen mode")
             
             # Optional MP4 export (full data, original visual style)
-            if self.export_mp4:
+            if self.export_mp4 or self.export_mp4_browser:
                 try:
-                    fig_full = create_base_figure(vulture_ids, color_map, strategy="markers_fade")
-                    full_times = sorted(full_df_for_video['timestamp_str'].unique())
-                    attach_frames(
-                        fig_full,
-                        trail_system=self.trail_system,
-                        df=full_df_for_video,
-                        vulture_ids=vulture_ids,
-                        color_map=color_map,
-                        unique_times=full_times,
-                        enable_prominent_time_display=False,
-                        strategy="markers_fade",
-                    )
-                    mp4_path = export_animation_video(
-                        fig_full,
-                        str(Path(output_path).with_suffix('')),
-                        fps=30,
-                        width=1280,
-                        height=720,
-                        quality_crf=20,
-                    )
-                    print(f"🎬 Wrote video: {mp4_path}")
+                    if self.export_mp4_browser:
+                        # Browser-based capture preserves real OSM tiles
+                        try:
+                            mp4_path = export_animation_video_browser(
+                                html_path=str(output_path),
+                                out_basename=str(Path(output_path).with_suffix('')),
+                                fps=30,
+                                width=1280,
+                                height=720,
+                                quality_crf=20,
+                                headless=True,
+                            )
+                            print(f"🎬 Wrote video (browser capture with tiles): {mp4_path}")
+                        except Exception as be:
+                            self.ui.print_warning(f"Browser video export failed, falling back to offline export: {be}")
+                            # Fallback to tile-free offline export
+                            fig_full = create_base_figure(vulture_ids, color_map, strategy="markers_fade")
+                            full_times = sorted(full_df_for_video['timestamp_str'].unique())
+                            attach_frames(
+                                fig_full,
+                                trail_system=self.trail_system,
+                                df=full_df_for_video,
+                                vulture_ids=vulture_ids,
+                                color_map=color_map,
+                                unique_times=full_times,
+                                enable_prominent_time_display=False,
+                                strategy="markers_fade",
+                            )
+                            mp4_path = export_animation_video(
+                                fig_full,
+                                str(Path(output_path).with_suffix('')),
+                                fps=30,
+                                width=1280,
+                                height=720,
+                                quality_crf=20,
+                            )
+                            print(f"🎬 Wrote video (offline): {mp4_path}")
+                    else:
+                        # Existing offline export (tile-free)
+                        fig_full = create_base_figure(vulture_ids, color_map, strategy="markers_fade")
+                        full_times = sorted(full_df_for_video['timestamp_str'].unique())
+                        attach_frames(
+                            fig_full,
+                            trail_system=self.trail_system,
+                            df=full_df_for_video,
+                            vulture_ids=vulture_ids,
+                            color_map=color_map,
+                            unique_times=full_times,
+                            enable_prominent_time_display=False,
+                            strategy="markers_fade",
+                        )
+                        mp4_path = export_animation_video(
+                            fig_full,
+                            str(Path(output_path).with_suffix('')),
+                            fps=30,
+                            width=1280,
+                            height=720,
+                            quality_crf=20,
+                        )
+                        print(f"🎬 Wrote video: {mp4_path}")
                 except Exception as ve:
                     self.ui.print_warning(f"Video export failed: {ve}")
 
