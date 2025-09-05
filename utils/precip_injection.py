@@ -31,6 +31,7 @@ document.addEventListener('DOMContentLoaded', function() {
   window.__PRECIP = __PRECIP_JSON__;
   // Enable by default when injected
   window._precipEnabled = true;
+  try { console.log('[precip] injected hours:', Object.keys((window.__PRECIP && window.__PRECIP.hours) || {})); } catch(_){ }
 
   function ensureCanvas() {
     const gd = document.querySelector('.plotly-graph-div');
@@ -68,9 +69,12 @@ document.addEventListener('DOMContentLoaded', function() {
   async function drawHeatmapForTime(dt) {
     const c = ensureCanvas(); if (!c) return;
     const ctx = c.getContext('2d'); if (!ctx) return;
-    const gd = document.querySelector('.plotly-graph-div');
-    const map = gd && gd._fullLayout && gd._fullLayout.map; if (!map) return;
-    const center = map.center || {lon:0, lat:0}; const zoom = Math.max(0, Math.min(10, Math.round(map.zoom || 6)));
+  const gd = document.querySelector('.plotly-graph-div');
+  const fl = gd && gd._fullLayout;
+  const map = fl && (fl.map || fl.mapbox); if (!map) return;
+  let center = map.center || {lon:0, lat:0};
+  if (center && center.lat === undefined && Array.isArray(center)) { center = {lat: center[1], lon: center[0]}; }
+  const zoom = Math.max(0, Math.min(10, Math.round((typeof map.zoom === 'number' ? map.zoom : (parseFloat(map.zoom) || 6)) )));
 
     const intervalMin = (window.__PRECIP && window.__PRECIP.intervalMin) || 60;
     const zmax = (window.__PRECIP && window.__PRECIP.zmax) || 10.0;
@@ -78,8 +82,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const hourKey = toHourKeyUTC(q);
     const frame = window.__PRECIP && window.__PRECIP.hours && window.__PRECIP.hours[hourKey];
 
-    ctx.clearRect(0,0,c.width,c.height);
-    if (!window._precipEnabled || !frame || !frame.length) return;
+  ctx.clearRect(0,0,c.width,c.height);
+  if (!window._precipEnabled) return;
+  if (!frame || !frame.length) { try { console.debug('[precip] no data for hour', hourKey); } catch(_){ } return; }
 
     const xC = lon2x(center.lon, zoom); const yC = lat2y(center.lat, zoom);
     const pxTile = 256; // pixel per tile (approx)
@@ -116,7 +121,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Fallback: toggle classes on matching updatemenu button
     const btns = document.querySelectorAll('.updatemenu-button');
     btns.forEach(b => {
-      if (b.textContent && b.textContent.includes('☔ Precip')) {
+      if (b.textContent && (b.textContent.includes('☔ Precip') || b.textContent.includes('Precip'))) {
         if (window._precipEnabled) {
           b.classList.add('precip-active');
           b.classList.add('control-active');
@@ -140,7 +145,7 @@ document.addEventListener('DOMContentLoaded', function() {
   function bindPrecipToggle() {
     const btns = document.querySelectorAll('.updatemenu-button');
     btns.forEach(b => {
-      if (b.textContent && b.textContent.includes('☔ Precip')) {
+      if (b.textContent && (b.textContent.includes('☔ Precip') || b.textContent.includes('Precip'))) {
         b.onclick = (e) => {
           e.preventDefault(); e.stopPropagation();
           window._precipEnabled = !window._precipEnabled;
@@ -155,6 +160,7 @@ document.addEventListener('DOMContentLoaded', function() {
               if (m) dt = new Date(m[3] + '-' + m[2] + '-' + m[1] + 'T' + m[4] + ':' + m[5] + ':' + m[6] + 'Z');
             }
           } catch(_){}
+          try { console.log('[precip] toggle ->', window._precipEnabled); } catch(_){ }
           drawHeatmapForTime(dt);
         };
       }

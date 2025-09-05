@@ -363,7 +363,19 @@ class LiveMapAnimator:
                         key = ts.isoformat()
                         arr = dfh[['lat','lon','precip_mm']].astype(float).values.tolist()
                         serial[key] = arr
-                    print(f"🌧️ Precipitation overlay enabled (provider: {PRECIP_PROVIDER})")
+                    # Diagnostics: report availability
+                    try:
+                        hour_count = len(serial)
+                        total_points = sum(len(v) for v in serial.values())
+                        sample_keys = list(serial.keys())[:3]
+                        print(f"🌧️ Precipitation overlay enabled (provider: {PRECIP_PROVIDER})")
+                        print(f"   • Hours fetched: {hour_count} | Total points: {total_points}")
+                        if sample_keys:
+                            print(f"   • Example hour keys: {', '.join(sample_keys)}")
+                        if hour_count == 0 or total_points == 0:
+                            self.ui.print_warning("Precip overlay: no data for the selected bbox/time window (try another date or lower ZMAX)")
+                    except Exception:
+                        pass
             except Exception as pe:
                 self.ui.print_warning(f"Precipitation overlay disabled: {pe}")
             filename = self.trail_system.get_output_filename(base_name=base_name, bird_names=list(vulture_ids))
