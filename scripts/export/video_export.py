@@ -4,7 +4,8 @@ import shutil
 import subprocess
 import tempfile
 from pathlib import Path
-from typing import Iterable, Tuple, List
+from typing import Iterable, Tuple, List, Dict, Optional
+from datetime import datetime, timezone
 
 import plotly.graph_objects as go
 import plotly.io as pio
@@ -123,6 +124,8 @@ def export_animation_video(
     width: int = 1280,
     height: int = 720,
     quality_crf: int = 20,
+    precip_hours: Optional[Dict[str, List[List[float]]]] = None,
+    precip_zmax: float = 10.0,
 ) -> str:
     """
     Renders every animation frame to PNG and encodes an MP4 using ffmpeg.
@@ -134,26 +137,88 @@ def export_animation_video(
     tmpdir = Path(tempfile.mkdtemp(prefix="frames_"))
     try:
         frames: List[go.Frame] = list(fig.frames or [])
+        frame_names: List[Optional[str]] = []
 
         # Compose full per-frame states (base fig.data + frame overrides)
         composed_states: List[List[dict]] = []
         if not frames:
             composed_states.append(_compose_frame_state(fig, None))
+            frame_names.append(None)
         else:
             for fr in frames:
                 composed_states.append(_compose_frame_state(fig, fr))
+                try:
+                    frame_names.append(fr.name if hasattr(fr, "name") else None)
+                except Exception:
+                    frame_names.append(None)
 
         # Compute bounds from composed states and prepare a base geo layout
         lat_min, lat_max, lon_min, lon_max = _collect_latlon_bounds_from_state(composed_states)
         base_geo_layout = _geo_layout_for_bounds(lat_min, lat_max, lon_min, lon_max)
 
         # Render each composed state as a Scattergeo figure
+        def _build_precip_geo_traces(points: List[List[float]], vmax: float) -> List[go.Scattergeo]:
+            traces: List[go.Scattergeo] = []
+            if not points:
+                return traces
+            # Three concentric rings to approximate a blurry dot
+            # Sizes are in screen pixels for scattergeo markers
+            rings = [
+                (60, 0.10),
+                (40, 0.07),
+                (20, 0.05),
+            ]
+            lats = [p[0] for p in points]
+            lons = [p[1] for p in points]
+            vals = [p[2] for p in points]
+            # Normalize alphas by value
+            def _alpha_scale(val: float) -> float:
+                if vmax <= 0:
+                    return 0.3
+                t = max(0.0, min(1.0, val / vmax))
+                return 0.25 + 0.65 * t
+            base_color = (30, 100, 200)
+            for size, base_op in rings:
+                colors = [
+                    f"rgba({base_color[0]},{base_color[1]},{base_color[2]},{min(1.0, base_op * _alpha_scale(v)):.3f})"
+                    for v in vals
+                ]
+                traces.append(
+                    go.Scattergeo(
+                        lat=lats,
+                        lon=lons,
+                        mode="markers",
+                        showlegend=False,
+                        hoverinfo="skip",
+                        marker=dict(size=size, color=colors),
+                        name="precip",
+                    )
+                )
+            return traces
+
         for i, state in enumerate(composed_states):
             geo_traces = []
             for t in state:
                 g = _convert_trace_to_geo_from_dict(t)
                 if g is not None:
                     geo_traces.append(g)
+
+            # Optional precipitation overlay per frame
+            if precip_hours:
+                # Determine frame datetime from frame_names[i]
+                key: Optional[str] = None
+                try:
+                    nm = frame_names[i]
+                    if nm:
+                        dt = datetime.strptime(nm, "%d.%m.%Y %H:%M:%S").replace(tzinfo=timezone.utc)
+                        dt = dt.replace(minute=0, second=0, microsecond=0)
+                        key = dt.isoformat()
+                except Exception:
+                    key = None
+                if key and key in precip_hours:
+                    pts = precip_hours.get(key, [])
+                    if pts:
+                        geo_traces.extend(_build_precip_geo_traces(pts, precip_zmax))
 
             tmp_fig = go.Figure(geo_traces)
             tmp_fig.update_layout(base_geo_layout)

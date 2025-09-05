@@ -402,11 +402,13 @@ class LiveMapAnimator:
             )
 
             # Optional precipitation overlay (Open-Meteo by default, DWD via wetterdienst if requested)
+            PRECIP_ENABLE = os.environ.get('PRECIP_ENABLE', '0') == '1'
+            PRECIP_PROVIDER = os.environ.get('PRECIP_PROVIDER', 'open-meteo')
+            PRECIP_ZMAX = float(os.environ.get('PRECIP_ZMAX', '10.0'))
+            PRECIP_INTERVAL_MIN = int(os.environ.get('PRECIP_INTERVAL_MIN','60'))
+            serial = None
             try:
-                PRECIP_ENABLE = os.environ.get('PRECIP_ENABLE', '0') == '1'
                 if PRECIP_ENABLE:
-                    PRECIP_PROVIDER = os.environ.get('PRECIP_PROVIDER', 'open-meteo')
-                    PRECIP_ZMAX = float(os.environ.get('PRECIP_ZMAX', '10.0'))
                     # Convert frame names to datetimes (UTC) for hourly aggregation
                     unique_dt = pd.to_datetime(unique_times, format='%d.%m.%Y %H:%M:%S', utc=True).to_pydatetime().tolist()
                     bbox = BBox(lat_min=float(lat_min), lat_max=float(lat_max), lon_min=float(lon_min), lon_max=float(lon_max))
@@ -444,7 +446,6 @@ class LiveMapAnimator:
                         key = ts.isoformat()
                         arr = dfh[['lat','lon','precip_mm']].astype(float).values.tolist()
                         serial[key] = arr
-                    # Save HTML with injection
                     print(f"🌧️ Precipitation overlay enabled (provider: {PRECIP_PROVIDER})")
             except Exception as pe:
                 self.ui.print_warning(f"Precipitation overlay disabled: {pe}")
@@ -471,8 +472,8 @@ class LiveMapAnimator:
             html_string = fig.to_html(config=config)
             # If precip serial exists, inject canvas heatmap assets
             try:
-                if PRECIP_ENABLE:
-                    html_string = inject_precip_overlay(html_string, data_by_hour=serial, interval_min=int(os.environ.get('PRECIP_INTERVAL_MIN','60')), zmax=PRECIP_ZMAX)
+                if PRECIP_ENABLE and isinstance(serial, dict):
+                    html_string = inject_precip_overlay(html_string, data_by_hour=serial, interval_min=PRECIP_INTERVAL_MIN, zmax=PRECIP_ZMAX)
             except Exception:
                 pass
             html_string = inject_fullscreen(html_string)
@@ -539,6 +540,8 @@ class LiveMapAnimator:
                                 width=1280,
                                 height=720,
                                 quality_crf=20,
+                                precip_hours=serial if (PRECIP_ENABLE and isinstance(serial, dict)) else None,
+                                precip_zmax=PRECIP_ZMAX,
                             )
                             print(f"🎬 Wrote video (offline): {mp4_path}")
                     else:
@@ -562,6 +565,8 @@ class LiveMapAnimator:
                             width=1280,
                             height=720,
                             quality_crf=20,
+                            precip_hours=serial if (PRECIP_ENABLE and isinstance(serial, dict)) else None,
+                            precip_zmax=PRECIP_ZMAX,
                         )
                         print(f"🎬 Wrote video: {mp4_path}")
                 except Exception as ve:

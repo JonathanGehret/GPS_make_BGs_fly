@@ -22,12 +22,14 @@ def inject_precip_overlay(html: str, *, data_by_hour: Dict[str, List[List[float]
 <style>
 #precip-overlay {
   position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-  pointer-events: none; display: none;
+  pointer-events: none; display: none; z-index: 5;
 }
 </style>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
   window.__PRECIP = __PRECIP_JSON__;
+  // Enable by default when injected
+  window._precipEnabled = true;
 
   function ensureCanvas() {
     const gd = document.querySelector('.plotly-graph-div');
@@ -58,7 +60,7 @@ document.addEventListener('DOMContentLoaded', function() {
   function colorFor(v, vmax) {
     // Simple blue scale; return rgba with alpha by intensity
     const t = Math.max(0, Math.min(1, v / (vmax || 1)));
-    const a = 0.15 + 0.55 * t; // stronger opacity at higher precip
+    const a = 0.25 + 0.65 * t; // stronger opacity at higher precip
     return 'rgba(30, 100, 200, ' + a.toFixed(3) + ')';
   }
 
@@ -83,14 +85,15 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Draw blurry blue spots per point
     ctx.save();
-    ctx.globalCompositeOperation = 'lighter';
-    ctx.filter = 'blur(8px)';
+  ctx.globalCompositeOperation = 'lighter';
+  ctx.filter = 'blur(16px)';
     for (let i=0;i<frame.length;i++) {
       const lat = frame[i][0], lon = frame[i][1], val = frame[i][2];
       const x = lon2x(lon, zoom), y = lat2y(lat, zoom);
       const px = (x - xC) * pxTile + c.width/2;
       const py = (y - yC) * pxTile + c.height/2;
-      const rad = 18 + 40 * Math.min(1, val / (zmax || 1));
+  const t = Math.max(0, Math.min(1, val / (zmax || 1)));
+  const rad = 30 + 60 * t;
       const grad = ctx.createRadialGradient(px, py, 0, px, py, rad);
       const col = colorFor(val, zmax);
       grad.addColorStop(0.0, col);
@@ -143,6 +146,17 @@ document.addEventListener('DOMContentLoaded', function() {
   // Initial bind and observer for dynamic UI
   bindPrecipToggle();
   bindFrameAndRelayout();
+  // Show initial frame (use current quantized time if available, else first hour)
+  try {
+    const c = ensureCanvas(); if (c) c.style.display = 'block';
+    const intervalMin = (window.__PRECIP && window.__PRECIP.intervalMin) || 60;
+    const nowQ = quantizeToInterval(new Date(), intervalMin);
+    drawHeatmapForTime(nowQ);
+    if (!window._precipEnabled) {
+      const keys = Object.keys((window.__PRECIP && window.__PRECIP.hours) || {});
+      if (keys && keys.length) { drawHeatmapForTime(new Date(keys[0])); }
+    }
+  } catch(_){}
   const ob = new MutationObserver(() => { bindPrecipToggle(); });
   ob.observe(document.body, {childList:true, subtree:true});
 });
