@@ -43,10 +43,40 @@ body {
 
 /* Plot container visuals */
 .plotly-graph-div {
+    position: relative; /* ensure absolutely-positioned children (scale bar, controls) anchor here */
     box-shadow: 0 4px 12px rgba(0,0,0,0.1);
     border-radius: 8px;
     background: white;
     max-width: 100%;
+    overflow: hidden;
+}
+
+/* Scale bar for map (bottom-left) */
+.map-scale {
+    position: absolute;
+    left: 12px;
+    bottom: 56px; /* above timeline controls */
+    z-index: 40;
+    pointer-events: none;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+    color: rgba(40,30,20,0.95);
+    font-size: 13px;
+    text-shadow: 0 1px 0 rgba(255,255,255,0.6);
+}
+.map-scale .bar {
+    height: 8px;
+    background: linear-gradient(90deg, rgba(255,215,120,0.98), rgba(255,190,60,0.98));
+    box-shadow: 0 0 10px rgba(255,190,60,0.85);
+    border-radius: 4px;
+    display: block;
+}
+.map-scale .label {
+    margin-top: 6px;
+    text-align: left;
+    background: rgba(255, 255, 255, 0.85);
+    padding: 2px 6px;
+    border-radius: 4px;
+    display: inline-block;
 }
 
 /* Updatemenu active glow (centralized) */
@@ -275,6 +305,89 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
+
+    // Scale bar: create element and update based on map zoom/center
+    function ensureScaleBar() {
+        const gd = document.querySelector('.plotly-graph-div'); if (!gd) return null;
+        // Ensure the plot container is positioned so absolute children are anchored correctly
+        try {
+            const cs = window.getComputedStyle(gd);
+            if (cs && cs.position === 'static') gd.style.position = 'relative';
+        } catch(_) { gd.style.position = gd.style.position || 'relative'; }
+
+        let s = gd.querySelector('.map-scale');
+        if (!s) {
+            s = document.createElement('div'); s.className = 'map-scale';
+            const bar = document.createElement('div'); bar.className = 'bar'; bar.style.width = '120px';
+            const label = document.createElement('div'); label.className = 'label'; label.textContent = '';
+            s.appendChild(bar); s.appendChild(label);
+            gd.appendChild(s);
+        }
+        return s;
+    }
+
+    function metersPerPixelAtLat(zoom, lat) {
+        // More accurate Web Mercator meters-per-pixel using Earth radius
+        // metersPerPixel = (2 * PI * R * cos(lat)) / (tileSize * 2^zoom)
+        // Use tileSize 256 (OSM) and account for devicePixelRatio if present.
+        const EARTH = 6378137; // meters
+        const latRad = lat * Math.PI / 180;
+        const dpr = window.devicePixelRatio || 1;
+        const tileSize = 256 * dpr; // account for high-DPI tiles
+        return (2 * Math.PI * EARTH * Math.cos(latRad)) / (tileSize * Math.pow(2, zoom));
+    }
+
+    function chooseNiceScale(m) {
+        // Choose a nice scale in the 1,2,5 series times powers of ten
+        if (!isFinite(m) || m <= 0) return 100;
+        const exp = Math.floor(Math.log10(m));
+        const base = Math.pow(10, exp);
+        const candidates = [1, 2, 5];
+        for (let i = 0; i < candidates.length; i++) {
+            const val = candidates[i] * base;
+            if (m <= val) return val;
+        }
+        return 10 * base;
+    }
+
+    function updateScaleBar() {
+        try {
+            const gd = document.querySelector('.plotly-graph-div'); if (!gd) return;
+            // Plotly can expose map settings under _fullLayout.map OR _fullLayout.mapbox depending on plot type
+            const fl = gd._fullLayout || gd.layout || {};
+            let map = null;
+            if (fl.map) map = fl.map;
+            else if (fl.mapbox) map = fl.mapbox;
+            else if (fl._subplots && fl._subplots.mapbox) map = fl.mapbox || fl.map;
+            if (!map) return;
+            // center/zoom may live in different shapes depending on subplot type
+            const center = (map.center && (map.center.lat !== undefined || map.center[0] !== undefined)) ? (map.center.lat !== undefined ? map.center : {lat: map.center[1], lon: map.center[0]}) : (map.center || {lat:0, lon:0});
+            const zoom = (typeof map.zoom === 'number') ? map.zoom : (typeof map.zoom === 'string' ? parseFloat(map.zoom) : 6);
+            const s = ensureScaleBar(); if (!s) return;
+            const label = s.querySelector('.label'); const bar = s.querySelector('.bar');
+            const mPerPx = metersPerPixelAtLat(zoom, center.lat || 0);
+            // Target a visually-pleasant width (approx 8-16% of container, clamped)
+            const containerW = (gd.clientWidth && gd.clientWidth > 0) ? gd.clientWidth : (window.innerWidth || 1000);
+            const targetPx = Math.max(48, Math.min(220, Math.round(containerW * 0.12)));
+            const metersShown = mPerPx * targetPx;
+            const nice = chooseNiceScale(metersShown);
+            const widthPx = Math.max(16, Math.round(nice / mPerPx));
+            bar.style.width = widthPx + 'px';
+            const labelText = (nice >= 1000) ? (nice/1000) + ' km' : nice + ' m';
+            label.textContent = labelText;
+        } catch(_){}
+    }
+
+    // Update scale on relayout and resize
+    try {
+        const gd = document.querySelector('.plotly-graph-div');
+        if (gd) {
+            gd.addEventListener('plotly_relayout', function() { setTimeout(updateScaleBar, 40); });
+            // ensure initial creation
+            setTimeout(updateScaleBar, 120);
+        }
+        window.addEventListener('resize', function() { setTimeout(updateScaleBar, 80); });
+    } catch(_){}
 
     // Add handlers initially and after any DOM updates
     addFullscreenHandler();
