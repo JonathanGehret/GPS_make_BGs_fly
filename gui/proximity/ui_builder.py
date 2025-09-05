@@ -238,102 +238,59 @@ class ProximityUIBuilder:
         tab_frame.columnconfigure(0, weight=1)
         tab_frame.columnconfigure(1, weight=1)
         
-        # Left: Animation section
+        # Left: Time Range section
         animation_frame = ttk.Frame(tab_frame)
         animation_frame.grid(row=0, column=0, sticky='nsew', padx=(5, 2), pady=2)
         
-        # Animation options
-        anim_frame = ttk.LabelFrame(animation_frame, text="Animation Options", padding=5)
-        anim_frame.pack(fill='x')
+        # Time range options
+        time_frame = ttk.LabelFrame(animation_frame, text="Time Range for Map", padding=5)
+        time_frame.pack(fill='x')
         
-        # Note: animation/map generation is now performed on-demand after analysis
+        # Note: Set time range for map generation
         info_label = ttk.Label(
-            anim_frame,
-            text="Map/animation generation is available after analysis.",
+            time_frame,
+            text="Set start and end times for map generation (optional).",
             wraplength=300
         )
         info_label.pack(anchor='w', pady=(0, 8))
         
-        # Animation parameters (enabled when animations are enabled)
-        self.anim_params_frame = ttk.Frame(anim_frame)
-        self.anim_params_frame.pack(fill='x', pady=(10, 0))
+        # Start time field
+        start_frame = ttk.Frame(time_frame)
+        start_frame.pack(fill='x', pady=2)
+        ttk.Label(start_frame, text="Start Time:").pack(side='left')
+        ttk.Entry(
+            start_frame,
+            textvariable=self.config.start_time,
+            width=20
+        ).pack(side='right', padx=(10, 0))
         
-        # Time buffer
-        buffer_frame = ttk.Frame(self.anim_params_frame)
-        buffer_frame.pack(fill='x', pady=2)
+        # End time field
+        end_frame = ttk.Frame(time_frame)
+        end_frame.pack(fill='x', pady=2)
+        ttk.Label(end_frame, text="End Time:").pack(side='left')
+        ttk.Entry(
+            end_frame,
+            textvariable=self.config.end_time,
+            width=20
+        ).pack(side='right', padx=(10, 0))
         
-        ttk.Label(buffer_frame, text="Time Buffer (min):").pack(side='left')
-        buffer_scale = ttk.Scale(
-            buffer_frame,
-            from_=0.5,
-            to=10.0,
-            variable=self.config.time_buffer,
-            orient='horizontal',
-            command=self._update_buffer_label
+        # Time format hint
+        hint_label = ttk.Label(
+            time_frame,
+            text="Format: YYYY-MM-DD HH:MM:SS (leave empty for full range)",
+            font=('Arial', 8)
         )
-        buffer_scale.pack(side='left', fill='x', expand=True, padx=(10, 5))
+        hint_label.pack(anchor='w', pady=(5, 0))
         
-        self.buffer_label = ttk.Label(buffer_frame, text=f"{self.config.time_buffer.get():.1f}min")
-        self.buffer_label.pack(side='right')
-        
-        # Trail length
-        trail_frame = ttk.Frame(self.anim_params_frame)
-        trail_frame.pack(fill='x', pady=2)
-        
-        ttk.Label(trail_frame, text="Trail Length (min):").pack(side='left')
-        trail_scale = ttk.Scale(
-            trail_frame,
-            from_=0.5,
-            to=10.0,
-            variable=self.config.trail_length,
-            orient='horizontal',
-            command=self._update_trail_label
-        )
-        trail_scale.pack(side='left', fill='x', expand=True, padx=(10, 5))
-        
-        self.trail_label = ttk.Label(trail_frame, text=f"{self.config.trail_length.get():.1f}min")
-        self.trail_label.pack(side='right')
-        
-        # Time step
-        timestep_frame = ttk.Frame(self.anim_params_frame)
-        timestep_frame.pack(fill='x', pady=2)
-        
-        ttk.Label(timestep_frame, text="Time Step:").pack(side='left')
-        time_step_combo = ttk.Combobox(
-            timestep_frame,
-            textvariable=self.config.time_step,
-            values=["30s", "1m", "2m", "5m", "10m"],
-            state="readonly",
-            width=10
-        )
-        time_step_combo.pack(side='left', padx=(10, 0))
-        
-        # Limit encounters
-        limit_frame = ttk.Frame(self.anim_params_frame)
-        limit_frame.pack(fill='x', pady=2)
-        
-        ttk.Label(limit_frame, text="Limit Encounters (0 = no limit):").pack(side='left')
-        limit_scale = ttk.Scale(
-            limit_frame,
-            from_=0,
-            to=50,
-            variable=self.config.limit_encounters,
-            orient='horizontal',
-            command=self._update_limit_label
-        )
-        limit_scale.pack(side='left', fill='x', expand=True, padx=(10, 5))
-        
-        self.limit_label = ttk.Label(limit_frame, text=str(self.config.limit_encounters.get()))
-        self.limit_label.pack(side='right')
-        
-        # Animation actions
-        anim_actions_frame = ttk.Frame(animation_frame)
-        anim_actions_frame.pack(fill='x', pady=(10, 0))
+        # Map actions
+        map_actions_frame = ttk.Frame(animation_frame)
+        map_actions_frame.pack(fill='x', pady=(10, 0))
         
         ttk.Button(
-            anim_actions_frame,
-            text="Generate Map (Time Range)",
-            command=self.event_handler.generate_map_for_timeframe
+            map_actions_frame,
+            text="🗺️ Open 2D Map Live GUI",
+            command=self.event_handler.open_2d_map_gui,
+            style='Accent.TButton'
         ).pack(fill='x', pady=2)
         
         # Right: Results section
@@ -445,15 +402,3 @@ class ProximityUIBuilder:
     def _update_time_label(self, value):
         """Update time threshold label"""
         self.time_label.config(text=f"{int(float(value))}min")
-
-    def _update_buffer_label(self, value):
-        """Update time buffer label"""
-        self.buffer_label.config(text=f"{float(value):.1f}min")
-
-    def _update_trail_label(self, value):
-        """Update trail length label"""
-        self.trail_label.config(text=f"{float(value):.1f}min")
-
-    def _update_limit_label(self, value):
-        """Update limit encounters label"""
-        self.limit_label.config(text=str(int(float(value))))

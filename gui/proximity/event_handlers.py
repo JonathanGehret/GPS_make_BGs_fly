@@ -568,13 +568,15 @@ For more detailed help, visit: https://github.com/YourRepo/GPS_make_BGs_fly
         else:
             messagebox.showinfo("No Visualization", f"No {file_prefix} visualization found. Run analysis first to generate visualizations.")
     
-    def _open_file_in_browser(self, file_path):
-        """Open a file in the default web browser"""
+    def open_2d_map_gui(self):
+        """Open the 2D Map Live GUI"""
         try:
-            import webbrowser
-            # Convert to file:// URL for proper browser opening
-            file_url = f"file://{os.path.abspath(file_path)}"
-            webbrowser.open(file_url)
+            # Import and run the 2D map GUI
+            from gui.live_map_2d_gui import main as map_gui_main
+            # Run in a separate thread to avoid blocking the current GUI
+            import threading
+            threading.Thread(target=map_gui_main, daemon=True).start()
+            self.log("🗺️ Opening 2D Map Live GUI...")
         except Exception as e:
-            self.log(f"Could not open file in browser: {e}")
-            messagebox.showerror("Browser Error", f"Could not open file in browser: {e}")
+            messagebox.showerror("Error", f"Could not open 2D Map GUI: {e}")
+            self.log(f"❌ Failed to open 2D Map GUI: {e}")

@@ -38,6 +38,10 @@ class ProximityGUIConfig:
         self.time_step = tk.StringVar(value="1m")
         self.limit_encounters = tk.IntVar(value=0)
         
+        # Time range variables for map generation
+        self.start_time = tk.StringVar(value="")
+        self.end_time = tk.StringVar(value="")
+        
         # UI state variables
         self.status_var = tk.StringVar(value="Ready to analyze proximity events")
         self.progress_var = tk.DoubleVar()
@@ -111,6 +115,8 @@ class ProximityGUIConfig:
         self.trail_length.set(2.0)
         self.time_step.set("1m")
         self.limit_encounters.set(0)
+        self.start_time.set("")
+        self.end_time.set("")
     
     def is_valid_configuration(self):
         """Check if current configuration is valid for analysis"""
