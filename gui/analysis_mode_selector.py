@@ -326,7 +326,7 @@ class AnalysisModeSelector:
         else:
             print("🔧 DEBUG: Running in development mode")
             # Running in development mode - use subprocess
-            script_path = os.path.join(os.path.dirname(__file__), "live_map_2d_gui.py")
+            script_path = os.path.join(os.path.dirname(__file__), "live_map_2d_gui_final.py")
             if os.path.exists(script_path):
                 try:
                     # Set environment variable for language persistence
@@ -346,7 +346,7 @@ class AnalysisModeSelector:
                     self.show_error(f"Error launching 2D map GUI: {str(e)}")
                     self.btn2.config(state="normal")
             else:
-                self.show_error(f"live_map_2d_gui.py not found at: {script_path}")
+                self.show_error(f"live_map_2d_gui_final.py not found at: {script_path}")
                 self.btn2.config(state="normal")
     
     def launch_3d_visualization(self):

@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """
-Simple modular 2D Live Map GUI - Final Step: All components integrated
-FolderManager + DataPreview + SettingsManager + LaunchManager
+Simple GUI with Mode Selection - Based on working complete version
 """
 
 import tkinter as tk
@@ -25,8 +24,8 @@ except ImportError as e:
     sys.exit(1)
 
 
-class SimpleGUI:
-    """Complete modular GUI with all components"""
+class SimpleGUIWithModes:
+    """Simple GUI based on working version + mode selector"""
     
     def __init__(self, parent=None):
         if parent:
@@ -34,7 +33,7 @@ class SimpleGUI:
         else:
             self.root = tk.Tk()
         
-        self.root.title("2D Live Map - Complete Modular GUI")
+        self.root.title("2D Live Map - With Mode Selection")
         self.root.geometry("800x800")
         self.root.resizable(True, True)
         
@@ -75,21 +74,16 @@ class SimpleGUI:
     
     def update_status(self):
         """Update status with current data and settings"""
-        if self.data_preview and self.folder_manager:
+        if self.data_preview and self.folder_manager and self.mode_selector:
             file_count = self.data_preview.get_file_count()
             total_points = self.data_preview.get_total_points()
             data_folder = os.path.basename(self.folder_manager.get_data_folder())
+            mode_info = self.mode_selector.get_selected_mode_info()
             
-            # Add mode info if available
-            mode_status = ""
-            if self.mode_selector:
-                mode_info = self.mode_selector.get_selected_mode_info()
-                mode_status = f" | Mode: {mode_info['display_name']}"
-            
-            self.status_var.set(f"Ready | {file_count} files, {total_points} points in {data_folder}{mode_status}")
+            self.status_var.set(f"Ready | {file_count} files, {total_points} points | Mode: {mode_info['display_name']}")
     
     def setup_ui(self):
-        """Set up complete UI with all components"""
+        """Set up UI based on working complete version"""
         # Configure root grid
         self.root.grid_rowconfigure(0, weight=1)
         self.root.grid_columnconfigure(0, weight=1)
@@ -97,10 +91,10 @@ class SimpleGUI:
         main_frame = ttk.Frame(self.root, padding="20")
         main_frame.grid(row=0, column=0, sticky="nsew")
         main_frame.grid_columnconfigure(0, weight=1)
-        main_frame.grid_rowconfigure(2, weight=1)  # Make data preview expandable
+        main_frame.grid_rowconfigure(3, weight=1)  # Make data preview expandable
         
         # Title
-        title = ttk.Label(main_frame, text="🗺️ 2D Live Map - Complete Modular GUI", 
+        title = ttk.Label(main_frame, text="🗺️ GPS Animation Suite - Mode Selection", 
                          font=("Arial", 16, "bold"))
         title.grid(row=0, column=0, pady=(0, 20), sticky="ew")
         
@@ -109,35 +103,35 @@ class SimpleGUI:
         self.status_label = ttk.Label(main_frame, textvariable=self.status_var)
         self.status_label.grid(row=1, column=0, pady=5, sticky="ew")
         
-        # NEW: Component 0: ModeSelector (add at the top)
+        # Mode Selector (NEW - at the top)
         self.mode_selector = ModeSelector(main_frame, self.get_language)
         self.mode_selector.set_mode_change_callback(self.on_mode_changed)
         self.mode_selector.setup_ui()
         
-        # Component 1: FolderManager
+        # FolderManager (same as working version)
         self.folder_manager = FolderManager(main_frame, self.get_language)
         self.folder_manager.set_data_folder_callback(self.on_data_folder_changed)
         self.folder_manager.setup_ui()
         
-        # Component 2: DataPreview
+        # DataPreview (same as working version)
         self.data_preview = DataPreview(main_frame, self.get_language)
         self.data_preview.set_data_folder_var(self.folder_manager.data_folder)
         self.data_preview.setup_ui()
         
-        # Component 3: SettingsManager
+        # SettingsManager (same as working version)
         self.settings_manager = SettingsManager(main_frame, self.get_language)
         self.settings_manager.setup_ui()
         
-        # Component 4: LaunchManager (no UI setup needed - it's just the launch logic)
+        # LaunchManager (same as working version)
         self.launch_manager = LaunchManager(self.get_language)
         
-        # Buttons
+        # Buttons (updated with mode test)
         button_frame = ttk.Frame(main_frame)
         button_frame.grid(row=6, column=0, pady=20)
         
         ttk.Button(button_frame, text="🔄 Refresh", command=self.refresh_data).grid(row=0, column=0, padx=(0, 10))
         ttk.Button(button_frame, text="🎯 Mode Info", command=self.show_mode_info).grid(row=0, column=1, padx=(0, 10))
-        ttk.Button(button_frame, text="🚀 Launch Map", command=self.launch_map).grid(row=0, column=2, padx=(0, 10))
+        ttk.Button(button_frame, text="🚀 Launch", command=self.launch_selected_mode).grid(row=0, column=2, padx=(0, 10))
         ttk.Button(button_frame, text="❌ Close", command=self.root.destroy).grid(row=0, column=3)
     
     def refresh_data(self):
@@ -148,41 +142,52 @@ class SimpleGUI:
     
     def show_mode_info(self):
         """Show current mode information"""
-        if self.mode_selector:
-            mode_info = self.mode_selector.get_selected_mode_info()
-            script = mode_info['script']
-            print(f"Current mode: {mode_info['display_name']}")
-            print(f"Script: {script}")
-            self.status_var.set(f"Mode: {mode_info['display_name']} -> scripts/{script}")
-        else:
-            self.status_var.set("Mode selector not available")
+        mode_info = self.mode_selector.get_selected_mode_info()
+        script = mode_info['script']
+        print(f"Current mode: {mode_info['display_name']}")
+        print(f"Script: {script}")
+        self.status_var.set(f"Mode: {mode_info['display_name']} -> scripts/{script}")
     
-    def launch_map(self):
-        """Launch the map using all components"""
-        if not all([self.folder_manager, self.data_preview, self.settings_manager, self.launch_manager]):
-            self.status_var.set("Error: Not all components are ready")
-            return
-        
+    def launch_selected_mode(self):
+        """Launch based on selected mode"""
         try:
-            # Update status before launch
-            self.status_var.set("Launching map...")
+            mode_key = self.mode_selector.get_selected_mode()
+            mode_info = self.mode_selector.get_selected_mode_info()
+            
+            self.status_var.set(f"Launching {mode_info['display_name']}...")
             self.root.update()
             
-            # Use LaunchManager with real components
-            result = self.launch_manager.launch_map(self.folder_manager, self.settings_manager)
-            
-            if result:
-                file_count = self.data_preview.get_file_count()
-                total_points = self.data_preview.get_total_points()
-                self.status_var.set(f"Launch successful! ({file_count} files, {total_points} points)")
+            if mode_key == "2d_live_map":
+                # Use existing LaunchManager for 2D maps
+                result = self.launch_manager.launch_map(self.folder_manager, self.settings_manager)
+                status = "2D Live Map launched!" if result else "2D Live Map launch failed"
             else:
-                self.status_var.set("Launch failed - check configuration")
-                
+                # For mobile_animation and 3d_animation
+                result = self.launch_script(mode_info['script'])
+                status = f"{mode_info['display_name']} launched!" if result else f"{mode_info['display_name']} launch failed"
+            
+            self.status_var.set(status)
+            
         except Exception as e:
             print(f"Launch error: {e}")
-            import traceback
-            traceback.print_exc()
             self.status_var.set(f"Launch error: {str(e)}")
+    
+    def launch_script(self, script_name):
+        """Launch a script directly"""
+        import subprocess
+        
+        try:
+            script_path = os.path.join("scripts", script_name)
+            if os.path.exists(script_path):
+                print(f"Launching {script_path}")
+                subprocess.Popen(["python3", script_path])
+                return True
+            else:
+                print(f"Script not found: {script_path}")
+                return False
+        except Exception as e:
+            print(f"Error launching script: {e}")
+            return False
     
     def center_window(self):
         """Center the window on the screen"""
@@ -204,10 +209,10 @@ class SimpleGUI:
 
 
 def main():
-    print("Starting Complete Modular GUI with all components...")
-    app = SimpleGUI()
+    print("Starting GUI with Mode Selection...")
+    app = SimpleGUIWithModes()
     app.run()
-    print("Complete GUI closed.")
+    print("GUI closed.")
 
 
 if __name__ == "__main__":
