@@ -289,24 +289,68 @@ class ScrollableGUI:
     def _validate_time_entry(self, which):
         """Validate an entry ('start' or 'end') and show inline error if invalid."""
         try:
+            # Read and parse the typed value
             if which == 'start':
                 s = self.start_time_var.get()
                 dt = self._parse_time_str(s)
                 if dt is None and s.strip():
                     self.start_error_label.config(text='Invalid time')
                     return False
-                else:
-                    self.start_error_label.config(text='')
-                    return True
+
+                # If we have a detected data range, ensure the start is within bounds
+                try:
+                    detected = None
+                    if hasattr(self, 'data_preview') and self.data_preview is not None:
+                        detected = getattr(self.data_preview, 'get_time_range', lambda: None)()
+                    if detected and isinstance(detected, (list, tuple)) and len(detected) >= 2 and dt is not None:
+                        data_start, data_end = detected[0], detected[1]
+                        # normalize detected to datetime if they are strings
+                        if not isinstance(data_start, datetime):
+                            data_start = self._parse_time_str(str(data_start))
+                        if not isinstance(data_end, datetime):
+                            data_end = self._parse_time_str(str(data_end))
+                        if data_start and dt < data_start:
+                            self.start_error_label.config(text='Before data start')
+                            return False
+                        if data_end and dt > data_end:
+                            self.start_error_label.config(text='After data end')
+                            return False
+                except Exception:
+                    # tolerate any detection failures and fall back to basic parsing
+                    pass
+
+                self.start_error_label.config(text='')
+                return True
+
             elif which == 'end':
                 s = self.end_time_var.get()
                 dt = self._parse_time_str(s)
                 if dt is None and s.strip():
                     self.end_error_label.config(text='Invalid time')
                     return False
-                else:
-                    self.end_error_label.config(text='')
-                    return True
+
+                # Bounds check against detected data range if available
+                try:
+                    detected = None
+                    if hasattr(self, 'data_preview') and self.data_preview is not None:
+                        detected = getattr(self.data_preview, 'get_time_range', lambda: None)()
+                    if detected and isinstance(detected, (list, tuple)) and len(detected) >= 2 and dt is not None:
+                        data_start, data_end = detected[0], detected[1]
+                        if not isinstance(data_start, datetime):
+                            data_start = self._parse_time_str(str(data_start))
+                        if not isinstance(data_end, datetime):
+                            data_end = self._parse_time_str(str(data_end))
+                        if data_end and dt > data_end:
+                            self.end_error_label.config(text='After data end')
+                            return False
+                        if data_start and dt < data_start:
+                            self.end_error_label.config(text='Before data start')
+                            return False
+                except Exception:
+                    pass
+
+                self.end_error_label.config(text='')
+                return True
         except Exception:
             return False
 
