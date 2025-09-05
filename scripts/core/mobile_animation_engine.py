@@ -16,6 +16,7 @@ from utils.animation_state_manager import create_reliable_animation_controls
 from utils.user_interface import UserInterface
 from utils.offline_tiles import ensure_offline_style_for_bounds
 from utils.html_injection import inject_fullscreen
+from utils.lod import LODConfig, apply_lod
 
 
 class MobileAnimationEngine:
@@ -37,6 +38,13 @@ class MobileAnimationEngine:
         self.mobile_height = mobile_height
         self.mobile_zoom = mobile_zoom
         self.mobile_marker_size = mobile_marker_size
+        # Playback and performance
+        self.base_animation_speed = 800  # ms per frame at 1x speed
+        try:
+            self.playback_speed = float(os.environ.get('PLAYBACK_SPEED', '1.0'))
+        except Exception:
+            self.playback_speed = 1.0
+        self.performance_mode = os.environ.get('PERFORMANCE_MODE', '0') == '1'
         
         # Animation data
         self.combined_data: Optional[pd.DataFrame] = None
@@ -69,6 +77,32 @@ class MobileAnimationEngine:
             # Prepare mobile-friendly data
             df = self._prepare_mobile_data()
             
+            # Optionally apply adaptive LOD/resampling for performance mode
+            if self.performance_mode:
+                try:
+                    self.ui.print_section("⚡ MOBILE PERFORMANCE MODE")
+                    # Mobile-tuned LOD: tighter caps for mobile devices
+                    lod_cfg = LODConfig(
+                        max_points_per_track=8000,
+                        target_points_per_min=300,
+                        rdp_epsilon_meters=8.0,
+                        use_rdp=True,
+                    )
+                    per_vulture = []
+                    vulture_ids_pre = df['vulture_id'].unique()
+                    for vid in vulture_ids_pre:
+                        seg = df[df['vulture_id'] == vid].copy()
+                        if len(seg) > lod_cfg.max_points_per_track:
+                            seg = apply_lod(seg, 'Timestamp [UTC]', 'Latitude', 'Longitude', lod_cfg)
+                            seg['timestamp_str'] = seg['Timestamp [UTC]'].dt.strftime('%d.%m.%Y %H:%M:%S')
+                            seg['timestamp_mobile'] = seg['Timestamp [UTC]'].dt.strftime('%d.%m %H:%M')
+                        per_vulture.append(seg)
+                    df = pd.concat(per_vulture, ignore_index=True)
+                    df = df.sort_values('Timestamp [UTC]')
+                    print(f"⚡ Mobile performance mode: applied LOD, points now: {len(df)}")
+                except Exception as e:
+                    self.ui.print_warning(f"Failed to apply mobile LOD: {e}")
+
             # Create mobile-optimized figure
             fig = self._create_mobile_figure(df)
 
@@ -100,6 +134,15 @@ class MobileAnimationEngine:
                     print(f"🗺️ Using offline tiles from: {TILES_DIR}")
             except Exception as te:
                 self.ui.print_warning(f"Offline map setup failed, using online tiles: {te}")
+
+            # Use frame duration adjusted by playback speed
+            frame_duration = self.get_frame_duration()
+            # Attach offline style into fig layout for use in _apply_mobile_layout when needed
+            if offline_map_style is not None:
+                try:
+                    fig.layout._offline_map_style = offline_map_style
+                except Exception:
+                    pass
 
             self._apply_mobile_layout(fig, df, offline_map_style)
             
@@ -177,27 +220,61 @@ class MobileAnimationEngine:
         colors = px.colors.qualitative.Set1[:len(vulture_ids)]
         color_map = dict(zip(vulture_ids, colors))
         
-        # Add initial empty traces for each vulture using MapLibre-compatible Scattermap
+        # Add initial empty traces for each vulture
         for vulture_id in vulture_ids:
-            fig.add_trace(
-                go.Scattermap(  # MapLibre compatible
-                    lat=[],
-                    lon=[],
-                    mode='lines+markers',
-                    name=vulture_id,
-                    line=dict(color=color_map[vulture_id], width=4),  # Thicker for mobile
-                    marker=dict(color=color_map[vulture_id], size=self.mobile_marker_size),
-                    showlegend=True,  # Ensure all birds always show in legend
-                    hovertemplate=(
-                        f"<b>{vulture_id}</b><br>"
-                        "Time: %{customdata[0]}<br>"
-                        "Lat: %{lat:.4f}°<br>"
-                        "Lon: %{lon:.4f}°<br>"
-                        "Alt: %{customdata[1]}m"
-                        "<extra></extra>"
+            if self.performance_mode:
+                # Line + head: trail as a line (no markers) + a separate head marker trace
+                # Trail (line only)
+                fig.add_trace(
+                    go.Scattermap(
+                        lat=[],
+                        lon=[],
+                        mode='lines',
+                        name=vulture_id,
+                        line=dict(color=color_map[vulture_id], width=3),
+                        hoverinfo='skip',
+                        showlegend=True,
                     )
                 )
-            )
+                # Head marker trace
+                fig.add_trace(
+                    go.Scattermap(
+                        lat=[],
+                        lon=[],
+                        mode='markers',
+                        name=f"{vulture_id} (current)",
+                        marker=dict(color=color_map[vulture_id], size=self.mobile_marker_size + 4),
+                        showlegend=False,
+                        hovertemplate=(
+                            f"<b>{vulture_id}</b><br>"
+                            "Time: %{customdata[0]}<br>"
+                            "Lat: %{lat:.4f}°<br>"
+                            "Lon: %{lon:.4f}°<br>"
+                            "Alt: %{customdata[1]}m"
+                            "<extra></extra>"
+                        ),
+                    )
+                )
+            else:
+                fig.add_trace(
+                    go.Scattermap(  # MapLibre compatible
+                        lat=[],
+                        lon=[],
+                        mode='lines+markers',
+                        name=vulture_id,
+                        line=dict(color=color_map[vulture_id], width=4),  # Thicker for mobile
+                        marker=dict(color=color_map[vulture_id], size=self.mobile_marker_size),
+                        showlegend=True,  # Ensure all birds always show in legend
+                        hovertemplate=(
+                            f"<b>{vulture_id}</b><br>"
+                            "Time: %{customdata[0]}<br>"
+                            "Lat: %{lat:.4f}°<br>"
+                            "Lon: %{lon:.4f}°<br>"
+                            "Alt: %{customdata[1]}m"
+                            "<extra></extra>"
+                        )
+                    )
+                )
         
         return fig
     
@@ -214,76 +291,96 @@ class MobileAnimationEngine:
         
         for time_str in unique_times:
             frame_data = []
-            
             for vulture_id in vulture_ids:
-                # Get cumulative data up to this time for each vulture
                 vulture_data = df[df['vulture_id'] == vulture_id]
                 cumulative_data = vulture_data[vulture_data['timestamp_str'] <= time_str].sort_values('Timestamp [UTC]')
-                
-                if len(cumulative_data) > 0:
-                    # Calculate visual effects for fading trail
-                    trail_points = len(cumulative_data)
-                    marker_sizes = []
-                    marker_opacities = []
-                    
-                    # Prepare custom data for hover and calculate fading effects
-                    customdata = []
-                    for i, (_, row) in enumerate(cumulative_data.iterrows()):
-                        height_display = format_height_display(row['Height'])
-                        customdata.append([row['timestamp_mobile'], height_display])
-                        
-                        # Calculate age factor (0 = oldest, 1 = newest)
-                        age_factor = i / max(1, trail_points - 1) if trail_points > 1 else 1.0
-                        
-                        # Create fading effect for markers (mobile-optimized sizes)
-                        if i == trail_points - 1:  # Current position (newest point)
-                            marker_sizes.append(self.mobile_marker_size + 4)  # Even larger for mobile touch
-                            marker_opacities.append(1.0)  # Full opacity for current position
-                        else:
-                            # Fade trail markers based on age (mobile-friendly sizes)
-                            base_size = max(6, self.mobile_marker_size - 4)
-                            fade_size = base_size + (4 * age_factor)
-                            marker_sizes.append(fade_size)
-                            # Fade opacity (min 0.4, max 0.8 for trail)
-                            fade_opacity = 0.4 + (0.4 * age_factor)
-                            marker_opacities.append(fade_opacity)
-                    
-                    frame_data.append(
-                        go.Scattermap(  # MapLibre compatible
-                            lat=cumulative_data['Latitude'].tolist(),
-                            lon=cumulative_data['Longitude'].tolist(),
-                            mode='lines+markers',
-                            name=vulture_id,
-                            line=dict(color=color_map[vulture_id], width=4),
-                            marker=dict(
-                                color=color_map[vulture_id], 
-                                size=marker_sizes,
-                                opacity=marker_opacities
-                            ),
-                            customdata=customdata,
-                            hovertemplate=(
-                                f"<b>{vulture_id}</b><br>"
-                                "Time: %{customdata[0]}<br>"
-                                "Lat: %{lat:.4f}°<br>"
-                                "Lon: %{lon:.4f}°<br>"
-                                "Alt: %{customdata[1]}"
-                                "<extra></extra>"
+
+                if self.performance_mode:
+                    # For performance 'line_head' strategy, add two traces per vulture:
+                    # 1) cumulative line trace (trail)
+                    # 2) head marker trace (current position)
+                    if len(cumulative_data) > 0:
+                        # cumulative line
+                        frame_data.append(
+                            go.Scattermap(
+                                lat=cumulative_data['Latitude'].tolist(),
+                                lon=cumulative_data['Longitude'].tolist(),
+                                mode='lines',
+                                name=vulture_id,
+                                line=dict(color=color_map[vulture_id], width=3),
+                                hoverinfo='skip'
                             )
                         )
-                    )
-                else:
-                    # Empty trace for vultures with no data at this time
-                    frame_data.append(
-                        go.Scattermap(  # MapLibre compatible
-                            lat=[],
-                            lon=[],
-                            mode='lines+markers',
-                            name=vulture_id,
-                            line=dict(color=color_map[vulture_id], width=4),
-                            marker=dict(color=color_map[vulture_id], size=self.mobile_marker_size)
+                        # current head marker
+                        last = cumulative_data.iloc[-1]
+                        customdata = [[last['timestamp_mobile'], format_height_display(last['Height'])]]
+                        frame_data.append(
+                            go.Scattermap(
+                                lat=[last['Latitude']],
+                                lon=[last['Longitude']],
+                                mode='markers',
+                                name=f"{vulture_id} (current)",
+                                marker=dict(color=color_map[vulture_id], size=self.mobile_marker_size + 4, opacity=1.0),
+                                customdata=customdata,
+                                hovertemplate=(
+                                    f"<b>{vulture_id}</b><br>"
+                                    "Time: %{customdata[0]}<br>"
+                                    "Lat: %{lat:.4f}°<br>"
+                                    "Lon: %{lon:.4f}°<br>"
+                                    "Alt: %{customdata[1]}"
+                                    "<extra></extra>"
+                                )
+                            )
                         )
-                    )
-            
+                    else:
+                        # empty line + empty head
+                        frame_data.append(go.Scattermap(lat=[], lon=[], mode='lines', name=vulture_id))
+                        frame_data.append(go.Scattermap(lat=[], lon=[], mode='markers', name=f"{vulture_id} (current)", marker=dict(size=self.mobile_marker_size)))
+                else:
+                    if len(cumulative_data) > 0:
+                        # full trail + markers (same as before)
+                        trail_points = len(cumulative_data)
+                        marker_sizes = []
+                        marker_opacities = []
+                        customdata = []
+                        for i, (_, row) in enumerate(cumulative_data.iterrows()):
+                            height_display = format_height_display(row['Height'])
+                            customdata.append([row['timestamp_mobile'], height_display])
+                            age_factor = i / max(1, trail_points - 1) if trail_points > 1 else 1.0
+                            if i == trail_points - 1:
+                                marker_sizes.append(self.mobile_marker_size + 4)
+                                marker_opacities.append(1.0)
+                            else:
+                                base_size = max(6, self.mobile_marker_size - 4)
+                                fade_size = base_size + (4 * age_factor)
+                                marker_sizes.append(fade_size)
+                                fade_opacity = 0.4 + (0.4 * age_factor)
+                                marker_opacities.append(fade_opacity)
+
+                        frame_data.append(
+                            go.Scattermap(
+                                lat=cumulative_data['Latitude'].tolist(),
+                                lon=cumulative_data['Longitude'].tolist(),
+                                mode='lines+markers',
+                                name=vulture_id,
+                                line=dict(color=color_map[vulture_id], width=4),
+                                marker=dict(color=color_map[vulture_id], size=marker_sizes, opacity=marker_opacities),
+                                customdata=customdata,
+                                hovertemplate=(
+                                    f"<b>{vulture_id}</b><br>"
+                                    "Time: %{customdata[0]}<br>"
+                                    "Lat: %{lat:.4f}°<br>"
+                                    "Lon: %{lon:.4f}°<br>"
+                                    "Alt: %{customdata[1]}"
+                                    "<extra></extra>"
+                                )
+                            )
+                        )
+                    else:
+                        frame_data.append(
+                            go.Scattermap(lat=[], lon=[], mode='lines+markers', name=vulture_id, marker=dict(size=self.mobile_marker_size))
+                        )
+
             frames.append(go.Frame(data=frame_data, name=time_str))
         
         fig.frames = frames
@@ -333,10 +430,13 @@ class MobileAnimationEngine:
                 font=dict(size=10)  # Smaller legend text
             ),
             
-            # Mobile-friendly reliable animation controls
+            # Mobile-friendly reliable animation controls (include speed controls)
             **create_reliable_animation_controls(
-                frame_duration=800,  # Mobile-optimized slower pace
-                include_speed_controls=False  # Simplified for mobile
+                frame_duration=self.get_frame_duration(),
+                include_speed_controls=True,
+                center_lat=map_bounds['center']['lat'],
+                center_lon=map_bounds['center']['lon'],
+                zoom_level=self.mobile_zoom,
             ),
             
             # Mobile-optimized enhanced slider
@@ -373,3 +473,7 @@ class MobileAnimationEngine:
             'marker_size': self.mobile_marker_size,
             'mobile_height': self.mobile_height
         }
+
+    def get_frame_duration(self) -> int:
+        """Return frame duration in ms adjusted by playback speed."""
+        return max(50, int(self.base_animation_speed / max(0.01, self.playback_speed)))

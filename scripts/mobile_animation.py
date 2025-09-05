@@ -15,6 +15,7 @@ from utils.mobile_interface import MobileInterface
 from utils.performance_optimizer import PerformanceOptimizer
 from core.mobile_animation_engine import MobileAnimationEngine
 import pandas as pd
+import os
 
 
 def main():
@@ -92,6 +93,14 @@ def main():
         )
         
         # Create animation engine with mobile settings
+        # Ask for performance and playback preferences (mobile CLI inputs)
+        perf_ans = mobile_ui.get_mobile_input("Enable mobile performance mode (head-only, faster) [y/N]", "N", str)
+        playback_speed = mobile_ui.get_mobile_input("Playback speed multiplier (e.g. 1.0 for normal)", "1.0", float)
+
+        # Set environment variables so the engine reads consistent configuration
+        os.environ['PERFORMANCE_MODE'] = '1' if (str(perf_ans).lower().strip() in ('y', 'yes', '1', 'true')) else '0'
+        os.environ['PLAYBACK_SPEED'] = str(playback_speed)
+
         animation_engine = MobileAnimationEngine(
             mobile_height=mobile_height,
             mobile_zoom=mobile_zoom,
