@@ -370,6 +370,34 @@ class ProximityUIBuilder:
             text="Show in Folder",
             command=self.event_handler.show_in_folder
         ).pack(fill='x', pady=2)
+        
+        # Quick Visualization Links
+        viz_frame = ttk.LabelFrame(results_frame, text="Quick Visualizations", padding=10)
+        viz_frame.pack(fill='x', pady=(10, 0))
+        
+        # Timeline link
+        ttk.Button(
+            viz_frame,
+            text="📊 Open Timeline Visualization",
+            command=self.event_handler.open_timeline_viz,
+            style='Accent.TButton'
+        ).pack(fill='x', pady=2)
+        
+        # Map link
+        ttk.Button(
+            viz_frame,
+            text="🗺️ Open Map Visualization", 
+            command=self.event_handler.open_map_viz,
+            style='Accent.TButton'
+        ).pack(fill='x', pady=2)
+        
+        # Dashboard link
+        ttk.Button(
+            viz_frame,
+            text="📈 Open Dashboard Visualization",
+            command=self.event_handler.open_dashboard_viz,
+            style='Accent.TButton'
+        ).pack(fill='x', pady=2)
     
     def _create_log_tab(self):
         """Create the log display tab"""

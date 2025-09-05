@@ -519,3 +519,62 @@ For more detailed help, visit: https://github.com/YourRepo/GPS_make_BGs_fly
                 self.log(f"Log saved to: {filename}")
             except Exception as e:
                 messagebox.showerror("Save Error", f"Could not save log: {e}")
+    
+    def open_timeline_viz(self):
+        """Open the latest timeline visualization file in browser"""
+        self._open_latest_viz_file("proximity_timeline")
+    
+    def open_map_viz(self):
+        """Open the latest map visualization file in browser"""
+        self._open_latest_viz_file("proximity_map")
+    
+    def open_dashboard_viz(self):
+        """Open the latest dashboard visualization file in browser"""
+        self._open_latest_viz_file("proximity_dashboard")
+    
+    def _open_latest_viz_file(self, file_prefix):
+        """Open the latest visualization file with the given prefix"""
+        output_folder = self.config.output_folder.get()
+        if not output_folder or not os.path.exists(output_folder):
+            messagebox.showwarning("No Results", "No output folder found. Run analysis first.")
+            return
+        
+        # Look for visualization files in the output directory and visualizations folder
+        search_dirs = [output_folder]
+        
+        # Also check the main visualizations folder
+        viz_folder = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'visualizations')
+        if os.path.exists(viz_folder):
+            search_dirs.append(viz_folder)
+        
+        latest_file = None
+        latest_time = 0
+        
+        for search_dir in search_dirs:
+            try:
+                for filename in os.listdir(search_dir):
+                    if filename.startswith(file_prefix) and filename.endswith('.html'):
+                        file_path = os.path.join(search_dir, filename)
+                        file_time = os.path.getmtime(file_path)
+                        if file_time > latest_time:
+                            latest_time = file_time
+                            latest_file = file_path
+            except OSError:
+                continue
+        
+        if latest_file:
+            self._open_file_in_browser(latest_file)
+            self.log(f"📊 Opened {file_prefix} visualization: {os.path.basename(latest_file)}")
+        else:
+            messagebox.showinfo("No Visualization", f"No {file_prefix} visualization found. Run analysis first to generate visualizations.")
+    
+    def _open_file_in_browser(self, file_path):
+        """Open a file in the default web browser"""
+        try:
+            import webbrowser
+            # Convert to file:// URL for proper browser opening
+            file_url = f"file://{os.path.abspath(file_path)}"
+            webbrowser.open(file_url)
+        except Exception as e:
+            self.log(f"Could not open file in browser: {e}")
+            messagebox.showerror("Browser Error", f"Could not open file in browser: {e}")
