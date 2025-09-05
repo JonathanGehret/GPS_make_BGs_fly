@@ -31,7 +31,8 @@ from utils.lod import LODConfig, apply_lod
 from utils.offline_tiles import ensure_offline_style_for_bounds
 from utils.precip_providers import BBox
 from utils.precip_overlay import build_precip_dataset
-from utils.precip_injection import inject_precip_overlay
+from utils.precip_osm_heatmap import inject_precip_osm_heatmap as inject_precip_overlay
+print("🌧️ Using new OSM precipitation heatmap injector")
 
 
 class LiveMapAnimator:
