@@ -47,6 +47,11 @@ class ScrollableGUI:
         self.status_var = None
         
         self.setup_gui()
+        # Apply initial folders from environment if provided (for launches from other GUIs)
+        try:
+            self._apply_initial_env_defaults()
+        except Exception:
+            pass
         self.center_window()
     
     def get_language(self):
@@ -168,6 +173,28 @@ class ScrollableGUI:
             self.settings_manager,
             status_callback
         )
+
+    def _apply_initial_env_defaults(self):
+        """If GPS_DATA_DIR/OUTPUT_DIR are set, prefill folder fields and refresh UI."""
+        if not self.folder_manager:
+            return
+        data_dir = os.environ.get('GPS_DATA_DIR')
+        out_dir = os.environ.get('OUTPUT_DIR')
+        changed = False
+        try:
+            if data_dir:
+                self.folder_manager.data_folder.set(data_dir)
+                changed = True
+            if out_dir:
+                self.folder_manager.output_folder.set(out_dir)
+        except Exception:
+            pass
+        # Trigger refresh if we changed data dir
+        if changed:
+            try:
+                self.on_data_folder_changed(self.folder_manager.data_folder.get())
+            except Exception:
+                pass
 
     def create_time_range_section(self, parent):
         """Create GUI controls for animation start and end time."""

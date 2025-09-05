@@ -585,17 +585,13 @@ For more detailed help, visit: https://github.com/YourRepo/GPS_make_BGs_fly
             env.pop('TIME_WINDOW_START', None)
             env.pop('TIME_WINDOW_END', None)
 
-            # Import and run the 2D map GUI
-            from gui.live_map_2d_gui import main as map_gui_main
-            # Run in a separate thread to avoid blocking the current GUI
-            import threading
-            # Launch in a thread after setting environment variables for that thread
-            def _launch():
-                # Apply env overrides within this thread/process
-                os.environ.update(env)
-                map_gui_main()
-            threading.Thread(target=_launch, daemon=True).start()
-            self.log("🗺️ Opening 2D Map Live GUI with current dataset (full range)...")
+            # Launch as a separate process (Tk must run in main thread, not a background thread)
+            base_dir = os.path.dirname(__file__)
+            gui_script = os.path.abspath(os.path.join(base_dir, '..', 'live_map_2d_gui.py'))
+            if not os.path.exists(gui_script):
+                raise FileNotFoundError(f"2D GUI script not found at {gui_script}")
+            subprocess.Popen([sys.executable, gui_script], env=env)
+            self.log("🗺️ Opening 2D Map Live GUI with current dataset (full range) in a new window...")
         except Exception as e:
             messagebox.showerror("Error", f"Could not open 2D Map GUI: {e}")
             self.log(f"❌ Failed to open 2D Map GUI: {e}")

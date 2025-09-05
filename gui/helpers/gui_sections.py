@@ -51,10 +51,11 @@ class GUISections:
         """Create folders section with browse buttons"""
         folder_frame = ttk.LabelFrame(parent, text="📁 Folders", padding="10")
         folder_frame.pack(fill="x", pady=(0, 10))
-        
         # Initialize folder variables (prefill from environment if provided)
-        default_data = os.environ.get('GPS_DATA_DIR', os.path.join(os.getcwd(), "assets", "data"))
-        default_output = os.environ.get('OUTPUT_DIR', os.path.join(os.getcwd(), "visualizations"))
+        # Fall back to project-root-relative defaults for stability across different CWDs
+        project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+        default_data = os.environ.get('GPS_DATA_DIR', os.path.join(project_root, "assets", "data"))
+        default_output = os.environ.get('OUTPUT_DIR', os.path.join(project_root, "visualizations"))
         data_folder = tk.StringVar(value=default_data)
         output_folder = tk.StringVar(value=default_output)
         
