@@ -148,7 +148,8 @@ class ProximityEventHandler:
         """Worker function that runs the analysis in background"""
         try:
             # Import analysis functions
-            from gps_utils import DataLoader
+            from gps_utils import DataLoader, get_numbered_output_path
+            from core.proximity_engine import ProximityEngine
             
             # Get parameters
             params = self.config.get_analysis_parameters()
@@ -167,50 +168,88 @@ class ProximityEventHandler:
             
             self.log(f"✅ Loaded {len(dataframes)} vulture datasets")
             
+            # Initialize and configure proximity engine
+            self.log("Configuring proximity engine...")
+            engine = ProximityEngine()
+            engine.load_dataframes(dataframes)
+            engine.proximity_threshold_km = float(params['proximity_threshold'])
+            engine.min_duration_minutes = float(params['time_threshold'])
+
+            self.log(f"⚙️ Proximity threshold: {engine.proximity_threshold_km} km")
+            self.log(f"⚙️ Time threshold: {engine.min_duration_minutes} minutes")
+
             # Run proximity analysis
             self.log("Analyzing proximity events...")
-            
-            # Parse time step (for future use)
-            # time_step_seconds = parse_time_step(params['time_step'])
-            
-            # Perform analysis (this would be the actual analysis logic)
-            # For now, we'll simulate the process
-            import time
-            for i in range(5):
-                if not self.config.analysis_running:
-                    return
-                self.log(f"Processing step {i+1}/5...")
-                time.sleep(1)
-            
-            # Simulate results (replace with real analysis outputs)
+            events = engine.analyze_proximity()
+
+            if not events:
+                self.log("⚠️ No proximity events found with current parameters")
+                self.config.results = {
+                    'total_events': 0,
+                    'unique_pairs': 0,
+                    'avg_distance_km': 0.0,
+                    'closest_distance_km': 0.0,
+                }
+                self.config.timeline = []
+                self._update_results_display()
+                return
+
+            self.log(f"✅ Found {len(events)} proximity events!")
+
+            # Calculate statistics (without generating visualizations here)
+            self.log("Calculating statistics...")
+            stats = engine.calculate_statistics()
+
+            # Export events dataframe to CSV in the selected output folder
+            try:
+                # Respect the configured output folder using OUTPUT_DIR for helpers
+                output_dir = params['output_folder']
+                if output_dir:
+                    os.environ['OUTPUT_DIR'] = output_dir
+                events_df = engine.get_events_dataframe()
+                csv_path = get_numbered_output_path('proximity_events', 'analysis').replace('.html', '.csv')
+                events_df.to_csv(csv_path, index=False)
+                self.log(f"📄 Events CSV saved to: {csv_path}")
+                # Track result file
+                self.config.result_files = self.config.result_files or {}
+                self.config.result_files['events_csv'] = csv_path
+            except Exception as e:
+                self.log(f"⚠️ Failed to export events CSV: {e}")
+
+            # Populate results for display
             self.config.results = {
-                'total_events': 42,
-                'unique_pairs': 3,
-                'avg_duration': 5.2,
-                'max_duration': 15.8
+                'total_events': stats.total_events,
+                'unique_pairs': stats.unique_pairs,
+                'avg_distance_km': getattr(stats, 'average_distance_km', 0.0),
+                'closest_distance_km': getattr(stats, 'closest_distance_km', 0.0),
             }
 
-            # Simulate a timeline: list of events with start/end timestamps and involved IDs
-            # Real analysis should populate a similar structure
-            from datetime import datetime, timedelta
-            now = datetime.utcnow()
-            self.config.timeline = [
-                {
-                    'id': 1,
-                    'start': now - timedelta(minutes=30),
-                    'end': now - timedelta(minutes=28),
-                    'pair': ('Vulture A', 'Vulture B')
-                },
-                {
-                    'id': 2,
-                    'start': now - timedelta(minutes=20),
-                    'end': now - timedelta(minutes=18),
-                    'pair': ('Vulture A', 'Vulture C')
-                }
-            ]
-            
+            # Create the same HTML visualizations as before (timeline, map, dashboard)
+            try:
+                from visualization.proximity_plots import ProximityVisualizer
+                if output_dir:
+                    os.environ['OUTPUT_DIR'] = output_dir  # ensure visualizer saves to chosen folder
+                self.log("📈 Creating visualizations (timeline, map, dashboard)...")
+                viz = ProximityVisualizer()
+                viz.create_all_visualizations(events, stats)
+                self.log("✨ Visualizations created.")
+            except Exception as ve:
+                self.log(f"⚠️ Visualization creation failed: {ve}")
+
+            # Build a simple timeline from events (start=end=timestamp)
+            self.config.timeline = []
+            for idx, ev in enumerate(events, start=1):
+                ts = ev.timestamp
+                # Use a nominal end equal to start (engine doesn't group durations here)
+                self.config.timeline.append({
+                    'id': idx,
+                    'start': ts,
+                    'end': ts,  # no duration info at this stage
+                    'pair': (ev.vulture1, ev.vulture2),
+                })
+
             self.log("✅ Analysis completed successfully!")
-            
+
             # Update results display
             self._update_results_display()
             
@@ -236,12 +275,19 @@ class ProximityEventHandler:
             results = self.config.results
             self.config.results_tree.insert('', 'end', values=('Total Events', results.get('total_events', 0)))
             self.config.results_tree.insert('', 'end', values=('Unique Pairs', results.get('unique_pairs', 0)))
-            self.config.results_tree.insert('', 'end', values=('Average Duration (min)', f"{results.get('avg_duration', 0):.1f}"))
-            self.config.results_tree.insert('', 'end', values=('Max Duration (min)', f"{results.get('max_duration', 0):.1f}"))
+            if 'avg_distance_km' in results:
+                self.config.results_tree.insert('', 'end', values=('Average Distance (km)', f"{results.get('avg_distance_km', 0.0):.2f}"))
+            if 'closest_distance_km' in results:
+                self.config.results_tree.insert('', 'end', values=('Closest Distance (km)', f"{results.get('closest_distance_km', 0.0):.2f}"))
 
             # If timeline is available, add a small summary row
             if getattr(self.config, 'timeline', None):
                 self.config.results_tree.insert('', 'end', values=('Timeline Events', len(self.config.timeline)))
+            
+            # Add exported files if available
+            if getattr(self.config, 'result_files', None):
+                for label, path in self.config.result_files.items():
+                    self.config.results_tree.insert('', 'end', values=(label.replace('_', ' ').title(), path))
             
         except Exception as e:
             self.log(f"Error updating results display: {e}")
@@ -271,8 +317,18 @@ class ProximityEventHandler:
             
         selection = self.config.results_tree.selection()
         if selection:
-            # This would open the selected file
-            self.log("Opening selected file...")
+            item_id = selection[0]
+            values = self.config.results_tree.item(item_id, 'values')
+            if not values or len(values) < 2:
+                return
+            path = values[1]
+            if isinstance(path, str) and os.path.exists(path):
+                try:
+                    import webbrowser
+                    webbrowser.open(f"file://{os.path.abspath(path)}")
+                    self.log(f"Opening file: {path}")
+                except Exception as e:
+                    messagebox.showerror("Error", f"Failed to open file: {e}")
 
     def view_timeline(self):
         """Open a simple timeline viewer dialog showing detected events"""
