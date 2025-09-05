@@ -81,6 +81,17 @@ class AnimationLauncher:
                 env['TIME_STEP'] = config['time_step']
                 env['PLAYBACK_SPEED'] = str(config.get('playback_speed', 1.0))
                 env['PERFORMANCE_MODE'] = '1' if config['performance_mode'] else '0'
+                # Precipitation overlay envs (if present in config)
+                try:
+                    if config.get('precip_enable', False):
+                        env['PRECIP_ENABLE'] = '1'
+                        env['PRECIP_PROVIDER'] = str(config.get('precip_provider', 'open-meteo'))
+                        env['PRECIP_ZMAX'] = str(config.get('precip_zmax', 10.0))
+                        env['PRECIP_INTERVAL_MIN'] = str(config.get('precip_interval_min', 60))
+                    else:
+                        env.pop('PRECIP_ENABLE', None)
+                except Exception:
+                    pass
                 # Include optional animation time range if provided by settings_manager
                 # SettingsManager may expose them as attributes or the config may include them.
                 start_time = None

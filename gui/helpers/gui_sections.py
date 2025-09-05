@@ -319,6 +319,42 @@ class GUISections:
         
         ttk.Label(performance_frame, text="• Enabled: Line+head rendering with adaptive LOD for large datasets", 
                  font=("Arial", 8), foreground="gray").pack(anchor="w")
+
+        # Precipitation overlay settings
+        precip_frame = ttk.LabelFrame(parent, text="🌧 Precipitation Overlay (experimental)", padding="10")
+        precip_frame.pack(fill="x", pady=(0, 10))
+
+        # Defaults from environment (so launching from other GUIs can preconfigure)
+        precip_enable_default = os.environ.get('PRECIP_ENABLE', '0') == '1'
+        precip_provider_default = os.environ.get('PRECIP_PROVIDER', 'open-meteo')
+        try:
+            precip_zmax_default = float(os.environ.get('PRECIP_ZMAX', '10.0'))
+        except Exception:
+            precip_zmax_default = 10.0
+        try:
+            precip_interval_default = int(os.environ.get('PRECIP_INTERVAL_MIN', '60'))
+        except Exception:
+            precip_interval_default = 60
+
+        precip_enable = tk.BooleanVar(value=precip_enable_default)
+        ttk.Checkbutton(precip_frame, text="Enable historical precipitation overlay", variable=precip_enable).pack(anchor="w")
+
+        # Provider + interval row
+        row1 = ttk.Frame(precip_frame)
+        row1.pack(fill="x", pady=(6, 0))
+        ttk.Label(row1, text="Provider:").pack(side="left")
+        precip_provider = tk.StringVar(value=precip_provider_default)
+        ttk.Combobox(row1, textvariable=precip_provider, values=["open-meteo"], state="readonly", width=16).pack(side="left", padx=(6, 20))
+        ttk.Label(row1, text="Time quantization (min):").pack(side="left")
+        precip_interval = tk.IntVar(value=precip_interval_default)
+        ttk.Combobox(row1, textvariable=precip_interval, values=[10, 15, 30, 60], state="readonly", width=6).pack(side="left", padx=(6, 0))
+
+        # Z-max row
+        row2 = ttk.Frame(precip_frame)
+        row2.pack(fill="x", pady=(6, 0))
+        ttk.Label(row2, text="Intensity max (mm/h):").pack(side="left")
+        precip_zmax = tk.DoubleVar(value=precip_zmax_default)
+        ttk.Entry(row2, textvariable=precip_zmax, width=8).pack(side="left", padx=(6, 0))
         
         # Create settings manager object
         class SettingsManager:
@@ -326,6 +362,11 @@ class GUISections:
                 self.performance_mode = performance_mode
                 self.trail_length = trail_length
                 self.time_step = time_step
+                # Precipitation
+                self.precip_enable = precip_enable
+                self.precip_provider = precip_provider
+                self.precip_interval = precip_interval
+                self.precip_zmax = precip_zmax
                 
             def get_config(self):
                 cfg = {
@@ -334,6 +375,22 @@ class GUISections:
                     'time_step': self.time_step.get(),
                     'playback_speed': 1.0
                 }
+                # Add precipitation overlay config
+                try:
+                    cfg.update({
+                        'precip_enable': bool(self.precip_enable.get()),
+                        'precip_provider': str(self.precip_provider.get() or 'open-meteo'),
+                        'precip_interval_min': int(self.precip_interval.get() or 60),
+                        'precip_zmax': float(self.precip_zmax.get() or 10.0),
+                    })
+                except Exception:
+                    # Fallback defaults if any control is missing/invalid
+                    cfg.update({
+                        'precip_enable': False,
+                        'precip_provider': 'open-meteo',
+                        'precip_interval_min': 60,
+                        'precip_zmax': 10.0,
+                    })
                 # Include optional animation time range if present as attributes
                 try:
                     if hasattr(self, 'animation_start_time') and getattr(self, 'animation_start_time'):
