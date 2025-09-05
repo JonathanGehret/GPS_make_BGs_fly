@@ -30,6 +30,13 @@ from export.video_export import export_animation_video
 from export.browser_video_export import export_animation_video_browser
 from utils.lod import LODConfig, apply_lod
 from utils.offline_tiles import ensure_offline_style_for_bounds
+from precip.precip_providers import BBox
+from precip.precip_overlay import (
+    build_precip_dataset,
+    add_precip_trace,
+    update_precip_for_hour,
+    apply_precip_to_frames,
+)
 
 # Add the scripts directory to the Python path
 scripts_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -397,6 +404,54 @@ class LiveMapAnimator:
                 zoom_level=zoom_level,
                 include_speed_controls=True,
             )
+
+            # Optional precipitation overlay (Open-Meteo by default, DWD via wetterdienst if requested)
+            try:
+                PRECIP_ENABLE = os.environ.get('PRECIP_ENABLE', '0') == '1'
+                if PRECIP_ENABLE:
+                    PRECIP_PROVIDER = os.environ.get('PRECIP_PROVIDER', 'open-meteo')
+                    PRECIP_ZMAX = float(os.environ.get('PRECIP_ZMAX', '10.0'))
+                    # Convert frame names to datetimes (UTC) for hourly aggregation
+                    unique_dt = pd.to_datetime(unique_times, format='%d.%m.%Y %H:%M:%S', utc=True).to_pydatetime().tolist()
+                    bbox = BBox(lat_min=float(lat_min), lat_max=float(lat_max), lon_min=float(lon_min), lon_max=float(lon_max))
+                    data_by_hour, hours = build_precip_dataset(unique_dt, bbox, provider_name=PRECIP_PROVIDER, cache_dir=Path('.cache/precip'))
+                    # Ensure cache dir exists (if used by provider)
+                    try:
+                        Path('.cache/precip').mkdir(parents=True, exist_ok=True)
+                    except Exception:
+                        pass
+                    # Add one persistent trace and wire per-frame updates
+                    precip_trace_index = add_precip_trace(fig, zmax=PRECIP_ZMAX)
+                    if hours:
+                        update_precip_for_hour(fig, precip_trace_index, hours[0], data_by_hour)
+                    apply_precip_to_frames(fig, precip_trace_index, unique_dt, data_by_hour)
+                    # Add a toggle button for precipitation visibility
+                    precip_menu = dict(
+                        type='buttons',
+                        direction='right',
+                        x=0.5,
+                        y=0.235,
+                        xanchor='center',
+                        yanchor='top',
+                        pad={'r': 4, 't': 4},
+                        bgcolor='#ffffff',
+                        bordercolor='#c8c8c8',
+                        borderwidth=1,
+                        buttons=[
+                            dict(
+                                label='☔ Precip',
+                                method='restyle',
+                                args=[{'visible': True}, [precip_trace_index]],
+                                args2=[{'visible': False}, [precip_trace_index]],
+                            )
+                        ],
+                    )
+                    existing_menus = list(fig.layout.updatemenus) if fig.layout.updatemenus else []
+                    existing_menus.append(precip_menu)
+                    fig.update_layout(updatemenus=existing_menus)
+                    print(f"🌧️ Precipitation overlay enabled (provider: {PRECIP_PROVIDER})")
+            except Exception as pe:
+                self.ui.print_warning(f"Precipitation overlay disabled: {pe}")
             
             # Save visualization with fullscreen support
             filename = self.trail_system.get_output_filename(base_name=base_name, bird_names=list(vulture_ids))
