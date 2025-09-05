@@ -534,18 +534,25 @@ For more detailed help, visit: https://github.com/YourRepo/GPS_make_BGs_fly
     
     def _open_latest_viz_file(self, file_prefix):
         """Open the latest visualization file with the given prefix"""
-        output_folder = self.config.output_folder.get()
-        if not output_folder or not os.path.exists(output_folder):
-            messagebox.showwarning("No Results", "No output folder found. Run analysis first.")
-            return
-        
-        # Look for visualization files in the output directory and visualizations folder
-        search_dirs = [output_folder]
-        
-        # Also check the main visualizations folder
-        viz_folder = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'visualizations')
-        if os.path.exists(viz_folder):
+        # Resolve project root (repo root)
+        project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+
+        # Build search dirs: configured output folder (normalized) + project visualizations
+        search_dirs = []
+        output_folder_cfg = (self.config.output_folder.get() or '').strip()
+        if output_folder_cfg:
+            out_dir = output_folder_cfg
+            out_dir_abs = out_dir if os.path.isabs(out_dir) else os.path.join(project_root, out_dir)
+            if os.path.exists(out_dir_abs):
+                search_dirs.append(out_dir_abs)
+
+        viz_folder = os.path.join(project_root, 'visualizations')
+        if os.path.exists(viz_folder) and viz_folder not in search_dirs:
             search_dirs.append(viz_folder)
+
+        if not search_dirs:
+            messagebox.showwarning("No Results", "No visualization folder found. Run analysis first.")
+            return
         
         latest_file = None
         latest_time = 0
@@ -567,6 +574,14 @@ For more detailed help, visit: https://github.com/YourRepo/GPS_make_BGs_fly
             self.log(f"📊 Opened {file_prefix} visualization: {os.path.basename(latest_file)}")
         else:
             messagebox.showinfo("No Visualization", f"No {file_prefix} visualization found. Run analysis first to generate visualizations.")
+
+    def _open_file_in_browser(self, file_path: str):
+        """Open a file path in the default web browser, handling errors."""
+        try:
+            import webbrowser
+            webbrowser.open(f"file://{os.path.abspath(file_path)}")
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to open file: {e}")
     
     def open_2d_map_gui(self):
         """Open the 2D Map Live GUI"""
