@@ -28,7 +28,7 @@ class ProximityGUIConfig:
         self.style.theme_use('clam')
         
         # Analysis configuration variables
-        self.data_folder = tk.StringVar(value="data")
+        self.data_folder = tk.StringVar(value="/assets/data")
         self.output_folder = tk.StringVar(value="visualizations")
         self.proximity_threshold = tk.DoubleVar(value=2.0)
         self.time_threshold = tk.IntVar(value=5)
@@ -102,7 +102,7 @@ class ProximityGUIConfig:
     
     def reset_to_defaults(self):
         """Reset all parameters to default values"""
-        self.data_folder.set("data")
+        self.data_folder.set("/assets/data")
         self.output_folder.set("visualizations")
         self.proximity_threshold.set(2.0)
         self.time_threshold.set(5)
