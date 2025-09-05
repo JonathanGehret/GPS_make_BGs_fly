@@ -24,11 +24,7 @@ def inject_precip_overlay(html: str, *, data_by_hour: Dict[str, List[List[float]
   position: absolute; top: 0; left: 0; width: 100%; height: 100%;
   pointer-events: none; display: none; z-index: 5;
 }
-/* Active/toggled glow for the precip button */
-.updatemenu-button.precip-active {
-  box-shadow: 0 0 0 3px rgba(30, 100, 200, 0.15), 0 0 10px 2px rgba(30, 100, 200, 0.6);
-  border-color: rgba(30, 100, 200, 0.8) !important;
-}
+/* Control glow is centralized in html_injection; no duplicated styles here */
 </style>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
@@ -110,11 +106,33 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   function updatePrecipButtonState() {
+    // Prefer centralized control API when available
+    try {
+      if (window.__CONTROL && window.__CONTROL.setControlActive) {
+        window.__CONTROL.setControlActive('☔ Precip', !!window._precipEnabled);
+        return;
+      }
+    } catch(_){}
+    // Fallback: toggle classes on matching updatemenu button
     const btns = document.querySelectorAll('.updatemenu-button');
     btns.forEach(b => {
       if (b.textContent && b.textContent.includes('☔ Precip')) {
-        if (window._precipEnabled) b.classList.add('precip-active');
-        else b.classList.remove('precip-active');
+        if (window._precipEnabled) {
+          b.classList.add('precip-active');
+          b.classList.add('control-active');
+        } else {
+          b.classList.remove('precip-active');
+          b.classList.remove('control-active');
+        }
+      }
+    });
+  }
+  // local fallback helper for control-active toggles if no centralized API
+  function localSetControlActive(label, on) {
+    const btns = document.querySelectorAll('.updatemenu-button');
+    btns.forEach(b => {
+      if (b.textContent && b.textContent.includes(label)) {
+        if (on) b.classList.add('control-active'); else b.classList.remove('control-active');
       }
     });
   }
@@ -146,6 +164,8 @@ document.addEventListener('DOMContentLoaded', function() {
   function bindFrameAndRelayout() {
     const gd = document.querySelector('.plotly-graph-div'); if (!gd) return;
     gd.addEventListener('plotly_animated', function() {
+      // Animation frame event — treat as "playing"
+      try { if (window.__CONTROL && window.__CONTROL.setControlActive) { window.__CONTROL.setControlActive('▶️ Play', true); window.__CONTROL.setControlActive('⏸️ Pause', false); } else { localSetControlActive('▶️ Play', true); localSetControlActive('⏸️ Pause', false); } } catch(_){}
       if (!window._precipEnabled) return;
       try {
         const t = gd._transitionData && gd._transitionData._frame && gd._transitionData._frame.name;
@@ -155,13 +175,26 @@ document.addEventListener('DOMContentLoaded', function() {
         }
       } catch(_){}
     });
-    gd.addEventListener('plotly_relayout', function() { if (window._precipEnabled) drawHeatmapForTime(new Date()); });
-    window.addEventListener('resize', function() { if (window._precipEnabled) drawHeatmapForTime(new Date()); });
+    gd.addEventListener('plotly_relayout', function(evt) {
+      // Layout change — consider this a manual interaction (paused)
+      try { if (window.__CONTROL && window.__CONTROL.setControlActive) { window.__CONTROL.setControlActive('⏸️ Pause', true); window.__CONTROL.setControlActive('▶️ Play', false); } else { localSetControlActive('⏸️ Pause', true); localSetControlActive('▶️ Play', false); } } catch(_){}
+      if (window._precipEnabled) drawHeatmapForTime(new Date());
+      // Check recenter condition when center/zoom changes
+      try { if (window.__CONTROL && window.__CONTROL.checkRecenterState) window.__CONTROL.checkRecenterState(); else {/* no-op */} } catch(_){}}
+    });
+    window.addEventListener('resize', function() { if (window._precipEnabled) drawHeatmapForTime(new Date()); checkRecenterState(); });
+
+    // Fullscreen change -> update fullscreen button state
+    document.addEventListener('fullscreenchange', function() {
+      const isFs = !!document.fullscreenElement;
+      try { if (window.__CONTROL && window.__CONTROL.setControlActive) window.__CONTROL.setControlActive('⛶ Fullscreen', isFs); else localSetControlActive('⛶ Fullscreen', isFs); } catch(_){}
+    });
   }
 
   // Initial bind and observer for dynamic UI
   bindPrecipToggle();
   bindFrameAndRelayout();
+  bindControlInterceptors();
   // Show initial frame (use current quantized time if available, else first hour)
   try {
     const c = ensureCanvas(); if (c) c.style.display = 'block';
@@ -169,6 +202,11 @@ document.addEventListener('DOMContentLoaded', function() {
     const nowQ = quantizeToInterval(new Date(), intervalMin);
     drawHeatmapForTime(nowQ);
     updatePrecipButtonState();
+    // Also update other control visual states
+    setControlActive('⏸️ Pause', false);
+    setControlActive('▶️ Play', false);
+    setControlActive('⛶ Fullscreen', !!document.fullscreenElement);
+    checkRecenterState();
     if (!window._precipEnabled) {
       const keys = Object.keys((window.__PRECIP && window.__PRECIP.hours) || {});
       if (keys && keys.length) { drawHeatmapForTime(new Date(keys[0])); }

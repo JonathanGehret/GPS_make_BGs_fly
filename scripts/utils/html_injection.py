@@ -49,6 +49,33 @@ body {
     max-width: 100%;
 }
 
+/* Updatemenu active glow (centralized) */
+.updatemenu-button.control-active {
+    /* Keep a soft glow for HTML-based controls */
+    box-shadow: 0 0 0 3px rgba(60, 140, 220, 0.12), 0 0 12px 3px rgba(60, 140, 220, 0.55);
+    border-color: rgba(60, 140, 220, 0.85) !important;
+}
+/* SVG-aware styling: Plotly often renders updatemenu buttons as SVG <g>/<rect>/<text> elements.
+   box-shadow doesn't apply to SVG elements, so add stroke + drop-shadow to make the glow visible. */
+.updatemenu-button.control-active rect,
+.updatemenu-button.control-active .updatemenu-item-rect,
+.updatemenu-button.control-active .updatemenu-dropdown-button,
+.updatemenu-button.control-active .dropdown-button-rect {
+    stroke: rgba(60, 140, 220, 0.92);
+    stroke-width: 2px;
+    fill-opacity: 0.95;
+    filter: drop-shadow(0 0 8px rgba(60,140,220,0.45));
+}
+
+/* Precip-specific active style for SVG buttons */
+.updatemenu-button.precip-active rect,
+.updatemenu-button.precip-active .updatemenu-item-rect,
+.updatemenu-button.precip-active .updatemenu-dropdown-button {
+    stroke: rgba(30, 100, 200, 0.95);
+    stroke-width: 2px;
+    filter: drop-shadow(0 0 8px rgba(30,100,200,0.6));
+}
+
 /* Fullscreen mode styles */
 body.fullscreen-mode {
     padding: 0;
@@ -68,6 +95,120 @@ body.fullscreen-mode .plotly-graph-div {
 // Enhanced fullscreen functionality with better centering
 document.addEventListener('DOMContentLoaded', function() {
     // (Removed legacy Radar overlay injection)
+    // Centralized control-state helpers (button glow / play/pause/fullscreen/recenter)
+    // Exposes a small API on window.__CONTROL for other injected scripts to call.
+    (function(){
+        if (window.__CONTROL) return; // already injected
+        window.__CONTROL = {
+            setControlActive: function(label, on) {
+                try {
+                    const btns = document.querySelectorAll('.updatemenu-button');
+                    btns.forEach(b => {
+                        if (b.textContent && b.textContent.includes(label)) {
+                            if (on) b.classList.add('control-active'); else b.classList.remove('control-active');
+                        }
+                    });
+                } catch(_){}
+            },
+            findMapAndStoreOriginal: function() {
+                try {
+                    const gd = document.querySelector('.plotly-graph-div'); if (!gd) return null;
+                    const map = gd._fullLayout && gd._fullLayout.map; if (!map) return null;
+                    if (!window.__ORIG_MAP) {
+                        window.__ORIG_MAP = { lat: map.center.lat, lon: map.center.lon, zoom: map.zoom };
+                    }
+                    return map;
+                } catch(_) { return null; }
+            },
+            checkRecenterState: function() {
+                try {
+                    const gd = document.querySelector('.plotly-graph-div'); if (!gd) return;
+                    const map = gd._fullLayout && gd._fullLayout.map; if (!map || !window.__ORIG_MAP) return;
+                    const tol = 1e-6;
+                    const same = Math.abs((map.center.lat || 0) - (window.__ORIG_MAP.lat || 0)) < tol &&
+                                 Math.abs((map.center.lon || 0) - (window.__ORIG_MAP.lon || 0)) < tol &&
+                                 Math.abs((map.zoom || 0) - (window.__ORIG_MAP.zoom || 0)) < 1e-3;
+                    this.setControlActive('🎯 Recenter', same);
+                } catch(_){}
+            },
+            bindControlInterceptors: function() {
+                try {
+                    const btns = document.querySelectorAll('.updatemenu-button');
+                            btns.forEach(b => {
+                                // don't capture textContent at bind-time (Plotly may render later) — read on click
+                                b.addEventListener('click', function(e) {
+                                    try {
+                                        const textNow = (b.textContent || '').trim();
+                                        if (textNow.includes('▶️ Play')) {
+                                            window.__CONTROL.setControlActive('▶️ Play', true);
+                                            window.__CONTROL.setControlActive('⏸️ Pause', false);
+                                        } else if (textNow.includes('⏸️ Pause')) {
+                                            window.__CONTROL.setControlActive('⏸️ Pause', true);
+                                            window.__CONTROL.setControlActive('▶️ Play', false);
+                                        } else if (textNow.includes('⛶ Fullscreen')) {
+                                            const willBe = !document.fullscreenElement;
+                                            window.__CONTROL.setControlActive('⛶ Fullscreen', willBe);
+                                        } else if (textNow.includes('🎯 Recenter')) {
+                                            window.__CONTROL.setControlActive('🎯 Recenter', true);
+                                            setTimeout(()=>{ window.__CONTROL.checkRecenterState(); }, 250);
+                                        }
+                                    } catch(_){ }
+                                }, true);
+                            });
+                } catch(_){}
+            }
+        };
+
+        // Hook into plotly and document events to update visual state
+        try {
+            const gd = document.querySelector('.plotly-graph-div');
+            if (gd) {
+                gd.addEventListener('plotly_animated', function() {
+                    window.__CONTROL.setControlActive('▶️ Play', true);
+                    window.__CONTROL.setControlActive('⏸️ Pause', false);
+                });
+                gd.addEventListener('plotly_relayout', function() {
+                    window.__CONTROL.setControlActive('⏸️ Pause', true);
+                    window.__CONTROL.setControlActive('▶️ Play', false);
+                    try { if (window.__CONTROL) window.__CONTROL.checkRecenterState(); } catch(_){}
+                });
+            }
+        } catch(_){}
+
+        document.addEventListener('fullscreenchange', function() {
+            const isFs = !!document.fullscreenElement;
+            window.__CONTROL.setControlActive('⛶ Fullscreen', isFs);
+        });
+
+        // Observe DOM changes to rebind handlers
+        const ctrlObserver = new MutationObserver(function(muts) {
+            for (const m of muts) {
+                if (m.addedNodes && m.addedNodes.length>0) { window.__CONTROL.bindControlInterceptors(); break; }
+            }
+        });
+        ctrlObserver.observe(document.body, {childList:true, subtree:true});
+
+        // Initial bind
+        window.__CONTROL.bindControlInterceptors();
+        window.__CONTROL.findMapAndStoreOriginal();
+        window.__CONTROL.checkRecenterState();
+        // Small debug mark to visually confirm which buttons we bound (temporary)
+        try {
+            const dbg = function() {
+                const btns = document.querySelectorAll('.updatemenu-button');
+                btns.forEach(b => {
+                    const txt = (b.textContent || '').trim();
+                    if (txt) {
+                        try { console.debug('CONTROL BOUND:', txt); } catch(_) {}
+                        b.classList.add('control-bound');
+                        // Remove highlight after 2s
+                        setTimeout(() => { try { b.classList.remove('control-bound'); } catch(_){} }, 2000);
+                    }
+                });
+            };
+            setTimeout(dbg, 250);
+        } catch(_){}
+    })();
     // Find all buttons and add fullscreen functionality
     function addFullscreenHandler() {
         const buttons = document.querySelectorAll('.updatemenu-button');
