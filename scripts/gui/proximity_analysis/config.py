@@ -44,9 +44,12 @@ class ProximityGUIConfig:
         
         # Results storage
         self.results = {}
+        # Timeline (list of proximity events) and other result file references
+        self.timeline = []
+        self.result_files = {}
         self.analysis_running = False
         self.analysis_thread = None
-        
+
         # UI component references (will be set by UI builders)
         self.notebook = None
         self.title_label = None
@@ -125,10 +128,7 @@ class ProximityGUIConfig:
         if self.time_threshold.get() <= 0:
             errors.append("Time threshold must be positive")
         
-        if self.generate_animations.get():
-            if self.time_buffer.get() <= 0:
-                errors.append("Time buffer must be positive")
-            if self.trail_length.get() <= 0:
-                errors.append("Trail length must be positive")
+    # Note: animation/map generation is now an on-demand operation after analysis
+    # so animation-specific parameters are not required to run the proximity analysis.
         
         return len(errors) == 0, errors

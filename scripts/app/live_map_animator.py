@@ -149,10 +149,46 @@ class LiveMapAnimator:
                 return False
             total_points = 0
             print(f"Found {len(csv_files)} GPS data file(s):")
+
+            # Check for an optional time window to limit data (set by GUI)
+            time_window_start = os.environ.get('TIME_WINDOW_START')
+            time_window_end = os.environ.get('TIME_WINDOW_END')
+            start_ts = None
+            end_ts = None
+            if time_window_start:
+                try:
+                    start_ts = pd.to_datetime(time_window_start, utc=True)
+                    self.ui.print_info(f"Applying time window start: {start_ts.isoformat()}")
+                except Exception:
+                    self.ui.print_warning(f"Invalid TIME_WINDOW_START: {time_window_start}")
+            if time_window_end:
+                try:
+                    end_ts = pd.to_datetime(time_window_end, utc=True)
+                    self.ui.print_info(f"Applying time window end: {end_ts.isoformat()}")
+                except Exception:
+                    self.ui.print_warning(f"Invalid TIME_WINDOW_END: {time_window_end}")
+
             for i, csv_file in enumerate(csv_files, 1):
                 try:
                     df = self.data_loader.load_single_csv(csv_file)
                     if df is not None:
+                        # If a time window was provided, attempt to filter by the Timestamp [UTC] column
+                        if (start_ts is not None) or (end_ts is not None):
+                            if 'Timestamp [UTC]' in df.columns:
+                                try:
+                                    ts = pd.to_datetime(df['Timestamp [UTC]'], utc=True)
+                                    df['Timestamp [UTC]'] = ts
+                                    mask = pd.Series(True, index=df.index)
+                                    if start_ts is not None:
+                                        mask &= ts >= start_ts
+                                    if end_ts is not None:
+                                        mask &= ts <= end_ts
+                                    df = df[mask]
+                                except Exception:
+                                    self.ui.print_warning(f"Could not apply time window filter to {Path(csv_file).name}")
+                            else:
+                                self.ui.print_warning(f"No 'Timestamp [UTC]' column to filter in {Path(csv_file).name}")
+
                         points = len(df)
                         total_points += points
                         print(f"    {i}. {Path(csv_file).name:<25} ({points:4d} GPS points)")

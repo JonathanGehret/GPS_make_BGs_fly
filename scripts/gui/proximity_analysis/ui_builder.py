@@ -253,14 +253,13 @@ class ProximityUIBuilder:
         # Animation options
         anim_frame = ttk.LabelFrame(animation_frame, text="Animation Options", padding=10)
         anim_frame.pack(fill='x', padx=10, pady=5)
-        
-        # Enable animations checkbox
-        ttk.Checkbutton(
+        # Note: animation/map generation is now performed on-demand after analysis
+        info_label = ttk.Label(
             anim_frame,
-            text="Generate Animations",
-            variable=self.config.generate_animations,
-            command=self.event_handler.toggle_animation_options
-        ).pack(anchor='w')
+            text="Map/animation generation is available after analysis in the Results tab.",
+            wraplength=600
+        )
+        info_label.pack(anchor='w', pady=(0, 8))
         
         # Animation parameters (enabled when animations are enabled)
         self.anim_params_frame = ttk.Frame(anim_frame)
@@ -364,11 +363,22 @@ class ProximityUIBuilder:
         # Results actions
         results_actions_frame = ttk.Frame(results_frame)
         results_actions_frame.pack(fill='x', padx=10, pady=5)
-        
         ttk.Button(
             results_actions_frame,
             text="Show in Folder",
             command=self.event_handler.show_in_folder
+        ).pack(side='left', padx=(0, 5))
+
+        ttk.Button(
+            results_actions_frame,
+            text="View Timeline",
+            command=self.event_handler.view_timeline
+        ).pack(side='left', padx=(0, 5))
+
+        ttk.Button(
+            results_actions_frame,
+            text="Generate Map (Time Range)",
+            command=self.event_handler.generate_map_for_timeframe
         ).pack(side='left', padx=(0, 5))
     
     def _create_log_tab(self):

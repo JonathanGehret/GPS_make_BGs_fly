@@ -10,6 +10,7 @@ import threading
 import queue
 import subprocess
 import platform
+import sys
 import tkinter as tk
 from tkinter import filedialog, messagebox
 
@@ -124,10 +125,12 @@ class ProximityEventHandler:
         translator = self.config.translator
         status_text = "Running analysis..." if not translator else translator.t("status_running")
         self.config.status_var.set(status_text)
-        
+
         # Clear previous results
         self.config.results = {}
-        
+        self.config.timeline = []
+        self.config.result_files = {}
+
         # Start analysis thread
         self.config.analysis_thread = threading.Thread(target=self._run_analysis_worker, daemon=True)
         self.config.analysis_thread.start()
@@ -179,13 +182,32 @@ class ProximityEventHandler:
                 self.log(f"Processing step {i+1}/5...")
                 time.sleep(1)
             
-            # Simulate results
+            # Simulate results (replace with real analysis outputs)
             self.config.results = {
                 'total_events': 42,
                 'unique_pairs': 3,
                 'avg_duration': 5.2,
                 'max_duration': 15.8
             }
+
+            # Simulate a timeline: list of events with start/end timestamps and involved IDs
+            # Real analysis should populate a similar structure
+            from datetime import datetime, timedelta
+            now = datetime.utcnow()
+            self.config.timeline = [
+                {
+                    'id': 1,
+                    'start': now - timedelta(minutes=30),
+                    'end': now - timedelta(minutes=28),
+                    'pair': ('Vulture A', 'Vulture B')
+                },
+                {
+                    'id': 2,
+                    'start': now - timedelta(minutes=20),
+                    'end': now - timedelta(minutes=18),
+                    'pair': ('Vulture A', 'Vulture C')
+                }
+            ]
             
             self.log("✅ Analysis completed successfully!")
             
@@ -216,6 +238,10 @@ class ProximityEventHandler:
             self.config.results_tree.insert('', 'end', values=('Unique Pairs', results.get('unique_pairs', 0)))
             self.config.results_tree.insert('', 'end', values=('Average Duration (min)', f"{results.get('avg_duration', 0):.1f}"))
             self.config.results_tree.insert('', 'end', values=('Max Duration (min)', f"{results.get('max_duration', 0):.1f}"))
+
+            # If timeline is available, add a small summary row
+            if getattr(self.config, 'timeline', None):
+                self.config.results_tree.insert('', 'end', values=('Timeline Events', len(self.config.timeline)))
             
         except Exception as e:
             self.log(f"Error updating results display: {e}")
@@ -247,6 +273,78 @@ class ProximityEventHandler:
         if selection:
             # This would open the selected file
             self.log("Opening selected file...")
+
+    def view_timeline(self):
+        """Open a simple timeline viewer dialog showing detected events"""
+        if not getattr(self.config, 'timeline', None):
+            messagebox.showinfo("Timeline", "No timeline data available. Run analysis first.")
+            return
+
+        # Create a window with a simple listbox of events
+        win = tk.Toplevel(self.config.root)
+        win.title("Proximity Timeline")
+        win.geometry("500x300")
+
+        lb = tk.Listbox(win)
+        lb.pack(fill='both', expand=True, padx=10, pady=10)
+
+        for ev in self.config.timeline:
+            start = ev['start'].strftime('%Y-%m-%d %H:%M:%S') if hasattr(ev['start'], 'strftime') else str(ev['start'])
+            end = ev['end'].strftime('%Y-%m-%d %H:%M:%S') if hasattr(ev['end'], 'strftime') else str(ev['end'])
+            pair = ", ".join(ev.get('pair', []))
+            lb.insert('end', f"Event {ev.get('id')}: {pair} — {start} → {end}")
+
+    def generate_map_for_timeframe(self):
+        """Prompt user for start/end time and launch the map generator for that timeframe"""
+        if not getattr(self.config, 'timeline', None):
+            messagebox.showinfo("Generate Map", "No timeline available. Run analysis first.")
+            return
+
+        # Simple dialog: ask for start and end timestamps (ISO or relative simple input)
+        from tkinter.simpledialog import askstring
+        start = askstring("Start Time (UTC)", "Enter start time (YYYY-MM-DD HH:MM:SS) or leave blank to use earliest event:")
+        if start is None:
+            return
+        end = askstring("End Time (UTC)", "Enter end time (YYYY-MM-DD HH:MM:SS) or leave blank to use latest event:")
+        if end is None:
+            return
+
+        # Determine window from inputs or fallback to timeline bounds
+        def parse_or_none(s):
+            if not s or not s.strip():
+                return None
+            from datetime import datetime
+            for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S"):
+                try:
+                    return datetime.strptime(s.strip(), fmt)
+                except Exception:
+                    continue
+            return None
+
+        start_dt = parse_or_none(start)
+        end_dt = parse_or_none(end)
+
+        if start_dt is None:
+            start_dt = min(ev['start'] for ev in self.config.timeline)
+        if end_dt is None:
+            end_dt = max(ev['end'] for ev in self.config.timeline)
+
+        # Save to environment variables read by the LiveMapAnimator
+        os.environ['TIME_WINDOW_START'] = start_dt.strftime('%Y-%m-%dT%H:%M:%S')
+        os.environ['TIME_WINDOW_END'] = end_dt.strftime('%Y-%m-%dT%H:%M:%S')
+
+        # Launch live map animator script in a subprocess using same mechanism as live_map GUI
+        try:
+            script_path = os.path.join(os.path.dirname(__file__), '..', '..', 'scripts', 'animate_live_map.py')
+            if not os.path.exists(script_path):
+                messagebox.showerror("Error", f"Map generator script not found: {script_path}")
+                return
+
+            # Use system python to run animator as a separate process
+            subprocess.Popen([sys.executable, script_path], env=os.environ.copy())
+            messagebox.showinfo("Map Generation", f"Map generation launched for {start_dt} → {end_dt}.")
+        except Exception as e:
+            messagebox.showerror("Launch Error", f"Could not launch map generator: {e}")
     
     def show_in_folder(self):
         """Show results in file manager"""
