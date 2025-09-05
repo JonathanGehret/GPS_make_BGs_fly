@@ -109,14 +109,7 @@ def export_animation_video_browser(
       # Give tiles a moment to settle
       page.wait_for_timeout(400)
 
-      # Try enabling radar overlay if available
-      try:
-        radar_btn = page.locator('.updatemenu-button:has-text("☔ Radar")').first
-        if radar_btn.is_visible():
-          radar_btn.click()
-          page.wait_for_timeout(100)
-      except Exception:
-        pass
+  # (Radar overlay removed) No auto-toggle needed here.
 
       # Extract frame names from the figure
       frame_names: List[str] = page.evaluate(_js_get_frame_names())

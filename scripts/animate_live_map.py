@@ -418,23 +418,6 @@ class LiveMapAnimator:
                         Path('.cache/precip').mkdir(parents=True, exist_ok=True)
                     except Exception:
                         pass
-                    # Add a toggle button for precipitation visibility (canvas heatmap)
-                    precip_menu = dict(
-                        type='buttons',
-                        direction='right',
-                        x=0.5,
-                        y=0.235,
-                        xanchor='center',
-                        yanchor='top',
-                        pad={'r': 4, 't': 4},
-                        bgcolor='#ffffff',
-                        bordercolor='#c8c8c8',
-                        borderwidth=1,
-                        buttons=[ dict(label='☔ Precip', method='restyle', args=[{}]) ],
-                    )
-                    existing_menus = list(fig.layout.updatemenus) if fig.layout.updatemenus else []
-                    existing_menus.append(precip_menu)
-                    fig.update_layout(updatemenus=existing_menus)
                     # Prepare HTML injection with serialized hours -> [[lat,lon,val], ...]
                     serial = {}
                     for h, dfh in data_by_hour.items():

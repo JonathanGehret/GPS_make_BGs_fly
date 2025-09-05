@@ -24,6 +24,11 @@ def inject_precip_overlay(html: str, *, data_by_hour: Dict[str, List[List[float]
   position: absolute; top: 0; left: 0; width: 100%; height: 100%;
   pointer-events: none; display: none; z-index: 5;
 }
+/* Active/toggled glow for the precip button */
+.updatemenu-button.precip-active {
+  box-shadow: 0 0 0 3px rgba(30, 100, 200, 0.15), 0 0 10px 2px rgba(30, 100, 200, 0.6);
+  border-color: rgba(30, 100, 200, 0.8) !important;
+}
 </style>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
@@ -104,14 +109,25 @@ document.addEventListener('DOMContentLoaded', function() {
     ctx.restore();
   }
 
+  function updatePrecipButtonState() {
+    const btns = document.querySelectorAll('.updatemenu-button');
+    btns.forEach(b => {
+      if (b.textContent && b.textContent.includes('☔ Precip')) {
+        if (window._precipEnabled) b.classList.add('precip-active');
+        else b.classList.remove('precip-active');
+      }
+    });
+  }
+
   function bindPrecipToggle() {
     const btns = document.querySelectorAll('.updatemenu-button');
     btns.forEach(b => {
-      if (b.textContent.includes('☔ Precip')) {
+      if (b.textContent && b.textContent.includes('☔ Precip')) {
         b.onclick = (e) => {
           e.preventDefault(); e.stopPropagation();
           window._precipEnabled = !window._precipEnabled;
           const c = ensureCanvas(); if (c) c.style.display = window._precipEnabled ? 'block' : 'none';
+          updatePrecipButtonState();
           const gd = document.querySelector('.plotly-graph-div');
           let dt = new Date();
           try {
@@ -152,12 +168,13 @@ document.addEventListener('DOMContentLoaded', function() {
     const intervalMin = (window.__PRECIP && window.__PRECIP.intervalMin) || 60;
     const nowQ = quantizeToInterval(new Date(), intervalMin);
     drawHeatmapForTime(nowQ);
+    updatePrecipButtonState();
     if (!window._precipEnabled) {
       const keys = Object.keys((window.__PRECIP && window.__PRECIP.hours) || {});
       if (keys && keys.length) { drawHeatmapForTime(new Date(keys[0])); }
     }
   } catch(_){}
-  const ob = new MutationObserver(() => { bindPrecipToggle(); });
+  const ob = new MutationObserver(() => { bindPrecipToggle(); updatePrecipButtonState(); });
   ob.observe(document.body, {childList:true, subtree:true});
 });
 </script>

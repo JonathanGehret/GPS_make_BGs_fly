@@ -63,198 +63,11 @@ body.fullscreen-mode .plotly-graph-div {
     width: 98vw !important;
     height: 95vh !important;
 }
-/* Radar overlay canvas sits above the map background but below Plotly traces */
-#radar-overlay {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    pointer-events: none; /* passthrough */
-    display: none; /* hidden by default */
-}
 </style>
 <script>
 // Enhanced fullscreen functionality with better centering
 document.addEventListener('DOMContentLoaded', function() {
-    // Create a radar canvas overlay inside the Plotly container once ready
-    function ensureRadarCanvas() {
-        const gd = document.querySelector('.plotly-graph-div');
-        if (!gd) return null;
-        // Position host relatively
-        if (getComputedStyle(gd).position === 'static') {
-            gd.style.position = 'relative';
-        }
-        let canvas = document.getElementById('radar-overlay');
-        if (!canvas) {
-            canvas = document.createElement('canvas');
-            canvas.id = 'radar-overlay';
-            canvas.style.zIndex = '0';
-            gd.appendChild(canvas);
-        }
-        // Match canvas size to graph div
-        const rect = gd.getBoundingClientRect();
-        canvas.width = Math.floor(rect.width);
-        canvas.height = Math.floor(rect.height);
-        return canvas;
-    }
-
-    // Simple RainViewer v2 tile loader
-    // Docs: https://www.rainviewer.com/api.html (public free tiles)
-    // Note: For production, consider API terms and caching
-    async function drawRadarForTimestamp(dt) {
-        const canvas = ensureRadarCanvas();
-        if (!canvas) return;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) return;
-        const gd = document.querySelector('.plotly-graph-div');
-        if (!gd || !gd._fullLayout) return;
-        const map = gd._fullLayout.map;
-        if (!map) return;
-        const zoom = Math.max(0, Math.min(10, Math.round(map.zoom || 6))); // limit zoom range for radar
-
-        // Convert plotly map extents to lon/lat bbox
-        const center = map.center || {lon: 0, lat: 0};
-        const W = canvas.width, H = canvas.height;
-        // Approximate visible span using zoom (rough heuristic for WebMercator)
-        const spanLon = 360 / Math.pow(2, zoom + 1);
-        const spanLat = 170 / Math.pow(2, zoom + 1);
-        const bbox = {
-            west: center.lon - spanLon,
-            east: center.lon + spanLon,
-            south: center.lat - spanLat,
-            north: center.lat + spanLat,
-        };
-
-        // Determine RainViewer radar time frame (rounded to 10 min)
-        const t = new Date(dt);
-        if (isNaN(t.getTime())) return;
-        t.setUTCMinutes(Math.floor(t.getUTCMinutes() / 10) * 10, 0, 0);
-        const ts = Math.floor(t.getTime() / 1000);
-
-        // Fetch available radar frames list once and cache
-        if (!window._rvCache) window._rvCache = {};
-        if (!window._rvCache.frames) {
-            try {
-                const meta = await fetch('https://api.rainviewer.com/public/weather-maps.json').then(r => r.json());
-                window._rvCache.frames = (meta && meta.radar && meta.radar.past ? meta.radar.past : []).concat(meta && meta.radar && meta.radar.now ? [meta.radar.now] : []);
-            } catch (e) {
-                return;
-            }
-        }
-        const frames = window._rvCache.frames || [];
-        // Find closest frame <= ts
-        let frame = null;
-        for (let i = frames.length - 1; i >= 0; i--) {
-            if (frames[i].time <= ts) { frame = frames[i]; break; }
-        }
-        if (!frame) frame = frames[0] || null;
-        if (!frame) return;
-
-        // Clear canvas
-        ctx.clearRect(0, 0, W, H);
-        if (!window._radarEnabled) return;
-
-        // Compose tile URLs for current zoom; draw basic grid covering canvas
-        const tileSize = 256;
-        const scale = window.devicePixelRatio || 1;
-        const baseUrl = `https://tilecache.rainviewer.com/v2/radar/${frame.path}/${zoom}/{x}/{y}/2/1_1.png`;
-
-        // Project lon/lat to WebMercator tile coordinates
-        function lon2x(lon, z) { return (lon + 180) / 360 * Math.pow(2, z); }
-        function lat2y(lat, z) {
-            const rad = lat * Math.PI / 180;
-            return (1 - Math.asinh(Math.tan(rad)) / Math.PI) / 2 * Math.pow(2, z);
-        }
-        const xCenter = lon2x(center.lon, zoom);
-        const yCenter = lat2y(center.lat, zoom);
-
-        // Determine how many tiles to cover canvas
-        const pxPerTile = tileSize; // assume 1:1
-        const tilesAcross = Math.ceil(W / pxPerTile) + 2;
-        const tilesDown = Math.ceil(H / pxPerTile) + 2;
-        const startX = Math.floor(xCenter - tilesAcross / 2);
-        const startY = Math.floor(yCenter - tilesDown / 2);
-
-        canvas.style.display = window._radarEnabled ? 'block' : 'none';
-        ctx.globalAlpha = 0.6;
-        const promises = [];
-        for (let dx = 0; dx < tilesAcross; dx++) {
-            for (let dy = 0; dy < tilesDown; dy++) {
-                const tx = startX + dx;
-                const ty = startY + dy;
-                const url = baseUrl.replace('{x}', tx).replace('{y}', ty);
-                const img = new Image();
-                img.crossOrigin = 'anonymous';
-                const px = (tx - xCenter) * pxPerTile + W / 2;
-                const py = (ty - yCenter) * pxPerTile + H / 2;
-                promises.push(new Promise(resolve => {
-                    img.onload = () => { try { ctx.drawImage(img, Math.round(px), Math.round(py)); } catch(_){} resolve(); };
-                    img.onerror = () => resolve();
-                }));
-                img.src = url;
-            }
-        }
-        await Promise.all(promises);
-    }
-
-    // Toggle handler wired to the "☔ Radar" button
-    function bindRadarToggle() {
-        const gd = document.querySelector('.plotly-graph-div');
-        if (!gd) return;
-        const buttons = document.querySelectorAll('.updatemenu-button');
-        buttons.forEach(btn => {
-            if (btn.textContent.includes('☔ Radar')) {
-                btn.onclick = (e) => {
-                    e.preventDefault(); e.stopPropagation();
-                    window._radarEnabled = !window._radarEnabled;
-                    const canvas = ensureRadarCanvas();
-                    if (canvas) canvas.style.display = window._radarEnabled ? 'block' : 'none';
-                    // Redraw for current frame time
-                    const t = (gd._transitionData && gd._transitionData._frame && gd._transitionData._frame.name) || null;
-                    if (t) drawRadarForTimestamp(t.replace(/\./g,'/').replace(/ (\d{2}):(\d{2}):(\d{2})/, ' $1:$2:$3'));
-                };
-            }
-        });
-    }
-
-    // Update radar on animation frame changes
-    function bindAnimationEvents() {
-        const gd = document.querySelector('.plotly-graph-div');
-        if (!gd) return;
-        gd.addEventListener('plotly_animated', function() {
-            try {
-                const t = gd._transitionData && gd._transitionData._frame && gd._transitionData._frame.name;
-                if (t && window._radarEnabled) {
-                    // Convert dd.mm.yyyy HH:MM:SS to ISO-like for Date parsing
-                    const m = t.match(/(\d{2})\.(\d{2})\.(\d{4}) (\d{2}):(\d{2}):(\d{2})/);
-                    if (m) {
-                        const iso = `${m[3]}-${m[2]}-${m[1]}T${m[4]}:${m[5]}:${m[6]}Z`;
-                        drawRadarForTimestamp(iso);
-                    }
-                }
-            } catch(_){}
-        });
-        gd.addEventListener('plotly_relayout', function() {
-            // Redraw on pan/zoom to keep alignment
-            try {
-                const t = gd._transitionData && gd._transitionData._frame && gd._transitionData._frame.name;
-                if (window._radarEnabled) {
-                    const nowIso = new Date().toISOString();
-                    // Use current frame if available, else now
-                    if (t) {
-                        const m = t.match(/(\d{2})\.(\d{2})\.(\d{4}) (\d{2}):(\d{2}):(\d{2})/);
-                        if (m) {
-                            const iso = `${m[3]}-${m[2]}-${m[1]}T${m[4]}:${m[5]}:${m[6]}Z`;
-                            drawRadarForTimestamp(iso); return;
-                        }
-                    }
-                    drawRadarForTimestamp(nowIso);
-                }
-            } catch(_){}
-        });
-        window.addEventListener('resize', () => { if (window._radarEnabled) drawRadarForTimestamp(new Date().toISOString()); });
-    }
+    // (Removed legacy Radar overlay injection)
     // Find all buttons and add fullscreen functionality
     function addFullscreenHandler() {
         const buttons = document.querySelectorAll('.updatemenu-button');
@@ -310,8 +123,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Add handlers initially and after any DOM updates
     addFullscreenHandler();
-    bindRadarToggle();
-    bindAnimationEvents();
 
     // Listen for fullscreen changes
     document.addEventListener('fullscreenchange', function() {
@@ -384,7 +195,6 @@ document.addEventListener('DOMContentLoaded', function() {
         for (const mutation of mutations) {
             if (mutation.addedNodes && mutation.addedNodes.length > 0) {
                 addFullscreenHandler();
-                bindRadarToggle();
                 break;
             }
         }
