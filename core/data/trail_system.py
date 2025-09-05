@@ -83,7 +83,8 @@ class TrailSystem:
         
         for time_str in unique_times:
             frame_data = []
-            current_time = pd.to_datetime(time_str, format='%d.%m.%Y %H:%M:%S')
+            # Parse current frame time as timezone-aware UTC to match dataframes
+            current_time = pd.to_datetime(time_str, format='%d.%m.%Y %H:%M:%S', utc=True)
             
             for vulture_id in vulture_ids:
                 vulture_data = df[df['vulture_id'] == vulture_id]
@@ -92,12 +93,20 @@ class TrailSystem:
                     # Show complete flight path (no trail limit)
                     trail_data = vulture_data[vulture_data['timestamp_str'] <= time_str]
                 else:
-                    # Apply trail length filter
+                    # Apply trail length filter using tz-aware timestamps
                     trail_start = current_time - pd.Timedelta(minutes=self.trail_length_minutes)
-                    trail_data = vulture_data[
-                        (vulture_data['Timestamp [UTC]'] >= trail_start) & 
-                        (vulture_data['timestamp_str'] <= time_str)
-                    ]
+                    # Ensure the 'Timestamp [UTC]' column is tz-aware; if not, try to localize to UTC
+                    ts_series = vulture_data['Timestamp [UTC]']
+                    try:
+                        if ts_series.dt.tz is None:
+                            # Localize naive timestamps to UTC (assume they are UTC)
+                            ts_series = ts_series.dt.tz_localize('UTC')
+                    except Exception:
+                        # If .dt accessor fails, fall back to original series
+                        pass
+                    mask_time = (ts_series >= trail_start)
+                    mask_until_frame = (vulture_data['timestamp_str'] <= time_str)
+                    trail_data = vulture_data[mask_time & mask_until_frame]
                 
                 if len(trail_data) > 0:
                     # Sort by timestamp to ensure correct order
