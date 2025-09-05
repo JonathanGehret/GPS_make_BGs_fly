@@ -17,9 +17,8 @@ try:
     from components.folder_manager import FolderManager
     from components.data_preview import DataPreview
     from components.settings_manager import SettingsManager
-    from components.mode_selector import ModeSelector
     from components.launch_manager import LaunchManager
-    print("Successfully imported all components including ModeSelector")
+    print("Successfully imported all components")
 except ImportError as e:
     print(f"Failed to import components: {e}")
     sys.exit(1)
@@ -45,7 +44,6 @@ class SimpleGUI:
         self.folder_manager = None
         self.data_preview = None
         self.settings_manager = None
-        self.mode_selector = None
         self.launch_manager = None
         self.status_var = None
         self.status_label = None
@@ -68,25 +66,13 @@ class SimpleGUI:
             self.data_preview.refresh_preview()
             self.update_status()
     
-    def on_mode_changed(self, mode_key, mode_info):
-        """Callback when animation mode changes"""
-        print(f"Mode changed to: {mode_info['display_name']}")
-        self.update_status()
-    
     def update_status(self):
         """Update status with current data and settings"""
         if self.data_preview and self.folder_manager:
             file_count = self.data_preview.get_file_count()
             total_points = self.data_preview.get_total_points()
             data_folder = os.path.basename(self.folder_manager.get_data_folder())
-            
-            # Add mode info if available
-            mode_status = ""
-            if self.mode_selector:
-                mode_info = self.mode_selector.get_selected_mode_info()
-                mode_status = f" | Mode: {mode_info['display_name']}"
-            
-            self.status_var.set(f"Ready | {file_count} files, {total_points} points in {data_folder}{mode_status}")
+            self.status_var.set(f"Ready | {file_count} files, {total_points} points in {data_folder}")
     
     def setup_ui(self):
         """Set up complete UI with all components"""
@@ -109,11 +95,6 @@ class SimpleGUI:
         self.status_label = ttk.Label(main_frame, textvariable=self.status_var)
         self.status_label.grid(row=1, column=0, pady=5, sticky="ew")
         
-        # NEW: Component 0: ModeSelector (add at the top)
-        self.mode_selector = ModeSelector(main_frame, self.get_language)
-        self.mode_selector.set_mode_change_callback(self.on_mode_changed)
-        self.mode_selector.setup_ui()
-        
         # Component 1: FolderManager
         self.folder_manager = FolderManager(main_frame, self.get_language)
         self.folder_manager.set_data_folder_callback(self.on_data_folder_changed)
@@ -133,29 +114,17 @@ class SimpleGUI:
         
         # Buttons
         button_frame = ttk.Frame(main_frame)
-        button_frame.grid(row=6, column=0, pady=20)
+        button_frame.grid(row=5, column=0, pady=20)
         
         ttk.Button(button_frame, text="🔄 Refresh", command=self.refresh_data).grid(row=0, column=0, padx=(0, 10))
-        ttk.Button(button_frame, text="🎯 Mode Info", command=self.show_mode_info).grid(row=0, column=1, padx=(0, 10))
-        ttk.Button(button_frame, text="🚀 Launch Map", command=self.launch_map).grid(row=0, column=2, padx=(0, 10))
-        ttk.Button(button_frame, text="❌ Close", command=self.root.destroy).grid(row=0, column=3)
+        ttk.Button(button_frame, text="🚀 Launch Map", command=self.launch_map).grid(row=0, column=1, padx=(0, 10))
+        ttk.Button(button_frame, text="❌ Close", command=self.root.destroy).grid(row=0, column=2)
     
     def refresh_data(self):
         """Manually refresh all data"""
         if self.data_preview:
             self.data_preview.refresh_preview()
             self.update_status()
-    
-    def show_mode_info(self):
-        """Show current mode information"""
-        if self.mode_selector:
-            mode_info = self.mode_selector.get_selected_mode_info()
-            script = mode_info['script']
-            print(f"Current mode: {mode_info['display_name']}")
-            print(f"Script: {script}")
-            self.status_var.set(f"Mode: {mode_info['display_name']} -> scripts/{script}")
-        else:
-            self.status_var.set("Mode selector not available")
     
     def launch_map(self):
         """Launch the map using all components"""
