@@ -141,6 +141,15 @@ class AnimationStateManager:
             "args": [{}],  # Empty args, functionality handled by custom JS
             "execute": True
         }
+
+    def create_radar_toggle_button(self) -> Dict[str, Any]:
+        """Create a button to toggle radar overlay visibility via injected JS."""
+        return {
+            "label": "☔ Radar",
+            "method": "restyle",  # Handled by custom JS injection
+            "args": [{}],
+            "execute": True,
+        }
     
     def create_speed_control_buttons(self, speeds: List[float] = None) -> List[Dict[str, Any]]:
         """
@@ -289,7 +298,8 @@ class AnimationStateManager:
                 self.create_robust_play_button(duration),
                 self.create_robust_pause_button(),
                 self.create_robust_restart_button(duration),
-                self.create_fullscreen_button()
+                self.create_fullscreen_button(),
+                self.create_radar_toggle_button()
             ] + ([self.create_recenter_button(center_lat, center_lon, zoom_level)] 
                  if all(x is not None for x in [center_lat, center_lon, zoom_level]) else []),
             # Fixed positioning to prevent movement
