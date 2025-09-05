@@ -179,23 +179,35 @@ class ScrollableGUI:
         start_label.grid(row=0, column=0, sticky=tk.W, padx=4, pady=2)
         self.start_entry = tk.Entry(frame, textvariable=self.start_time_var, width=30)
         self.start_entry.grid(row=0, column=1, sticky=tk.W, padx=4, pady=2)
+        # Inline error label
+        self.start_error_label = tk.Label(frame, text="", fg="red", font=(None, 8))
+        self.start_error_label.grid(row=0, column=2, sticky=tk.W, padx=6)
 
         # End time
         end_label = tk.Label(frame, text="End time:")
         end_label.grid(row=1, column=0, sticky=tk.W, padx=4, pady=2)
         self.end_entry = tk.Entry(frame, textvariable=self.end_time_var, width=30)
         self.end_entry.grid(row=1, column=1, sticky=tk.W, padx=4, pady=2)
+        # Inline error label
+        self.end_error_label = tk.Label(frame, text="", fg="red", font=(None, 8))
+        self.end_error_label.grid(row=1, column=2, sticky=tk.W, padx=6)
 
         # Use full detected range checkbox
         cb = tk.Checkbutton(frame, text="Use full data time range", variable=self.use_full_range_var, command=self._on_use_full_range_toggled)
         cb.grid(row=2, column=0, columnspan=2, sticky=tk.W, padx=4, pady=4)
 
         # Try to prefill or set UI based on checkbox state
+        # Bind validation and editing hooks
+        self.start_entry.bind('<FocusOut>', lambda e: self._validate_time_entry('start'))
+        self.end_entry.bind('<FocusOut>', lambda e: self._validate_time_entry('end'))
+        # On key press in either entry, uncheck full-range so user edits mean manual range
+        self.start_entry.bind('<KeyRelease>', self._on_time_edited)
+        self.end_entry.bind('<KeyRelease>', self._on_time_edited)
+
         try:
-            # Call the checkbox handler to populate entries and set widget state
+            # Initialize fields according to checkbox default (populate if checked)
             self._on_use_full_range_toggled()
         except Exception:
-            # non-fatal
             pass
 
     def _on_use_full_range_toggled(self):
@@ -224,10 +236,10 @@ class ScrollableGUI:
                 self.start_time_var.set("")
                 self.end_time_var.set("")
 
-            # disable entries
+            # Keep entries editable but re-run validation to clear or set errors
             try:
-                self.start_entry.config(state='disabled')
-                self.end_entry.config(state='disabled')
+                self._validate_time_entry('start')
+                self._validate_time_entry('end')
             except Exception:
                 pass
         else:
@@ -242,6 +254,61 @@ class ScrollableGUI:
                 self.end_entry.config(state='normal')
             except Exception:
                 pass
+
+    def _on_time_edited(self, event=None):
+        """Handler for key edits inside time entry fields: uncheck full-range."""
+        try:
+            if self.use_full_range_var.get():
+                self.use_full_range_var.set(False)
+                # enable entries (they already are) and clear any errors until focus-out
+                try:
+                    self.start_entry.config(state='normal')
+                    self.end_entry.config(state='normal')
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
+    def _parse_time_str(self, s):
+        """Try parsing a time string into datetime. Returns datetime or None."""
+        if not s or not s.strip():
+            return None
+        s = s.strip()
+        fmts = ['%d.%m.%Y %H:%M:%S', '%d.%m.%Y %H:%M', '%Y-%m-%d %H:%M:%S', '%Y-%m-%dT%H:%M:%S']
+        for fmt in fmts:
+            try:
+                return datetime.strptime(s, fmt)
+            except Exception:
+                continue
+        # fallback: try ISO parsing
+        try:
+            return datetime.fromisoformat(s)
+        except Exception:
+            return None
+
+    def _validate_time_entry(self, which):
+        """Validate an entry ('start' or 'end') and show inline error if invalid."""
+        try:
+            if which == 'start':
+                s = self.start_time_var.get()
+                dt = self._parse_time_str(s)
+                if dt is None and s.strip():
+                    self.start_error_label.config(text='Invalid time')
+                    return False
+                else:
+                    self.start_error_label.config(text='')
+                    return True
+            elif which == 'end':
+                s = self.end_time_var.get()
+                dt = self._parse_time_str(s)
+                if dt is None and s.strip():
+                    self.end_error_label.config(text='Invalid time')
+                    return False
+                else:
+                    self.end_error_label.config(text='')
+                    return True
+        except Exception:
+            return False
 
     def _update_time_defaults(self, populate_if_missing=False):
         """Attempt to detect data time range and populate start/end fields.
