@@ -54,6 +54,14 @@ class LaunchManager:
             env['PLAYBACK_SPEED'] = str(config.get('playback_speed', 1.0))
             env['PERFORMANCE_MODE'] = '1' if config['performance_mode'] else '0'
             
+            # Set time window if provided by GUI
+            start_time = getattr(settings_manager, 'animation_start_time', None)
+            end_time = getattr(settings_manager, 'animation_end_time', None)
+            if start_time:
+                env['TIME_WINDOW_START'] = str(start_time)
+            if end_time:
+                env['TIME_WINDOW_END'] = str(end_time)
+            
             # Launch the animation script
             language = self.get_language()
             if language == "de":

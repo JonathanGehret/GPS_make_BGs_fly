@@ -232,9 +232,11 @@ class ScrollableGUI:
                     # fallback: clear
                     self.start_time_var.set("")
                     self.end_time_var.set("")
-            except Exception:
+            except Exception as e:
+                # If there's an error getting time range, just clear the fields
                 self.start_time_var.set("")
                 self.end_time_var.set("")
+                print(f"Warning: Could not detect time range: {e}")
 
             # Keep entries editable but re-run validation to clear or set errors
             try:
@@ -303,20 +305,25 @@ class ScrollableGUI:
                     if hasattr(self, 'data_preview') and self.data_preview is not None:
                         detected = getattr(self.data_preview, 'get_time_range', lambda: None)()
                     if detected and isinstance(detected, (list, tuple)) and len(detected) >= 2 and dt is not None:
-                        data_start, data_end = detected[0], detected[1]
+                        detected_start, detected_end = detected[0], detected[1]
                         # normalize detected to datetime if they are strings
-                        if not isinstance(data_start, datetime):
-                            data_start = self._parse_time_str(str(data_start))
-                        if not isinstance(data_end, datetime):
-                            data_end = self._parse_time_str(str(data_end))
+                        if isinstance(detected_start, datetime):
+                            data_start = detected_start
+                        else:
+                            data_start = self._parse_time_str(str(detected_start))
+                        if isinstance(detected_end, datetime):
+                            data_end = detected_end
+                        else:
+                            data_end = self._parse_time_str(str(detected_end))
                         if data_start and dt < data_start:
                             self.start_error_label.config(text='Before data start')
                             return False
                         if data_end and dt > data_end:
                             self.start_error_label.config(text='After data end')
                             return False
-                except Exception:
+                except Exception as e:
                     # tolerate any detection failures and fall back to basic parsing
+                    print(f"Warning: Error validating time bounds: {e}")
                     pass
 
                 # Cross-field validation: if end is present, ensure start <= end
@@ -326,7 +333,8 @@ class ScrollableGUI:
                     if other_dt is not None and dt is not None and dt > other_dt:
                         self.start_error_label.config(text='After end')
                         return False
-                except Exception:
+                except Exception as e:
+                    print(f"Warning: Error in cross-field validation: {e}")
                     pass
 
                 self.start_error_label.config(text='')
@@ -345,18 +353,23 @@ class ScrollableGUI:
                     if hasattr(self, 'data_preview') and self.data_preview is not None:
                         detected = getattr(self.data_preview, 'get_time_range', lambda: None)()
                     if detected and isinstance(detected, (list, tuple)) and len(detected) >= 2 and dt is not None:
-                        data_start, data_end = detected[0], detected[1]
-                        if not isinstance(data_start, datetime):
-                            data_start = self._parse_time_str(str(data_start))
-                        if not isinstance(data_end, datetime):
-                            data_end = self._parse_time_str(str(data_end))
+                        detected_start, detected_end = detected[0], detected[1]
+                        if isinstance(detected_start, datetime):
+                            data_start = detected_start
+                        else:
+                            data_start = self._parse_time_str(str(detected_start))
+                        if isinstance(detected_end, datetime):
+                            data_end = detected_end
+                        else:
+                            data_end = self._parse_time_str(str(detected_end))
                         if data_end and dt > data_end:
                             self.end_error_label.config(text='After data end')
                             return False
                         if data_start and dt < data_start:
                             self.end_error_label.config(text='Before data start')
                             return False
-                except Exception:
+                except Exception as e:
+                    print(f"Warning: Error validating time bounds: {e}")
                     pass
 
                 # Cross-field validation: if start is present, ensure start <= end
@@ -366,12 +379,14 @@ class ScrollableGUI:
                     if other_dt is not None and dt is not None and dt < other_dt:
                         self.end_error_label.config(text='Before start')
                         return False
-                except Exception:
+                except Exception as e:
+                    print(f"Warning: Error in cross-field validation: {e}")
                     pass
 
                 self.end_error_label.config(text='')
                 return True
-        except Exception:
+        except Exception as e:
+            print(f"Warning: Unexpected error in time validation: {e}")
             return False
 
     def _update_time_defaults(self, populate_if_missing=False):
@@ -391,7 +406,8 @@ class ScrollableGUI:
                     try:
                         detected = fn()
                         break
-                    except Exception:
+                    except Exception as e:
+                        print(f"Warning: Error getting time range from data_preview: {e}")
                         detected = None
 
         # Fallback to point_calculator helpers
@@ -402,7 +418,8 @@ class ScrollableGUI:
                     try:
                         detected = fn()
                         break
-                    except Exception:
+                    except Exception as e:
+                        print(f"Warning: Error getting time range from point_calculator: {e}")
                         detected = None
 
         # Detected should be a (start, end) tuple with datetime or string values
@@ -418,7 +435,8 @@ class ScrollableGUI:
                     end_str = end.isoformat(sep=' ')
                 else:
                     end_str = str(end)
-            except Exception:
+            except Exception as e:
+                print(f"Warning: Error normalizing time strings: {e}")
                 start_str, end_str = str(start), str(end)
 
             # Populate fields only if checkbox is unchecked or populate_if_missing
