@@ -177,23 +177,25 @@ class ScrollableGUI:
         # Start time
         start_label = tk.Label(frame, text="Start time:")
         start_label.grid(row=0, column=0, sticky=tk.W, padx=4, pady=2)
-        start_entry = tk.Entry(frame, textvariable=self.start_time_var, width=30)
-        start_entry.grid(row=0, column=1, sticky=tk.W, padx=4, pady=2)
+        self.start_entry = tk.Entry(frame, textvariable=self.start_time_var, width=30)
+        self.start_entry.grid(row=0, column=1, sticky=tk.W, padx=4, pady=2)
 
         # End time
         end_label = tk.Label(frame, text="End time:")
         end_label.grid(row=1, column=0, sticky=tk.W, padx=4, pady=2)
-        end_entry = tk.Entry(frame, textvariable=self.end_time_var, width=30)
-        end_entry.grid(row=1, column=1, sticky=tk.W, padx=4, pady=2)
+        self.end_entry = tk.Entry(frame, textvariable=self.end_time_var, width=30)
+        self.end_entry.grid(row=1, column=1, sticky=tk.W, padx=4, pady=2)
 
         # Use full detected range checkbox
         cb = tk.Checkbutton(frame, text="Use full data time range", variable=self.use_full_range_var, command=self._on_use_full_range_toggled)
         cb.grid(row=2, column=0, columnspan=2, sticky=tk.W, padx=4, pady=4)
 
-        # Try to prefill from data if available
+        # Try to prefill or set UI based on checkbox state
         try:
-            self._update_time_defaults()
+            # Call the checkbox handler to populate entries and set widget state
+            self._on_use_full_range_toggled()
         except Exception:
+            # non-fatal
             pass
 
     def _on_use_full_range_toggled(self):
@@ -222,16 +224,22 @@ class ScrollableGUI:
                 self.start_time_var.set("")
                 self.end_time_var.set("")
 
-            # disable entries by setting state via widget lookup
+            # disable entries
             try:
-                for widget in self.root.winfo_children():
-                    pass
+                self.start_entry.config(state='disabled')
+                self.end_entry.config(state='disabled')
             except Exception:
                 pass
         else:
             # Re-populate with detected values if present
             try:
                 self._update_time_defaults(populate_if_missing=True)
+            except Exception:
+                pass
+            # enable entries for manual editing
+            try:
+                self.start_entry.config(state='normal')
+                self.end_entry.config(state='normal')
             except Exception:
                 pass
 
