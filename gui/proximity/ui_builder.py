@@ -17,8 +17,9 @@ class ProximityUIBuilder:
         self.event_handler = event_handler
         self.i18n_handler = i18n_handler
     
-    def setup_ui(self):
+    def setup_ui(self, parent=None):
         """Set up the main user interface"""
+        self.parent = parent or self.config.root
         self._create_header()
         self._create_main_content()
         self._create_footer()
@@ -30,8 +31,8 @@ class ProximityUIBuilder:
     def _create_header(self):
         """Create the header with title and language selector"""
         # Header frame
-        header_frame = ttk.Frame(self.config.root)
-        header_frame.pack(fill='x', padx=10, pady=5)
+        header_frame = ttk.Frame(self.parent)
+        header_frame.pack(fill='x', padx=5, pady=2)
         
         # Title
         self.config.title_label = ttk.Label(
@@ -61,8 +62,8 @@ class ProximityUIBuilder:
     def _create_main_content(self):
         """Create the main content area with tabs"""
         # Create notebook for tabs
-        self.config.notebook = ttk.Notebook(self.config.root)
-        self.config.notebook.pack(fill='both', expand=True, padx=10, pady=5)
+        self.config.notebook = ttk.Notebook(self.parent)
+        self.config.notebook.pack(fill='both', expand=True, padx=5, pady=2)
 
         # Create tabs
         self._create_data_analysis_tab()
@@ -72,8 +73,8 @@ class ProximityUIBuilder:
     def _create_footer(self):
         """Create the footer with controls and status"""
         # Footer frame
-        footer_frame = ttk.Frame(self.config.root)
-        footer_frame.pack(fill='x', padx=10, pady=5)
+        footer_frame = ttk.Frame(self.parent)
+        footer_frame.pack(fill='x', padx=5, pady=2)
         
         # Control buttons
         button_frame = ttk.Frame(footer_frame)
@@ -136,10 +137,10 @@ class ProximityUIBuilder:
 
         # Left: Data section
         data_frame = ttk.Frame(tab_frame)
-        data_frame.grid(row=0, column=0, sticky='nsew', padx=(10, 5), pady=5)
+        data_frame.grid(row=0, column=0, sticky='nsew', padx=(5, 2), pady=2)
 
         # Data folder selection
-        folder_frame = ttk.LabelFrame(data_frame, text="Data Folder", padding=10)
+        folder_frame = ttk.LabelFrame(data_frame, text="Data Folder", padding=5)
         folder_frame.pack(fill='x')
 
         folder_path_frame = ttk.Frame(folder_frame)
@@ -158,8 +159,8 @@ class ProximityUIBuilder:
         ).pack(side='right', padx=(5, 0))
 
         # Data preview
-        preview_frame = ttk.LabelFrame(data_frame, text="Data Preview", padding=10)
-        preview_frame.pack(fill='both', expand=True, pady=(5, 0))
+        preview_frame = ttk.LabelFrame(data_frame, text="Data Preview", padding=5)
+        preview_frame.pack(fill='both', expand=True, pady=(2, 0))
 
         columns = ('File', 'Vulture ID', 'Records')
         self.config.data_preview = ttk.Treeview(preview_frame, columns=columns, show='headings', height=14)
@@ -176,10 +177,10 @@ class ProximityUIBuilder:
 
         # Right: Analysis section
         analysis_frame = ttk.Frame(tab_frame)
-        analysis_frame.grid(row=0, column=1, sticky='nsew', padx=(5, 10), pady=5)
+        analysis_frame.grid(row=0, column=1, sticky='nsew', padx=(2, 5), pady=2)
 
         # Analysis parameters
-        params_frame = ttk.LabelFrame(analysis_frame, text="Analysis Parameters", padding=10)
+        params_frame = ttk.LabelFrame(analysis_frame, text="Analysis Parameters", padding=5)
         params_frame.pack(fill='x')
 
         # Proximity threshold
@@ -215,8 +216,8 @@ class ProximityUIBuilder:
         self.time_label.pack(side='right')
 
         # Output folder selection
-        output_frame = ttk.LabelFrame(analysis_frame, text="Output Folder", padding=10)
-        output_frame.pack(fill='x', pady=(10, 0))
+        output_frame = ttk.LabelFrame(analysis_frame, text="Output Folder", padding=5)
+        output_frame.pack(fill='x', pady=(5, 0))
         output_path_frame = ttk.Frame(output_frame)
         output_path_frame.pack(fill='x')
         ttk.Entry(output_path_frame, textvariable=self.config.output_folder, state='readonly').pack(side='left', fill='x', expand=True)
@@ -239,10 +240,10 @@ class ProximityUIBuilder:
         
         # Left: Animation section
         animation_frame = ttk.Frame(tab_frame)
-        animation_frame.grid(row=0, column=0, sticky='nsew', padx=(10, 5), pady=5)
+        animation_frame.grid(row=0, column=0, sticky='nsew', padx=(5, 2), pady=2)
         
         # Animation options
-        anim_frame = ttk.LabelFrame(animation_frame, text="Animation Options", padding=10)
+        anim_frame = ttk.LabelFrame(animation_frame, text="Animation Options", padding=5)
         anim_frame.pack(fill='x')
         
         # Note: animation/map generation is now performed on-demand after analysis
@@ -337,10 +338,10 @@ class ProximityUIBuilder:
         
         # Right: Results section
         results_frame = ttk.Frame(tab_frame)
-        results_frame.grid(row=0, column=1, sticky='nsew', padx=(5, 10), pady=5)
+        results_frame.grid(row=0, column=1, sticky='nsew', padx=(2, 5), pady=2)
         
         # Results display
-        results_display_frame = ttk.LabelFrame(results_frame, text="Analysis Results", padding=10)
+        results_display_frame = ttk.LabelFrame(results_frame, text="Analysis Results", padding=5)
         results_display_frame.pack(fill='both', expand=True)
         
         # Results tree
@@ -372,8 +373,8 @@ class ProximityUIBuilder:
         ).pack(fill='x', pady=2)
         
         # Quick Visualization Links
-        viz_frame = ttk.LabelFrame(results_frame, text="Quick Visualizations", padding=10)
-        viz_frame.pack(fill='x', pady=(10, 0))
+        viz_frame = ttk.LabelFrame(results_frame, text="Quick Visualizations", padding=5)
+        viz_frame.pack(fill='x', pady=(5, 0))
         
         # Timeline link
         ttk.Button(
@@ -405,8 +406,8 @@ class ProximityUIBuilder:
         self.config.notebook.add(log_frame, text="Log")
         
         # Log display
-        log_display_frame = ttk.LabelFrame(log_frame, text="Analysis Log", padding=10)
-        log_display_frame.pack(fill='both', expand=True, padx=10, pady=5)
+        log_display_frame = ttk.LabelFrame(log_frame, text="Analysis Log", padding=5)
+        log_display_frame.pack(fill='both', expand=True, padx=5, pady=2)
         
         # Log text area
         self.config.log_text = scrolledtext.ScrolledText(
@@ -419,7 +420,7 @@ class ProximityUIBuilder:
         
         # Log actions
         log_actions_frame = ttk.Frame(log_frame)
-        log_actions_frame.pack(fill='x', padx=10, pady=5)
+        log_actions_frame.pack(fill='x', padx=5, pady=2)
         
         ttk.Button(
             log_actions_frame,

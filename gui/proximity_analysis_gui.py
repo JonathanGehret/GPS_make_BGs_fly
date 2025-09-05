@@ -58,8 +58,30 @@ class ProximityAnalysisGUI:
         self.setup_ui()
     
     def setup_ui(self):
-        """Set up the main user interface"""
-        self.ui_builder.setup_ui()
+        """Set up the main user interface with scrollable canvas for compactness"""
+        # Create a canvas and scrollbar for the entire UI to handle overflow and reduce white space
+        self.canvas = tk.Canvas(self.root, highlightthickness=0)
+        self.scrollbar = tk.Scrollbar(self.root, orient="vertical", command=self.canvas.yview)
+        self.scrollable_frame = tk.Frame(self.canvas)
+        
+        self.scrollable_frame.bind(
+            "<Configure>",
+            lambda e: self.canvas.configure(scrollregion=self.canvas.bbox("all"))
+        )
+        
+        self.canvas.create_window((0, 0), window=self.scrollable_frame, anchor="nw")
+        self.canvas.configure(yscrollcommand=self.scrollbar.set)
+        
+        self.canvas.pack(side="left", fill="both", expand=True)
+        self.scrollbar.pack(side="right", fill="y")
+        
+        # Now build the UI inside the scrollable frame
+        self.ui_builder.setup_ui(parent=self.scrollable_frame)
+        
+        # Bind mousewheel to canvas for scrolling
+        def _on_mousewheel(event):
+            self.canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+        self.canvas.bind_all("<MouseWheel>", _on_mousewheel)
     
     # Delegate methods for backwards compatibility
     def change_language_dropdown(self, event=None):
