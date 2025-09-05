@@ -12,7 +12,7 @@ import os
 
 # Try to import update manager
 try:
-    sys.path.append(os.path.join(os.path.dirname(__file__), "..", "scripts"))
+    sys.path.append(os.path.join(os.path.dirname(__file__), "..", "core"))
     from update_manager import check_for_updates
     UPDATE_AVAILABLE = True
     print("✅ DEBUG: Update manager imported successfully")
@@ -26,7 +26,7 @@ except ImportError as e:
 FEATURE_GUI_AVAILABLE = {}
 try:
     # Import proximity analysis GUI
-    from scripts.proximity_analysis_gui import ProximityAnalysisGUI
+    from gui.proximity_analysis_gui import ProximityAnalysisGUI
     FEATURE_GUI_AVAILABLE['proximity'] = True
 except ImportError:
     FEATURE_GUI_AVAILABLE['proximity'] = False
@@ -256,7 +256,7 @@ class AnalysisModeSelector:
         else:
             print("🔧 DEBUG: Running in development mode")
             # Running in development mode - use subprocess
-            script_path = os.path.join(os.path.dirname(__file__), "..", "scripts", "proximity_analysis_gui.py")
+            script_path = os.path.join(os.path.dirname(__file__), "proximity_analysis_gui.py")
             if os.path.exists(script_path):
                 try:
                     # Set environment variable for language persistence

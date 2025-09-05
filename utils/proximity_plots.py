@@ -10,8 +10,8 @@ import plotly.graph_objects as go
 import plotly.express as px
 from plotly.subplots import make_subplots
 from typing import List
-from core.proximity_engine import ProximityEvent, ProximityStatistics
-from gps_utils import get_numbered_output_path
+from core.analysis.proximity_engine import ProximityEvent, ProximityStatistics
+from core.gps_utils import get_numbered_output_path
 from utils.user_interface import UserInterface
 
 

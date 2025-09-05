@@ -73,7 +73,7 @@ class SettingsManager:
         try:
             sys.path.append(os.path.join(os.path.dirname(__file__), "..", "..", "scripts"))
             try:
-                from scripts.utils.animation_controls import AnimationControlsFrame
+                from gui.components.animation_controls import AnimationControlsFrame
             except ImportError:
                 from utils.animation_controls import AnimationControlsFrame
             

@@ -16,7 +16,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), "..", "scripts"))
 try:
     # Try multiple import paths to ensure compatibility
     try:
-        from scripts.utils.animation_controls import AnimationControlsFrame
+        from gui.components.animation_controls import AnimationControlsFrame
     except ImportError:
         from utils.animation_controls import AnimationControlsFrame
 except ImportError:

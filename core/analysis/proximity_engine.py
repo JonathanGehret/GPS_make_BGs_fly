@@ -10,7 +10,7 @@ import numpy as np
 from typing import List, Optional
 from dataclasses import dataclass
 from datetime import datetime
-from gps_utils import haversine_distance
+from core.gps_utils import haversine_distance
 from utils.user_interface import UserInterface
 
 

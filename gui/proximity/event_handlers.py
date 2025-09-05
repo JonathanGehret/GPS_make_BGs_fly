@@ -54,7 +54,7 @@ class ProximityEventHandler:
             
         try:
             # Import here to avoid circular imports
-            from gps_utils import DataLoader
+            from core.gps_utils import DataLoader
             
             # Clear existing preview
             for item in self.config.data_preview.get_children():
@@ -105,7 +105,7 @@ class ProximityEventHandler:
         
         # Check if data folder exists and has files
         try:
-            from gps_utils import DataLoader
+            from core.gps_utils import DataLoader
             data_loader = DataLoader(self.config.data_folder.get())
             csv_files = data_loader.find_csv_files()
             if not csv_files:
@@ -148,8 +148,8 @@ class ProximityEventHandler:
         """Worker function that runs the analysis in background"""
         try:
             # Import analysis functions
-            from gps_utils import DataLoader, get_numbered_output_path
-            from core.proximity_engine import ProximityEngine
+            from core.gps_utils import DataLoader, get_numbered_output_path
+            from core.analysis.proximity_engine import ProximityEngine
             
             # Get parameters
             params = self.config.get_analysis_parameters()
@@ -226,7 +226,7 @@ class ProximityEventHandler:
 
             # Create the same HTML visualizations as before (timeline, map, dashboard)
             try:
-                from visualization.proximity_plots import ProximityVisualizer
+                from utils.proximity_plots import ProximityVisualizer
                 if output_dir:
                     os.environ['OUTPUT_DIR'] = output_dir  # ensure visualizer saves to chosen folder
                 self.log("📈 Creating visualizations (timeline, map, dashboard)...")
@@ -391,7 +391,7 @@ class ProximityEventHandler:
 
         # Launch live map animator script in a subprocess using same mechanism as live_map GUI
         try:
-            script_path = os.path.join(os.path.dirname(__file__), '..', '..', 'scripts', 'animate_live_map.py')
+            script_path = os.path.join(os.path.dirname(__file__), '..', '..', 'core', 'animation', 'animate_live_map.py')
             if not os.path.exists(script_path):
                 messagebox.showerror("Error", f"Map generator script not found: {script_path}")
                 return

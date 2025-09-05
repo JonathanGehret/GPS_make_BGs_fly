@@ -12,22 +12,22 @@ import sys
 import os
 import tkinter as tk
 
-# Add the scripts directory to the Python path
-sys.path.append(os.path.dirname(__file__))
+# Add the parent directory to the Python path for relative imports
+sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
 # Import modular components
 try:
-    from gui.proximity_analysis.config import ProximityGUIConfig
-    from gui.proximity_analysis.i18n_handler import ProximityI18nHandler
-    from gui.proximity_analysis.event_handlers import ProximityEventHandler
-    from gui.proximity_analysis.ui_builder import ProximityUIBuilder
+    from gui.proximity.config import ProximityGUIConfig
+    from gui.proximity.i18n_handler import ProximityI18nHandler
+    from gui.proximity.event_handlers import ProximityEventHandler
+    from gui.proximity.ui_builder import ProximityUIBuilder
 except ImportError as e:
     print(f"❌ ERROR: Could not import modular components: {e}")
     sys.exit(1)
 
 # Import required dependencies
 try:
-    from i18n import get_translator
+    from core.i18n import get_translator
 except ImportError:
     print("❌ ERROR: Could not import i18n")
     get_translator = None

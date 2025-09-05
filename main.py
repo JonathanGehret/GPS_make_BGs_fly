@@ -73,7 +73,7 @@ def main():
                             if scripts_dir not in sys.path:
                                 sys.path.insert(0, scripts_dir)
                         
-                        from scripts.proximity_analysis_gui import main as gui_main
+                        from gui.proximity_analysis_gui import main as gui_main
                         print("✅ Proximity Analysis GUI module loaded successfully")
                         return gui_main()
                     except Exception as e:
