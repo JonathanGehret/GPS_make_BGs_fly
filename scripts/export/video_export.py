@@ -4,74 +4,94 @@ import shutil
 import subprocess
 import tempfile
 from pathlib import Path
-from typing import Iterable, Tuple
+from typing import Iterable, Tuple, List
 
 import plotly.graph_objects as go
 import plotly.io as pio
 
 
-def _collect_latlon_bounds(frames: Iterable[go.Frame]) -> Tuple[float, float, float, float]:
-    """Collect overall lat/lon bounds from all frames' traces.
-
-    Returns (lat_min, lat_max, lon_min, lon_max). If no data, returns a sane default box.
-    """
+def _collect_latlon_bounds_from_state(states: Iterable[dict]) -> Tuple[float, float, float, float]:
+    """Collect overall lat/lon bounds from a sequence of composed trace states (dicts)."""
     lat_min = float("inf")
     lat_max = float("-inf")
     lon_min = float("inf")
     lon_max = float("-inf")
     any_points = False
-    for fr in frames or []:
-        for tr in fr.data or []:
-            # Traces may be Scattermap (MapLibre) or already Scattergeo; both expose lat/lon sequences
-            lats = getattr(tr, "lat", None)
-            lons = getattr(tr, "lon", None)
-            if lats is None or lons is None:
-                continue
-            if len(lats) == 0:
+    for traces in states:
+        for t in traces:
+            lats = t.get("lat")
+            lons = t.get("lon")
+            if not lats or not lons:
                 continue
             any_points = True
-            try:
-                lat_min = min(lat_min, min(lats))
-                lat_max = max(lat_max, max(lats))
-                lon_min = min(lon_min, min(lons))
-                lon_max = max(lon_max, max(lons))
-            except TypeError:
-                # Some Plotly arrays could be numpy arrays; min/max will still work, but be safe
-                lat_min = min(lat_min, float(min(list(lats))))
-                lat_max = max(lat_max, float(max(list(lats))))
-                lon_min = min(lon_min, float(min(list(lons))))
-                lon_max = max(lon_max, float(max(list(lons))))
-
+            lat_min = min(lat_min, float(min(lats)))
+            lat_max = max(lat_max, float(max(lats)))
+            lon_min = min(lon_min, float(min(lons)))
+            lon_max = max(lon_max, float(max(lons)))
     if not any_points:
-        # Default to Alps-ish box to avoid errors
         return 45.0, 48.0, 6.0, 13.0
     return lat_min, lat_max, lon_min, lon_max
 
 
-def _convert_trace_to_geo(tr: go.BaseTraceType) -> go.Scattergeo:
-    """Convert a MapLibre Scattermap-like trace to a tile-free Scattergeo trace for static export."""
-    # Preserve core styling and metadata
-    mode = getattr(tr, "mode", "lines+markers")
-    name = getattr(tr, "name", None)
-    marker = getattr(tr, "marker", None)
-    line = getattr(tr, "line", None)
-    customdata = getattr(tr, "customdata", None)
-    hovertemplate = getattr(tr, "hovertemplate", None)
-    showlegend = getattr(tr, "showlegend", True)
-    hoverinfo = getattr(tr, "hoverinfo", None)
+def _compose_frame_state(fig: go.Figure, frame: go.Frame | None) -> List[dict]:
+    """Compose full trace state for a frame by overlaying frame data on base fig.data.
 
-    return go.Scattergeo(
-        lat=getattr(tr, "lat", []),
-        lon=getattr(tr, "lon", []),
+    This respects frame.traces mapping when present, otherwise applies sequentially.
+    Returns a list of plain trace dicts.
+    """
+    base: List[dict] = [t.to_plotly_json() for t in fig.data]
+    if frame is None or not frame.data:
+        return base
+
+    # Determine indices to update
+    if getattr(frame, "traces", None):
+        indices = list(frame.traces)
+    else:
+        indices = list(range(len(frame.data)))
+
+    for idx, upd in zip(indices, frame.data):
+        upd_dict = upd.to_plotly_json()
+        # Ensure base is large enough
+        while idx >= len(base):
+            base.append({})
+        base[idx].update(upd_dict)
+
+    return base
+
+
+def _convert_trace_to_geo_from_dict(t: dict) -> go.Scattergeo | None:
+    """Convert a MapLibre-like trace dict to Scattergeo for static export."""
+    lat = t.get("lat")
+    lon = t.get("lon")
+    if lat is None or lon is None:
+        return None
+    mode = t.get("mode", "lines+markers")
+    name = t.get("name")
+    marker = t.get("marker")
+    line = t.get("line")
+    customdata = t.get("customdata")
+    hovertemplate = t.get("hovertemplate")
+    hoverinfo = t.get("hoverinfo")
+    showlegend = t.get("showlegend", True)
+
+    g = go.Scattergeo(
+        lat=lat,
+        lon=lon,
         mode=mode,
         name=name,
-        marker=marker,
-        line=line,
-        customdata=customdata,
-        hovertemplate=hovertemplate,
-        hoverinfo=hoverinfo,
         showlegend=showlegend,
     )
+    if marker is not None:
+        g.marker = marker
+    if line is not None:
+        g.line = line
+    if customdata is not None:
+        g.customdata = customdata
+    if hovertemplate is not None:
+        g.hovertemplate = hovertemplate
+    if hoverinfo is not None:
+        g.hoverinfo = hoverinfo
+    return g
 
 
 def _geo_layout_for_bounds(lat_min: float, lat_max: float, lon_min: float, lon_max: float) -> dict:
@@ -82,18 +102,16 @@ def _geo_layout_for_bounds(lat_min: float, lat_max: float, lon_min: float, lon_m
     return dict(
         geo=dict(
             projection_type="equirectangular",
+            lataxis=dict(range=[lat_min - lat_pad, lat_max + lat_pad], showgrid=True, gridcolor="#eeeeee"),
+            lonaxis=dict(range=[lon_min - lon_pad, lon_max + lon_pad], showgrid=True, gridcolor="#eeeeee"),
             showland=True,
-            landcolor="rgb(240,240,240)",
+            landcolor="#f8f8f8",
+            showocean=True,
+            oceancolor="#eaf6ff",
             showcountries=True,
-            countrycolor="rgb(200,200,200)",
-            showsubunits=True,
-            subunitcolor="rgb(220,220,220)",
-            lakecolor="rgb(230,230,255)",
-            showlakes=True,
-            lonaxis=dict(range=[lon_min - lon_pad, lon_max + lon_pad]),
-            lataxis=dict(range=[lat_min - lat_pad, lat_max + lat_pad]),
+            countrycolor="#bbbbbb",
         ),
-        margin=dict(l=40, r=40, t=40, b=40),
+        margin=dict(l=40, r=40, t=60, b=60),
         showlegend=True,
     )
 
@@ -104,7 +122,7 @@ def export_animation_video(
     fps: int = 30,
     width: int = 1280,
     height: int = 720,
-    quality: int = 20,
+    quality_crf: int = 20,
 ) -> str:
     """
     Renders every animation frame to PNG and encodes an MP4 using ffmpeg.
@@ -115,44 +133,43 @@ def export_animation_video(
     out = Path(out_path).with_suffix(".mp4")
     tmpdir = Path(tempfile.mkdtemp(prefix="frames_"))
     try:
-        frames = fig.frames or []
+        frames: List[go.Frame] = list(fig.frames or [])
 
-        # Build a tile-free "geo" layout and convert traces for static export, to avoid MapLibre/tiles.
-        lat_min, lat_max, lon_min, lon_max = _collect_latlon_bounds(frames)
+        # Compose full per-frame states (base fig.data + frame overrides)
+        composed_states: List[List[dict]] = []
+        if not frames:
+            composed_states.append(_compose_frame_state(fig, None))
+        else:
+            for fr in frames:
+                composed_states.append(_compose_frame_state(fig, fr))
+
+        # Compute bounds from composed states and prepare a base geo layout
+        lat_min, lat_max, lon_min, lon_max = _collect_latlon_bounds_from_state(composed_states)
         base_geo_layout = _geo_layout_for_bounds(lat_min, lat_max, lon_min, lon_max)
 
-        if not frames:
-            # Render a single empty frame with legend only
-            tmp_fig = go.Figure()
+        # Render each composed state as a Scattergeo figure
+        for i, state in enumerate(composed_states):
+            geo_traces = []
+            for t in state:
+                g = _convert_trace_to_geo_from_dict(t)
+                if g is not None:
+                    geo_traces.append(g)
+
+            tmp_fig = go.Figure(geo_traces)
             tmp_fig.update_layout(base_geo_layout)
+            # keep title if present on original figure
+            if fig.layout and getattr(fig.layout, "title", None):
+                tmp_fig.update_layout(title=dict(text=fig.layout.title.text, x=0.5, xanchor="center"))
+
             tmp_fig.update_layout(width=width, height=height)
-            pio.write_image(tmp_fig, tmpdir / "00000.png", format="png", width=width, height=height, scale=1)
-        else:
-            for i, fr in enumerate(frames):
-                # Convert each frame's traces to Scattergeo
-                geo_traces = []
-                for tr in fr.data or []:
-                    try:
-                        geo_traces.append(_convert_trace_to_geo(tr))
-                    except Exception:
-                        # Best-effort: skip unsupported trace types
-                        continue
-
-                tmp_fig = go.Figure(data=geo_traces)
-                # Merge any per-frame layout (like annotations) while keeping the geo base
-                tmp_fig.update_layout(base_geo_layout)
-                if fr.layout:
-                    tmp_fig.update_layout(fr.layout)
-
-                tmp_fig.update_layout(width=width, height=height)
-                pio.write_image(
-                    tmp_fig,
-                    tmpdir / f"{i:05d}.png",
-                    format="png",
-                    width=width,
-                    height=height,
-                    scale=1,
-                )
+            pio.write_image(
+                tmp_fig,
+                tmpdir / f"{i:05d}.png",
+                format="png",
+                width=width,
+                height=height,
+                scale=1,
+            )
 
         cmd = [
             "ffmpeg",
@@ -166,7 +183,7 @@ def export_animation_video(
             "-pix_fmt",
             "yuv420p",
             "-crf",
-            str(quality),
+            str(quality_crf),
             str(out),
         ]
         subprocess.run(cmd, check=True)

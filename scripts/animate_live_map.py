@@ -411,8 +411,14 @@ class LiveMapAnimator:
                         enable_prominent_time_display=False,
                         strategy="markers_fade",
                     )
-                    mp4_path = export_animation_video(fig_full, str(Path(output_path).with_suffix('')),
-                                                      fps=30, width=1280, height=720, quality=20)
+                    mp4_path = export_animation_video(
+                        fig_full,
+                        str(Path(output_path).with_suffix('')),
+                        fps=30,
+                        width=1280,
+                        height=720,
+                        quality_crf=20,
+                    )
                     print(f"🎬 Wrote video: {mp4_path}")
                 except Exception as ve:
                     self.ui.print_warning(f"Video export failed: {ve}")
