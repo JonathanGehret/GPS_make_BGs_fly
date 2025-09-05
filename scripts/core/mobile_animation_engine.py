@@ -5,6 +5,7 @@ Core mobile-optimized visualization and animation system for GPS flight paths.
 Provides touch-friendly interfaces and performance-optimized rendering.
 """
 
+import os
 import pandas as pd
 import plotly.graph_objects as go
 import plotly.express as px
@@ -13,6 +14,8 @@ from gps_utils import VisualizationHelper, format_height_display, get_numbered_o
 from utils.enhanced_timeline_labels import create_enhanced_slider_config
 from utils.animation_state_manager import create_reliable_animation_controls
 from utils.user_interface import UserInterface
+from utils.offline_tiles import ensure_offline_style_for_bounds
+from utils.html_injection import inject_fullscreen
 
 
 class MobileAnimationEngine:
@@ -68,12 +71,37 @@ class MobileAnimationEngine:
             
             # Create mobile-optimized figure
             fig = self._create_mobile_figure(df)
-            
+
             # Add animation frames
             self._add_mobile_frames(fig, df)
-            
-            # Apply mobile layout
-            self._apply_mobile_layout(fig, df)
+
+            # Apply mobile layout (may receive offline style)
+            offline_map_style = None
+            # If offline map requested, try to prepare an offline style dict
+            OFFLINE_MAP = os.environ.get('OFFLINE_MAP', '0') == '1'
+            OFFLINE_MAP_DOWNLOAD = os.environ.get('OFFLINE_MAP_DOWNLOAD', '1') == '1'
+            TILES_DIR = os.environ.get('TILES_DIR') or os.path.join(os.path.dirname(os.path.dirname(__file__)), '..', 'tiles_cache')
+            try:
+                if OFFLINE_MAP:
+                    lat_min, lat_max = df['Latitude'].min(), df['Latitude'].max()
+                    lon_min, lon_max = df['Longitude'].min(), df['Longitude'].max()
+                    offline_map_style = ensure_offline_style_for_bounds(
+                        lat_min=float(lat_min),
+                        lat_max=float(lat_max),
+                        lon_min=float(lon_min),
+                        lon_max=float(lon_max),
+                        zoom_level=self.mobile_zoom,
+                        tiles_dir=TILES_DIR,
+                        download=OFFLINE_MAP_DOWNLOAD,
+                        zoom_pad=1,
+                        tile_url_template=os.environ.get('TILE_SERVER_URL', 'https://tile.openstreetmap.org/{z}/{x}/{y}.png'),
+                        tiles_href='./tiles_cache' if os.path.isabs(TILES_DIR) else TILES_DIR,
+                    )
+                    print(f"🗺️ Using offline tiles from: {TILES_DIR}")
+            except Exception as te:
+                self.ui.print_warning(f"Offline map setup failed, using online tiles: {te}")
+
+            self._apply_mobile_layout(fig, df, offline_map_style)
             
             # Save visualization
             vulture_ids = df['vulture_id'].unique()
@@ -82,10 +110,44 @@ class MobileAnimationEngine:
                 birds_filename = "_".join(sorted(vulture_ids))
             else:
                 birds_filename = f"{'_'.join(sorted(vulture_ids)[:3])}_and_{len(vulture_ids)-3}_more"
-            
+
             output_path = get_numbered_output_path(f'mobile_live_map_{birds_filename}')
-            fig.write_html(output_path)
-            
+            # (offline tiles prepared earlier and applied to layout if requested)
+            # Export HTML, inject fullscreen helper and write to disk
+            config = {
+                'displayModeBar': True,
+                'displaylogo': False,
+                'modeBarButtonsToAdd': [
+                    'pan2d', 'select2d', 'lasso2d', 'zoomIn2d', 'zoomOut2d', 'autoScale2d', 'resetScale2d'
+                ],
+                'modeBarButtonsToRemove': ['sendDataToCloud'],
+                'responsive': False,
+                'scrollZoom': True,
+                'doubleClick': 'reset',
+                'showTips': True,
+            }
+
+            html_string = fig.to_html(config=config)
+            try:
+                html_string = inject_fullscreen(html_string)
+            except Exception:
+                pass
+
+            # Write out the HTML
+            with open(output_path, 'w', encoding='utf-8') as f:
+                f.write(html_string)
+
+            # If offline tiles were used and tiles dir is absolute, copy tiles next to HTML for portability
+            try:
+                if OFFLINE_MAP and os.path.isabs(TILES_DIR):
+                    import shutil
+                    html_dir = os.path.dirname(output_path)
+                    dst_tiles = os.path.join(html_dir, 'tiles_cache')
+                    if not os.path.exists(dst_tiles):
+                        shutil.copytree(TILES_DIR, dst_tiles, dirs_exist_ok=True)
+            except Exception as ce:
+                self.ui.print_warning(f"Could not copy offline tiles next to HTML: {ce}")
+
             print(f"📱 Mobile visualization saved: {output_path}")
             return output_path
             
@@ -227,15 +289,18 @@ class MobileAnimationEngine:
         fig.frames = frames
         print(f"   ✅ Added {len(frames)} mobile-optimized frames")
     
-    def _apply_mobile_layout(self, fig: go.Figure, df: pd.DataFrame) -> None:
+    def _apply_mobile_layout(self, fig: go.Figure, df: pd.DataFrame, offline_map_style: Optional[dict] = None) -> None:
         """Apply mobile-optimized layout settings"""
         # Calculate smart bounds with extra padding for mobile
         map_bounds = self.viz_helper.calculate_map_bounds(df, padding_percent=0.2)
-        
+
+        # Determine map style: prefer offline_map_style if provided
+        map_style_value = offline_map_style if offline_map_style is not None else "open-street-map"
+
         fig.update_layout(
             # Mobile-optimized MapLibre layout
             map=dict(
-                style="open-street-map",  # MapLibre-compatible OpenStreetMap style
+                style=map_style_value,  # MapLibre-compatible style or online string
                 center=dict(
                     lat=map_bounds['center']['lat'], 
                     lon=map_bounds['center']['lon']
