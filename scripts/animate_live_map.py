@@ -31,12 +31,8 @@ from export.browser_video_export import export_animation_video_browser
 from utils.lod import LODConfig, apply_lod
 from utils.offline_tiles import ensure_offline_style_for_bounds
 from precip.precip_providers import BBox
-from precip.precip_overlay import (
-    build_precip_dataset,
-    add_precip_trace,
-    update_precip_for_hour,
-    apply_precip_to_frames,
-)
+from precip.precip_overlay import build_precip_dataset
+from utils.precip_injection import inject_precip_overlay
 
 # Add the scripts directory to the Python path
 scripts_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -414,18 +410,13 @@ class LiveMapAnimator:
                     # Convert frame names to datetimes (UTC) for hourly aggregation
                     unique_dt = pd.to_datetime(unique_times, format='%d.%m.%Y %H:%M:%S', utc=True).to_pydatetime().tolist()
                     bbox = BBox(lat_min=float(lat_min), lat_max=float(lat_max), lon_min=float(lon_min), lon_max=float(lon_max))
+                    # Build dataset
                     data_by_hour, hours = build_precip_dataset(unique_dt, bbox, provider_name=PRECIP_PROVIDER, cache_dir=Path('.cache/precip'))
-                    # Ensure cache dir exists (if used by provider)
                     try:
                         Path('.cache/precip').mkdir(parents=True, exist_ok=True)
                     except Exception:
                         pass
-                    # Add one persistent trace and wire per-frame updates
-                    precip_trace_index = add_precip_trace(fig, zmax=PRECIP_ZMAX)
-                    if hours:
-                        update_precip_for_hour(fig, precip_trace_index, hours[0], data_by_hour)
-                    apply_precip_to_frames(fig, precip_trace_index, unique_dt, data_by_hour)
-                    # Add a toggle button for precipitation visibility
+                    # Add a toggle button for precipitation visibility (canvas heatmap)
                     precip_menu = dict(
                         type='buttons',
                         direction='right',
@@ -437,18 +428,23 @@ class LiveMapAnimator:
                         bgcolor='#ffffff',
                         bordercolor='#c8c8c8',
                         borderwidth=1,
-                        buttons=[
-                            dict(
-                                label='☔ Precip',
-                                method='restyle',
-                                args=[{'visible': True}, [precip_trace_index]],
-                                args2=[{'visible': False}, [precip_trace_index]],
-                            )
-                        ],
+                        buttons=[ dict(label='☔ Precip', method='restyle', args=[{}]) ],
                     )
                     existing_menus = list(fig.layout.updatemenus) if fig.layout.updatemenus else []
                     existing_menus.append(precip_menu)
                     fig.update_layout(updatemenus=existing_menus)
+                    # Prepare HTML injection with serialized hours -> [[lat,lon,val], ...]
+                    serial = {}
+                    for h, dfh in data_by_hour.items():
+                        ts = pd.Timestamp(h)
+                        if ts.tz is None:
+                            ts = ts.tz_localize('UTC')
+                        else:
+                            ts = ts.tz_convert('UTC')
+                        key = ts.isoformat()
+                        arr = dfh[['lat','lon','precip_mm']].astype(float).values.tolist()
+                        serial[key] = arr
+                    # Save HTML with injection
                     print(f"🌧️ Precipitation overlay enabled (provider: {PRECIP_PROVIDER})")
             except Exception as pe:
                 self.ui.print_warning(f"Precipitation overlay disabled: {pe}")
@@ -473,6 +469,12 @@ class LiveMapAnimator:
             
             # Save HTML and inject fullscreen assets
             html_string = fig.to_html(config=config)
+            # If precip serial exists, inject canvas heatmap assets
+            try:
+                if PRECIP_ENABLE:
+                    html_string = inject_precip_overlay(html_string, data_by_hour=serial, interval_min=int(os.environ.get('PRECIP_INTERVAL_MIN','60')), zmax=PRECIP_ZMAX)
+            except Exception:
+                pass
             html_string = inject_fullscreen(html_string)
             
             # Write the modified HTML
