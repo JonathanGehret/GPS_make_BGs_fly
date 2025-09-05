@@ -238,54 +238,19 @@ class ProximityUIBuilder:
         tab_frame.columnconfigure(0, weight=1)
         tab_frame.columnconfigure(1, weight=1)
         
-        # Left: Time Range section
+        # Left: Map & Actions section (time range inputs removed)
         animation_frame = ttk.Frame(tab_frame)
         animation_frame.grid(row=0, column=0, sticky='nsew', padx=(5, 2), pady=2)
-        
-        # Time range options
-        time_frame = ttk.LabelFrame(animation_frame, text="Time Range for Map", padding=5)
-        time_frame.pack(fill='x')
-        
-        # Note: Set time range for map generation
-        info_label = ttk.Label(
-            time_frame,
-            text="Set start and end times for map generation (optional).",
+
+        map_actions_frame = ttk.LabelFrame(animation_frame, text="Map Actions", padding=5)
+        map_actions_frame.pack(fill='x')
+
+        ttk.Label(
+            map_actions_frame,
+            text="Open the 2D Map Live GUI pre-filled with the current dataset and full data time range.",
             wraplength=300
-        )
-        info_label.pack(anchor='w', pady=(0, 8))
-        
-        # Start time field
-        start_frame = ttk.Frame(time_frame)
-        start_frame.pack(fill='x', pady=2)
-        ttk.Label(start_frame, text="Start Time:").pack(side='left')
-        ttk.Entry(
-            start_frame,
-            textvariable=self.config.start_time,
-            width=20
-        ).pack(side='right', padx=(10, 0))
-        
-        # End time field
-        end_frame = ttk.Frame(time_frame)
-        end_frame.pack(fill='x', pady=2)
-        ttk.Label(end_frame, text="End Time:").pack(side='left')
-        ttk.Entry(
-            end_frame,
-            textvariable=self.config.end_time,
-            width=20
-        ).pack(side='right', padx=(10, 0))
-        
-        # Time format hint
-        hint_label = ttk.Label(
-            time_frame,
-            text="Format: YYYY-MM-DD HH:MM:SS (leave empty for full range)",
-            font=('Arial', 8)
-        )
-        hint_label.pack(anchor='w', pady=(5, 0))
-        
-        # Map actions
-        map_actions_frame = ttk.Frame(animation_frame)
-        map_actions_frame.pack(fill='x', pady=(10, 0))
-        
+        ).pack(anchor='w', pady=(0, 8))
+
         ttk.Button(
             map_actions_frame,
             text="🗺️ Open 2D Map Live GUI",

@@ -52,9 +52,11 @@ class GUISections:
         folder_frame = ttk.LabelFrame(parent, text="📁 Folders", padding="10")
         folder_frame.pack(fill="x", pady=(0, 10))
         
-        # Initialize folder variables
-        data_folder = tk.StringVar(value=os.path.join(os.getcwd(), "assets", "data"))
-        output_folder = tk.StringVar(value=os.path.join(os.getcwd(), "visualizations"))
+        # Initialize folder variables (prefill from environment if provided)
+        default_data = os.environ.get('GPS_DATA_DIR', os.path.join(os.getcwd(), "assets", "data"))
+        default_output = os.environ.get('OUTPUT_DIR', os.path.join(os.getcwd(), "visualizations"))
+        data_folder = tk.StringVar(value=default_data)
+        output_folder = tk.StringVar(value=default_output)
         
         # Browse methods
         def browse_data_folder():

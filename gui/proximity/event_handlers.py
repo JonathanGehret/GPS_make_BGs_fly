@@ -571,12 +571,31 @@ For more detailed help, visit: https://github.com/YourRepo/GPS_make_BGs_fly
     def open_2d_map_gui(self):
         """Open the 2D Map Live GUI"""
         try:
+            # Prefill the 2D GUI with current dataset and output folder
+            env = os.environ.copy()
+            data_folder = self.config.data_folder.get()
+            output_folder = self.config.output_folder.get()
+            if data_folder:
+                env['GPS_DATA_DIR'] = data_folder
+            if output_folder:
+                env['OUTPUT_DIR'] = output_folder
+            # Ensure full time window is used (let 2D GUI detect bounds)
+            env.pop('ANIMATION_START_TIME', None)
+            env.pop('ANIMATION_END_TIME', None)
+            env.pop('TIME_WINDOW_START', None)
+            env.pop('TIME_WINDOW_END', None)
+
             # Import and run the 2D map GUI
             from gui.live_map_2d_gui import main as map_gui_main
             # Run in a separate thread to avoid blocking the current GUI
             import threading
-            threading.Thread(target=map_gui_main, daemon=True).start()
-            self.log("🗺️ Opening 2D Map Live GUI...")
+            # Launch in a thread after setting environment variables for that thread
+            def _launch():
+                # Apply env overrides within this thread/process
+                os.environ.update(env)
+                map_gui_main()
+            threading.Thread(target=_launch, daemon=True).start()
+            self.log("🗺️ Opening 2D Map Live GUI with current dataset (full range)...")
         except Exception as e:
             messagebox.showerror("Error", f"Could not open 2D Map GUI: {e}")
             self.log(f"❌ Failed to open 2D Map GUI: {e}")
