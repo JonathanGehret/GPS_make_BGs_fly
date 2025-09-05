@@ -34,8 +34,8 @@ class LaunchManager:
         data_folder = folder_manager.get_data_folder()
         output_folder = folder_manager.get_output_folder()
         
-        # Find the animation script
-        script_path = os.path.join(os.path.dirname(__file__), "..", "..", "scripts", "animate_live_map.py")
+        # Find the animation script (now implemented under core/animation)
+        script_path = os.path.join(os.path.dirname(__file__), "..", "..", "core", "animation", "animate_live_map.py")
         if not os.path.exists(script_path):
             language = self.get_language()
             if language == "de":
