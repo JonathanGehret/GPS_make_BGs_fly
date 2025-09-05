@@ -248,12 +248,21 @@ class GUISections:
                 self.time_step = time_step
                 
             def get_config(self):
-                return {
+                cfg = {
                     'performance_mode': self.performance_mode.get(),
                     'trail_length': self.trail_length.get(),
                     'time_step': self.time_step.get(),
                     'playback_speed': 1.0
                 }
+                # Include optional animation time range if present as attributes
+                try:
+                    if hasattr(self, 'animation_start_time') and getattr(self, 'animation_start_time'):
+                        cfg['animation_start_time'] = getattr(self, 'animation_start_time')
+                    if hasattr(self, 'animation_end_time') and getattr(self, 'animation_end_time'):
+                        cfg['animation_end_time'] = getattr(self, 'animation_end_time')
+                except Exception:
+                    pass
+                return cfg
         
         return SettingsManager()
     

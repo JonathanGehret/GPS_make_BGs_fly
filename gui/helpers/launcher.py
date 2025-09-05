@@ -81,6 +81,30 @@ class AnimationLauncher:
                 env['TIME_STEP'] = config['time_step']
                 env['PLAYBACK_SPEED'] = str(config.get('playback_speed', 1.0))
                 env['PERFORMANCE_MODE'] = '1' if config['performance_mode'] else '0'
+                # Include optional animation time range if provided by settings_manager
+                # SettingsManager may expose them as attributes or the config may include them.
+                start_time = None
+                end_time = None
+                try:
+                    # Prefer explicit attributes if present
+                    if hasattr(settings_manager, 'animation_start_time'):
+                        start_time = getattr(settings_manager, 'animation_start_time')
+                    if hasattr(settings_manager, 'animation_end_time'):
+                        end_time = getattr(settings_manager, 'animation_end_time')
+                except Exception:
+                    start_time = None
+                    end_time = None
+
+                # Fallback to config dict
+                if start_time is None:
+                    start_time = config.get('animation_start_time') if isinstance(config, dict) else None
+                if end_time is None:
+                    end_time = config.get('animation_end_time') if isinstance(config, dict) else None
+
+                if start_time:
+                    env['ANIMATION_START_TIME'] = str(start_time)
+                if end_time:
+                    env['ANIMATION_END_TIME'] = str(end_time)
                 
                 # Launch the script with environment variables
                 subprocess.Popen([sys.executable, script_path], env=env)
