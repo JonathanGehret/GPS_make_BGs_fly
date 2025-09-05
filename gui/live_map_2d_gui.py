@@ -42,6 +42,9 @@ class LiveMap2DGUI:
         self.data_folder = tk.StringVar(value=os.path.join(os.path.dirname(__file__), "..", "data"))
         self.output_folder = tk.StringVar(value=os.path.join(os.path.dirname(__file__), "..", "visualizations"))
         
+        # Performance mode setting
+        self.performance_mode = None  # Will be initialized in setup_ui
+        
         # Animation controls will be created in setup_ui
         self.animation_controls = None
         
@@ -146,6 +149,30 @@ class LiveMap2DGUI:
             # Fallback: create basic controls manually
             self.create_fallback_animation_controls(self.animation_frame)
         
+        # Performance mode section
+        self.performance_frame = ttk.LabelFrame(scrollable_frame, text="⚡ Performance Settings", padding="10")
+        self.performance_frame.grid(row=4, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
+        self.performance_frame.columnconfigure(0, weight=1)
+        
+        # Performance mode checkbox
+        self.performance_mode = tk.BooleanVar(value=False)
+        self.performance_checkbox = ttk.Checkbutton(
+            self.performance_frame, 
+            text="Enable Performance Mode",
+            variable=self.performance_mode,
+            command=self.update_performance_info
+        )
+        self.performance_checkbox.grid(row=0, column=0, sticky=tk.W, pady=(0, 5))
+        
+        # Performance mode explanation
+        self.performance_info = ttk.Label(
+            self.performance_frame, 
+            text="📝 Standard mode: Fading markers with smooth transitions\n⚡ Performance mode: Line+head rendering with adaptive LOD for large datasets",
+            font=("Arial", 8),
+            foreground="gray50"
+        )
+        self.performance_info.grid(row=1, column=0, sticky=(tk.W, tk.E), pady=(0, 5))
+        
         # Status and buttons (fixed at bottom)
         canvas.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
         scrollbar.grid(row=0, column=1, sticky=(tk.N, tk.S))
@@ -195,6 +222,21 @@ class LiveMap2DGUI:
         self.language = self.lang_var.get()
         self.update_texts()
     
+    def update_performance_info(self):
+        """Update performance mode information display"""
+        if self.performance_mode.get():
+            if self.language == "de":
+                info_text = "⚡ Aktiviert: Linie+Kopf-Rendering mit adaptiver LOD für große Datensätze"
+            else:
+                info_text = "⚡ Enabled: Line+head rendering with adaptive LOD for large datasets"
+        else:
+            if self.language == "de":
+                info_text = "📝 Standard: Verblassende Marker mit glatten Übergängen"
+            else:
+                info_text = "📝 Standard: Fading markers with smooth transitions"
+        
+        self.performance_info.config(text=info_text)
+    
     def update_texts(self):
         """Update all texts based on selected language"""
         if self.language == "de":
@@ -207,11 +249,15 @@ class LiveMap2DGUI:
             self.folders_frame.config(text="📁 Ordner")
             self.preview_frame.config(text="📊 Datenvorschau")
             self.animation_frame.config(text="🎬 Animation-Einstellungen")
+            self.performance_frame.config(text="⚡ Performance-Einstellungen")
             
             # Update field labels
             self.data_label.config(text="Daten:")
             self.output_label.config(text="Ausgabe:")
             self.refresh_button.config(text="🔄 Aktualisieren")
+            
+            # Update performance mode elements
+            self.performance_checkbox.config(text="Performance-Modus aktivieren")
             
         else:
             self.root.title("2D Live Map - Configuration")
@@ -223,11 +269,18 @@ class LiveMap2DGUI:
             self.folders_frame.config(text="📁 Folders")
             self.preview_frame.config(text="📊 Data Preview")
             self.animation_frame.config(text="🎬 Animation Settings")
+            self.performance_frame.config(text="⚡ Performance Settings")
             
             # Update field labels
             self.data_label.config(text="Data:")
             self.output_label.config(text="Output:")
             self.refresh_button.config(text="🔄 Refresh")
+            
+            # Update performance mode elements
+            self.performance_checkbox.config(text="Enable Performance Mode")
+        
+        # Update performance info text
+        self.update_performance_info()
     
     def _update_widget_texts_de(self, widget):
         """Recursively update widget texts to German"""
@@ -443,6 +496,7 @@ class LiveMap2DGUI:
             env['TRAIL_LENGTH_HOURS'] = str(config['trail_length'])
             env['TIME_STEP'] = config['time_step']
             env['PLAYBACK_SPEED'] = str(config.get('playback_speed', 1.0))
+            env['PERFORMANCE_MODE'] = '1' if self.performance_mode.get() else '0'
             
             # Check if we're running in a PyInstaller bundle
             if getattr(sys, '_MEIPASS', False):
