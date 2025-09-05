@@ -80,10 +80,11 @@ def apply_standard_layout(
     center_lat: float,
     center_lon: float,
     zoom_level: int,
+    map_style: "str|dict" = "open-street-map",
 ) -> None:
     """Apply standard map layout (fixed center/zoom, size, margins, title, legend)."""
     fig.update_layout(
-        map=dict(style="open-street-map", center=dict(lat=center_lat, lon=center_lon), zoom=zoom_level),
+        map=dict(style=map_style, center=dict(lat=center_lat, lon=center_lon), zoom=zoom_level),
         width=1200,
         height=800,
         autosize=True,

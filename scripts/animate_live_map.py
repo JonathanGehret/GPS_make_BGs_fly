@@ -29,6 +29,7 @@ from gps_utils import (
 from export.video_export import export_animation_video
 from export.browser_video_export import export_animation_video_browser
 from utils.lod import LODConfig, apply_lod
+from utils.offline_tiles import ensure_offline_style_for_bounds
 
 # Add the scripts directory to the Python path
 scripts_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -42,7 +43,7 @@ class LiveMapAnimator:
     
     def __init__(self):
         self.ui = UserInterface()
-        
+
         # Use custom data directory from GUI if available
         custom_data_dir = os.environ.get('GPS_DATA_DIR')
         if custom_data_dir and os.path.exists(custom_data_dir):
@@ -64,6 +65,14 @@ class LiveMapAnimator:
         self.performance_mode = os.environ.get('PERFORMANCE_MODE', '0') == '1'
         self.export_mp4 = os.environ.get('EXPORT_MP4', '0') == '1'
         self.export_mp4_browser = os.environ.get('EXPORT_MP4_BROWSER', '0') == '1'
+        self.offline_map = os.environ.get('OFFLINE_MAP', '0') == '1'
+        self.offline_map_download = os.environ.get('OFFLINE_MAP_DOWNLOAD', '1') == '1'
+        self.tiles_dir = (
+            os.path.join(os.path.dirname(os.path.dirname(__file__)), 'tiles_cache')
+            if os.environ.get('TILES_DIR') is None
+            else os.environ.get('TILES_DIR')
+        )
+        self.tile_server_url = os.environ.get('TILE_SERVER_URL', 'https://tile.openstreetmap.org/{z}/{x}/{y}.png')
 
         # Read playback speed from environment if available (from GUI)
         playback_speed_env = os.environ.get('PLAYBACK_SPEED')
@@ -357,7 +366,28 @@ class LiveMapAnimator:
             )
             
             # Configure layout with FIXED center, zoom, and dimensions to prevent jumping
-            apply_standard_layout(fig, center_lat=center_lat, center_lon=center_lon, zoom_level=zoom_level)
+            # Online/Offline map style handling
+            map_style = "open-street-map"
+            if self.offline_map:
+                try:
+                    map_style = ensure_offline_style_for_bounds(
+                        lat_min=lat_min,
+                        lat_max=lat_max,
+                        lon_min=lon_min,
+                        lon_max=lon_max,
+                        zoom_level=zoom_level,
+                        tiles_dir=self.tiles_dir,
+                        download=self.offline_map_download,
+                        zoom_pad=1,
+                        tile_url_template=self.tile_server_url,
+                        tiles_href="./tiles_cache" if os.path.isabs(self.tiles_dir) else self.tiles_dir,
+                    )
+                    print(f"🗺️ Using offline tiles from: {self.tiles_dir}")
+                except Exception as te:
+                    self.ui.print_warning(f"Offline map setup failed, using online tiles: {te}")
+                    map_style = "open-street-map"
+
+            apply_standard_layout(fig, center_lat=center_lat, center_lon=center_lon, zoom_level=zoom_level, map_style=map_style)
             apply_controls_and_slider(
                 fig,
                 unique_times=unique_times,
@@ -394,6 +424,21 @@ class LiveMapAnimator:
             with open(output_path, 'w', encoding='utf-8') as f:
                 f.write(html_string)
             
+            # If offline tiles are enabled and using absolute cache, copy tiles next to HTML for portability
+            if self.offline_map:
+                try:
+                    html_dir = os.path.dirname(output_path)
+                    # If tiles_dir is absolute, copy into html_dir/tiles_cache
+                    if os.path.isabs(self.tiles_dir):
+                        import shutil
+                        dst_tiles = os.path.join(html_dir, 'tiles_cache')
+                        if os.path.exists(dst_tiles):
+                            pass  # keep existing (avoid heavy re-copy each run)
+                        else:
+                            shutil.copytree(self.tiles_dir, dst_tiles, dirs_exist_ok=True)
+                except Exception as ce:
+                    self.ui.print_warning(f"Could not copy offline tiles next to HTML: {ce}")
+
             self.ui.print_success("✨ Interactive live map animation created with custom fullscreen support!")
             print(f"📁 Saved: {output_path}")
             print("🎯 Fullscreen: Click the '⛶ Fullscreen' button in the controls to view entire interface fullscreen")
