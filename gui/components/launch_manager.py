@@ -82,8 +82,11 @@ class LaunchManager:
             success, html_file_path = self._run_animation_script(script_path, env)
             
             if success:
-                # For asynchronous execution, just return success
-                # The animation will run in the background
+                try:
+                    self._show_success_dialog(output_folder, html_file_path)
+                except tk.TclError:
+                    # Window was destroyed, just print success message
+                    print(f"Animation completed successfully. Output: {output_folder}")
                 return True
             else:
                 return False
@@ -98,7 +101,7 @@ class LaunchManager:
             return False
     
     def _run_animation_script(self, script_path, env):
-        """Run the animation script asynchronously"""
+        """Run the animation script and wait for completion"""
         try:
             # Determine Python executable
             if getattr(sys, '_MEIPASS', False):
@@ -123,17 +126,46 @@ class LaunchManager:
                 # Development mode
                 python_exe = sys.executable
             
-            # Launch the script asynchronously
-            print(f"🚀 Launching animation script: {script_path}")
-            env['GUI_MODE'] = '1'  # Indicate we're running from GUI
-            subprocess.Popen([python_exe, script_path], env=env)
+            # Set GUI mode
+            env['GUI_MODE'] = '1'
             
-            # Return success immediately since we're running asynchronously
-            return True, None
+            # Run the script synchronously
+            print(f"🚀 Launching animation script: {script_path}")
+            process = subprocess.run([python_exe, script_path], env=env, 
+                                   capture_output=True, text=True, timeout=600)
+            
+            # Parse output for HTML file path
+            html_file_path = None
+            if process.stdout:
+                for line in process.stdout.split('\n'):
+                    if 'Saved:' in line and '.html' in line:
+                        html_file_path = line.split('Saved: ')[-1].strip()
+                        break
+            
+            if process.returncode == 0:
+                return True, html_file_path
+            else:
+                language = self.get_language()
+                error_msg = process.stderr if process.stderr else "Unknown error"
+                full_error = f"Script execution failed:\n{error_msg}"
+                try:
+                    messagebox.showerror("Fehler" if language == "de" else "Error", 
+                                       "Skript-Ausführung fehlgeschlagen:\n{error_msg}" if language == "de" else full_error)
+                except tk.TclError:
+                    print(f"GUI Error: {full_error}")
+                return False, None
                 
+        except subprocess.TimeoutExpired:
+            language = self.get_language()
+            error_msg = "Zeitüberschreitung beim Erstellen der Animation (10 Minuten)" if language == "de" else "Timeout while creating animation (10 minutes)"
+            try:
+                messagebox.showerror("Fehler" if language == "de" else "Error", error_msg)
+            except tk.TclError:
+                print(f"GUI Error: {error_msg}")
+            return False, None
         except Exception as e:
             language = self.get_language()
-            error_msg = f"Fehler beim Starten der Animation: {e}" if language == "de" else f"Error launching animation: {e}"
+            error_msg = f"Fehler beim Erstellen der Animation: {e}" if language == "de" else f"Error creating animation: {e}"
             try:
                 messagebox.showerror("Fehler" if language == "de" else "Error", error_msg)
             except tk.TclError:
