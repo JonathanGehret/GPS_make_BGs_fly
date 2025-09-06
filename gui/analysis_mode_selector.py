@@ -15,12 +15,8 @@ try:
     sys.path.append(os.path.join(os.path.dirname(__file__), "..", "core"))
     from update_manager import check_for_updates
     UPDATE_AVAILABLE = True
-    print("✅ DEBUG: Update manager imported successfully")
-except ImportError as e:
+except ImportError:
     UPDATE_AVAILABLE = False
-    print(f"❌ DEBUG: Failed to import update manager: {e}")
-    print(f"❌ DEBUG: Current sys.path: {sys.path}")
-    print(f"❌ DEBUG: Script directory: {os.path.join(os.path.dirname(__file__), '..', 'scripts')}")
 
 # Import feature GUI modules for direct execution in bundle mode
 FEATURE_GUI_AVAILABLE = {}
@@ -140,7 +136,6 @@ class AnalysisModeSelector:
         
         # Update button (if update system is available)
         if UPDATE_AVAILABLE:
-            print("✅ DEBUG: Creating update button")
             self.update_btn = ttk.Button(button_frame, text="🔄 Check for Updates", 
                                         command=self.check_for_updates,
                                         style="Update.TButton")
@@ -150,9 +145,6 @@ class AnalysisModeSelector:
                                         text="Download latest version with new features",
                                         font=("Arial", 9), foreground="gray")
             self.update_desc.grid(row=7, column=0, pady=(0, 15))
-            print("✅ DEBUG: Update button and description created")
-        else:
-            print("❌ DEBUG: UPDATE_AVAILABLE is False, not creating update button")
         
         # Configure button styles
         style = ttk.Style()
@@ -211,7 +203,6 @@ class AnalysisModeSelector:
     
     def launch_proximity_analysis(self):
         """Launch the proximity analysis GUI"""
-        print("🔍 DEBUG: Proximity Analysis button clicked")
         
         # Disable button to prevent multiple clicks
         self.btn1.config(state="disabled")
@@ -221,12 +212,10 @@ class AnalysisModeSelector:
         
         # Check if we're running in a PyInstaller bundle
         if getattr(sys, '_MEIPASS', False):
-            print("📦 DEBUG: Running in bundle mode, using subprocess")
             # Running in bundle - use subprocess to launch new instance
             try:
                 # Get the path to the current executable
                 executable_path = sys.executable
-                print(f"🏃 DEBUG: Using executable: {executable_path}")
                 
                 # Set environment variable for language persistence
                 env = os.environ.copy()
@@ -234,7 +223,6 @@ class AnalysisModeSelector:
                 
                 # Launch new instance with proximity analysis mode
                 subprocess.Popen([executable_path, "--proximity"], env=env)
-                print("✅ DEBUG: Proximity Analysis subprocess launched")
                 
                 if self.language == "de":
                     self.update_status("Näherungsanalyse wird gestartet...")
@@ -244,17 +232,12 @@ class AnalysisModeSelector:
                 # Re-enable button after short delay
                 self.root.after(2000, lambda: self.btn1.config(state="normal"))
                 self.root.after(2000, lambda: self.update_status("Bereit" if self.language == "de" else "Ready"))
-                print("🎯 DEBUG: Proximity Analysis launch completed successfully")
                 
             except Exception as e:
                 error_msg = f"Error: {str(e)}"
-                print(f"❌ DEBUG: Proximity Analysis Launch Error: {error_msg}")
-                import traceback
-                print(f"❌ DEBUG: Full traceback:\n{traceback.format_exc()}")
                 self.show_error(f"Failed to launch Proximity Analysis:\n{error_msg}")
                 self.btn1.config(state="normal")
         else:
-            print("🔧 DEBUG: Running in development mode")
             # Running in development mode - use subprocess
             script_path = os.path.join(os.path.dirname(__file__), "proximity_analysis_gui.py")
             if os.path.exists(script_path):
@@ -281,7 +264,6 @@ class AnalysisModeSelector:
     
     def launch_2d_map(self):
         """Launch the 2D live map"""
-        print("🗺️ DEBUG: 2D Live Map button clicked")
         
         # Disable button to prevent multiple clicks
         self.btn2.config(state="disabled")
@@ -291,12 +273,10 @@ class AnalysisModeSelector:
         
         # Check if we're running in a PyInstaller bundle
         if getattr(sys, '_MEIPASS', False):
-            print("📦 DEBUG: Running in bundle mode, using subprocess")
             # Running in bundle - use subprocess to launch new instance
             try:
                 # Get the path to the current executable
                 executable_path = sys.executable
-                print(f"🏃 DEBUG: Using executable: {executable_path}")
                 
                 # Set environment variable for language persistence
                 env = os.environ.copy()
@@ -304,7 +284,6 @@ class AnalysisModeSelector:
                 
                 # Launch new instance with 2D map mode
                 subprocess.Popen([executable_path, "--2d-map"], env=env)
-                print("✅ DEBUG: 2D Live Map subprocess launched")
                 
                 if self.language == "de":
                     self.update_status("2D Live Karte wird gestartet...")
@@ -314,17 +293,12 @@ class AnalysisModeSelector:
                 # Re-enable button after short delay
                 self.root.after(2000, lambda: self.btn2.config(state="normal"))
                 self.root.after(2000, lambda: self.update_status("Bereit" if self.language == "de" else "Ready"))
-                print("🎯 DEBUG: 2D Live Map launch completed successfully")
                 
             except Exception as e:
                 error_msg = f"Error: {str(e)}"
-                print(f"❌ DEBUG: 2D Live Map Launch Error: {error_msg}")
-                import traceback
-                print(f"❌ DEBUG: Full traceback:\n{traceback.format_exc()}")
                 self.show_error(f"Failed to launch 2D Live Map:\n{error_msg}")
                 self.btn2.config(state="normal")
         else:
-            print("🔧 DEBUG: Running in development mode")
             # Running in development mode - use subprocess
             script_path = os.path.join(os.path.dirname(__file__), "live_map_2d_gui.py")
             if os.path.exists(script_path):
@@ -351,7 +325,6 @@ class AnalysisModeSelector:
     
     def launch_3d_visualization(self):
         """Launch the 3D visualization"""
-        print("🎯 DEBUG: 3D Visualization button clicked")
         
         # Disable button to prevent multiple clicks
         self.btn3.config(state="disabled")
@@ -361,12 +334,10 @@ class AnalysisModeSelector:
         
         # Check if we're running in a PyInstaller bundle
         if getattr(sys, '_MEIPASS', False):
-            print("📦 DEBUG: Running in bundle mode, using subprocess")
             # Running in bundle - use subprocess to launch new instance
             try:
                 # Get the path to the current executable
                 executable_path = sys.executable
-                print(f"🏃 DEBUG: Using executable: {executable_path}")
                 
                 # Set environment variable for language persistence
                 env = os.environ.copy()
@@ -374,7 +345,6 @@ class AnalysisModeSelector:
                 
                 # Launch new instance with 3D visualization mode
                 subprocess.Popen([executable_path, "--3d-viz"], env=env)
-                print("✅ DEBUG: 3D Visualization subprocess launched")
                 
                 if self.language == "de":
                     self.update_status("3D Visualisierung wird gestartet...")
@@ -384,17 +354,12 @@ class AnalysisModeSelector:
                 # Re-enable button after short delay
                 self.root.after(2000, lambda: self.btn3.config(state="normal"))
                 self.root.after(2000, lambda: self.update_status("Bereit" if self.language == "de" else "Ready"))
-                print("🎯 DEBUG: 3D Visualization launch completed successfully")
                 
             except Exception as e:
                 error_msg = f"Error: {str(e)}"
-                print(f"❌ DEBUG: 3D Visualization Launch Error: {error_msg}")
-                import traceback
-                print(f"❌ DEBUG: Full traceback:\n{traceback.format_exc()}")
                 self.show_error(f"Failed to launch 3D Visualization:\n{error_msg}")
                 self.btn3.config(state="normal")
         else:
-            print("🔧 DEBUG: Running in development mode")
             # Running in development mode - use subprocess
             script_path = os.path.join(os.path.dirname(__file__), "visualization_3d_gui.py")
             if os.path.exists(script_path):

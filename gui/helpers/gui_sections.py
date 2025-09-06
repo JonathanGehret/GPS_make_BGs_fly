@@ -320,19 +320,32 @@ class GUISections:
         ttk.Label(performance_frame, text="• Enabled: Line+head rendering with adaptive LOD for large datasets", 
                  font=("Arial", 8), foreground="gray").pack(anchor="w")
         
-        # Map mode settings
+                # Map mode settings
         map_frame = ttk.LabelFrame(parent, text="🗺️ Map Settings", padding="10")
         map_frame.pack(fill="x", pady=(0, 10))
         
         online_map_mode = tk.BooleanVar(value=True)  # Default to online (checked)
         map_checkbox = ttk.Checkbutton(map_frame, text="Online Map Mode", 
-                                      variable=online_map_mode,
-                                      command=lambda: print(f"DEBUG: Checkbox clicked, online_map_mode={online_map_mode.get()}"))
+                                      variable=online_map_mode)
         map_checkbox.pack(anchor="w", pady=(0, 5))
         
         ttk.Label(map_frame, text="• Checked: Use online maps (requires internet)", 
                  font=("Arial", 8), foreground="gray").pack(anchor="w")
         ttk.Label(map_frame, text="• Unchecked: Use offline maps (downloads tiles)", 
+                 font=("Arial", 8), foreground="gray").pack(anchor="w")
+        
+        # Video export settings
+        video_frame = ttk.LabelFrame(parent, text="🎬 Video Export", padding="10")
+        video_frame.pack(fill="x", pady=(0, 10))
+        
+        export_mp4 = tk.BooleanVar(value=False)
+        video_checkbox = ttk.Checkbutton(video_frame, text="Export MP4 Video", 
+                                        variable=export_mp4)
+        video_checkbox.pack(anchor="w", pady=(0, 5))
+        
+        ttk.Label(video_frame, text="• Creates MP4 video file from the animation", 
+                 font=("Arial", 8), foreground="gray").pack(anchor="w")
+        ttk.Label(video_frame, text="• Uses browser capture for offline maps", 
                  font=("Arial", 8), foreground="gray").pack(anchor="w")
 
     # Precipitation overlay removed per user request
@@ -344,6 +357,7 @@ class GUISections:
                 self.trail_length = trail_length
                 self.time_step = time_step
                 self.online_map_mode = online_map_mode  # Add online map mode
+                self.export_mp4 = export_mp4  # Add video export
                 # (Precipitation removed)
                 
             def get_config(self):
@@ -352,10 +366,9 @@ class GUISections:
                     'trail_length': self.trail_length.get(),
                     'time_step': self.time_step.get(),
                     'playback_speed': 1.0,
-                    'online_map_mode': self.online_map_mode.get()  # Add to config
+                    'online_map_mode': self.online_map_mode.get(),  # Add to config
+                    'export_mp4': self.export_mp4.get()  # Add video export to config
                 }
-                print(f"DEBUG: SettingsManager get_config - online_map_mode.get(): {self.online_map_mode.get()}")
-                print(f"DEBUG: SettingsManager get_config - online_map_mode type: {type(self.online_map_mode.get())}")
                 # Precipitation config removed
                 # Include optional animation time range if present as attributes
                 try:

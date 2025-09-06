@@ -39,9 +39,6 @@ class LaunchManager:
         data_folder = folder_manager.get_data_folder()
         output_folder = folder_manager.get_output_folder()
         
-        print(f"DEBUG: LaunchManager config: {config}")
-        print(f"DEBUG: LaunchManager online_map_mode: {config.get('online_map_mode')}")
-        
         # Find the animation script (now implemented under core/animation)
         script_path = os.path.join(os.path.dirname(__file__), "..", "..", "core", "animation", "animate_live_map.py")
         if not os.path.exists(script_path):
@@ -65,8 +62,8 @@ class LaunchManager:
             env['TIME_STEP'] = config['time_step']
             env['PLAYBACK_SPEED'] = str(config.get('playback_speed', 1.0))
             env['PERFORMANCE_MODE'] = '1' if config['performance_mode'] else '0'
+            env['EXPORT_MP4'] = '1' if config.get('export_mp4', False) else '0'
             env['ONLINE_MAP_MODE'] = '1' if config.get('online_map_mode', True) else '0'
-            print(f"DEBUG: LaunchManager setting ONLINE_MAP_MODE={env['ONLINE_MAP_MODE']}")
             # (Precipitation overlay removed)
             
             # Set time window if provided by GUI
@@ -129,8 +126,13 @@ class LaunchManager:
                 if not python_exe:
                     python_exe = sys.executable
             else:
-                # Development mode
-                python_exe = sys.executable
+                # Development mode - try to use virtual environment if available
+                venv_python = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), '.venv', 'bin', 'python')
+                if os.path.exists(venv_python):
+                    python_exe = venv_python
+                    print(f"🐍 Using virtual environment Python: {python_exe}")
+                else:
+                    python_exe = sys.executable
             
             # Set GUI mode
             env['GUI_MODE'] = '1'

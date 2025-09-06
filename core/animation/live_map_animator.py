@@ -424,10 +424,11 @@ class LiveMapAnimator:
             print("📱 Features: All controls, slider, and map included in fullscreen mode")
             if self.export_mp4 or self.export_mp4_browser:
                 try:
-                    # Use browser export if offline maps are enabled (to include map background)
-                    # or if explicitly requested
-                    use_browser = self.export_mp4_browser or self.offline_map
+                    # Use browser export for video export (to capture map tiles)
+                    use_browser = self.export_mp4_browser or self.offline_map or self.export_mp4
                     if use_browser:
+                        map_type = 'offline' if self.offline_map else 'online'
+                        self.ui.print_info(f"Video export: Using browser capture (includes {map_type} map tiles)")
                         try:
                             mp4_path = export_animation_video_browser(
                                 html_path=str(output_path),
@@ -461,8 +462,9 @@ class LiveMapAnimator:
                                 height=720,
                                 quality_crf=20,
                             )
-                            print(f"🎬 Wrote video (offline): {mp4_path}")
+                            print(f"🎬 Wrote video (offline fallback): {mp4_path}")
                     else:
+                        self.ui.print_info("Video export: Using offline rendering (no map tiles)")
                         fig_full = create_base_figure(vulture_ids, color_map, strategy="markers_fade")
                         full_times = sorted(full_df_for_video['timestamp_str'].unique())
                         attach_frames(

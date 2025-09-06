@@ -64,10 +64,6 @@ class AnimationLauncher:
             data_folder = folder_manager.get_data_folder()
             output_folder = folder_manager.get_output_folder()
             
-            print(f"DEBUG: Full config from settings_manager: {config}")
-            print(f"DEBUG: online_map_mode in config: {config.get('online_map_mode')}")
-            print(f"DEBUG: online_map_mode type: {type(config.get('online_map_mode'))}")
-            
             script_path = os.path.join("scripts", script_name)
             # Check if script exists in scripts directory, otherwise try core/animation
             if not os.path.exists(script_path):
@@ -90,6 +86,8 @@ class AnimationLauncher:
                 env['TIME_STEP'] = config['time_step']
                 env['PLAYBACK_SPEED'] = str(config.get('playback_speed', 1.0))
                 env['PERFORMANCE_MODE'] = '1' if config['performance_mode'] else '0'
+                env['EXPORT_MP4'] = '1' if config.get('export_mp4', False) else '0'
+                print(f"  Setting EXPORT_MP4={env['EXPORT_MP4']}")
                 env['ONLINE_MAP_MODE'] = '1' if config.get('online_map_mode', True) else '0'
                 print(f"  Setting ONLINE_MAP_MODE={env['ONLINE_MAP_MODE']}")
                 env['GUI_MODE'] = '1'  # Indicate we're running from GUI
