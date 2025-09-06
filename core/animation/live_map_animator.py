@@ -59,9 +59,20 @@ class LiveMapAnimator:
         self.export_mp4 = os.environ.get('EXPORT_MP4', '0') == '1'
         self.export_mp4_browser = os.environ.get('EXPORT_MP4_BROWSER', '0') == '1'
         self.offline_map = os.environ.get('OFFLINE_MAP', '0') == '1'
+        # Also check GUI-specific offline map setting
+        if not self.offline_map:
+            offline_gui = os.environ.get('OFFLINE_MAP_GUI')
+            if offline_gui and offline_gui.lower() in ('1', 'true', 'yes'):
+                self.offline_map = True
+        # Check GUI online map mode setting
+        online_gui = os.environ.get('ONLINE_MAP_MODE')
+        if online_gui:
+            # ONLINE_MAP_MODE='1' means online (checkbox checked), so offline_map = False
+            # ONLINE_MAP_MODE='0' means offline (checkbox unchecked), so offline_map = True
+            self.offline_map = online_gui.lower() in ('0', 'false', 'no')
         self.offline_map_download = os.environ.get('OFFLINE_MAP_DOWNLOAD', '1') == '1'
         self.tiles_dir = (
-            os.path.join(os.path.dirname(os.path.dirname(__file__)), 'tiles_cache')
+            os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'assets', 'tiles_cache')
             if os.environ.get('TILES_DIR') is None
             else os.environ.get('TILES_DIR')
         )
@@ -111,8 +122,42 @@ class LiveMapAnimator:
             else:
                 self.ui.print_info("Performance mode: OFF (fading markers)")
             if self.export_mp4 or self.export_mp4_browser:
-                mode = "Browser" if self.export_mp4_browser else "Offline"
+                mode = "Browser" if (self.export_mp4_browser or self.offline_map) else "Offline"
                 self.ui.print_info(f"Video export enabled ({mode}): MP4 will be created")
+
+            # Ask user about offline map capability
+            if not self.offline_map:  # Only ask if not already set via environment
+                # Check if we're running in GUI mode (no stdin available)
+                import sys
+                is_gui_mode = not sys.stdin.isatty() or os.environ.get('GUI_MODE') == '1'
+                
+                if is_gui_mode:
+                    # In GUI mode, don't ask - use the setting from environment
+                    print(f"🗺️ GUI mode detected - using {'offline' if self.offline_map else 'online'} maps")
+                else:
+                    # CLI mode - ask for user input
+                    self.ui.print_section("🗺️ MAP CONFIGURATION")
+                    print("Choose map mode:")
+                    print("1. Online maps (default - requires internet connection)")
+                    print("2. Offline maps (downloads tiles for offline viewing)")
+                    print()
+                    while True:
+                        try:
+                            choice = input("Enter your choice (1 or 2): ").strip()
+                            if choice == "1":
+                                self.offline_map = False
+                                break
+                            elif choice == "2":
+                                self.offline_map = True
+                                self.ui.print_success("Offline map mode enabled - tiles will be downloaded")
+                                break
+                            else:
+                                print("Please enter 1 or 2.")
+                        except (EOFError, KeyboardInterrupt):
+                            # Handle cases where input is not available
+                            print("Input not available, using online maps (default)")
+                            self.offline_map = False
+                            break
 
             # Data analysis
             if not self.analyze_data():
@@ -358,11 +403,15 @@ class LiveMapAnimator:
             if self.offline_map:
                 try:
                     html_dir = os.path.dirname(output_path)
-                    if os.path.isabs(self.tiles_dir):
+                    tiles_dst = os.path.join(html_dir, 'tiles_cache')
+                    if not os.path.exists(tiles_dst):
                         import shutil
-                        dst_tiles = os.path.join(html_dir, 'tiles_cache')
-                        if not os.path.exists(dst_tiles):
-                            shutil.copytree(self.tiles_dir, dst_tiles, dirs_exist_ok=True)
+                        # Copy tiles to HTML directory for offline viewing
+                        if os.path.exists(self.tiles_dir):
+                            shutil.copytree(self.tiles_dir, tiles_dst, dirs_exist_ok=True)
+                            self.ui.print_success(f"Offline tiles copied to: {tiles_dst}")
+                        else:
+                            self.ui.print_warning(f"Source tiles directory not found: {self.tiles_dir}")
                 except Exception as ce:
                     self.ui.print_warning(f"Could not copy offline tiles next to HTML: {ce}")
             self.ui.print_success("✨ Interactive live map animation created with custom fullscreen support!")
@@ -371,7 +420,10 @@ class LiveMapAnimator:
             print("📱 Features: All controls, slider, and map included in fullscreen mode")
             if self.export_mp4 or self.export_mp4_browser:
                 try:
-                    if self.export_mp4_browser:
+                    # Use browser export if offline maps are enabled (to include map background)
+                    # or if explicitly requested
+                    use_browser = self.export_mp4_browser or self.offline_map
+                    if use_browser:
                         try:
                             mp4_path = export_animation_video_browser(
                                 html_path=str(output_path),
@@ -444,17 +496,25 @@ class LiveMapAnimator:
         print("   • Interactive controls: Pan, zoom, select, and reset view")
         print("   • Smooth animation: No jumping or layout shifts")
         print("   • Professional quality: Fixed layout and stable positioning")
+        if self.offline_map:
+            print("   • Offline capability: Map tiles downloaded for offline viewing")
         print()
         print("💡 Performance Tips:")
         print("   • Use larger time steps (10m+) for older computers")
         print("   • Use smaller time steps (1-2m) for detailed analysis")
         print("   • The visualization will load much faster now!")
         print()
-        print("� Controls:")
+        print("🎮 Controls:")
         print("   • ▶ Play/Pause: Control animation playback")
         print("   • ⛶ Fullscreen: Immersive viewing experience")
         print("   • 🖱️ Hover: Detailed information for each point")
         print("   • 🔍 Zoom/Pan: Navigate the map interactively")
+        if self.offline_map:
+            print()
+            print("🗺️ Offline Usage:")
+            print("   • Start local server: python3 -m http.server 8000")
+            print("   • Open in browser: http://localhost:8000/[filename].html")
+            print("   • No internet connection required for map viewing")
 
 
 def run_live_map_cli() -> int:

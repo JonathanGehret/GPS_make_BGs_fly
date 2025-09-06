@@ -147,9 +147,13 @@ class ScrollableGUI:
     def launch_selected_mode(self):
         """Launch the selected animation mode"""
         def status_callback(message):
-            if self.status_var:
-                self.status_var.set(message)
-                self.root.update()
+            try:
+                if self.status_var and self.root.winfo_exists():
+                    self.status_var.set(message)
+                    self.root.update_idletasks()  # Use update_idletasks instead of update
+            except tk.TclError:
+                # Window was destroyed, ignore the callback
+                pass
         # Provide animation time range into settings_manager for the
         # AnimationLauncher to pick up. We add these attributes dynamically
         # so existing helper classes don't need to change.

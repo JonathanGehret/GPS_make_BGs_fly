@@ -65,6 +65,10 @@ class AnimationLauncher:
             output_folder = folder_manager.get_output_folder()
             
             script_path = os.path.join("scripts", script_name)
+            # Check if script exists in scripts directory, otherwise try core/animation
+            if not os.path.exists(script_path):
+                script_path = os.path.join("core", "animation", script_name)
+            
             if os.path.exists(script_path):
                 print(f"Launching {script_path} with configuration:")
                 print(f"  Data folder: {data_folder}")
@@ -81,6 +85,8 @@ class AnimationLauncher:
                 env['TIME_STEP'] = config['time_step']
                 env['PLAYBACK_SPEED'] = str(config.get('playback_speed', 1.0))
                 env['PERFORMANCE_MODE'] = '1' if config['performance_mode'] else '0'
+                env['ONLINE_MAP_MODE'] = '1' if config.get('online_map_mode', True) else '0'
+                env['GUI_MODE'] = '1'  # Indicate we're running from GUI
                 # (Precipitation overlay removed)
                 # Include optional animation time range if provided by settings_manager
                 # SettingsManager may expose them as attributes or the config may include them.

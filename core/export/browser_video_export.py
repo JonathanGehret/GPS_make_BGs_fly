@@ -24,6 +24,7 @@ def _js_get_frame_names() -> str:
           if (sliders.length && sliders[0].steps && sliders[0].steps.length) {
             const steps = sliders[0].steps;
             return steps.map(s => {
+              if (Array.isArray(s.args) && s.args.length > 0 && Array.isArray(s.args[0])) return s.args[0][0];
               if (Array.isArray(s.args) && s.args.length > 0) return s.args[0];
               return (s.label || '').toString();
             });

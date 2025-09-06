@@ -319,6 +319,20 @@ class GUISections:
         
         ttk.Label(performance_frame, text="• Enabled: Line+head rendering with adaptive LOD for large datasets", 
                  font=("Arial", 8), foreground="gray").pack(anchor="w")
+        
+        # Map mode settings
+        map_frame = ttk.LabelFrame(parent, text="🗺️ Map Settings", padding="10")
+        map_frame.pack(fill="x", pady=(0, 10))
+        
+        online_map_mode = tk.BooleanVar(value=True)  # Default to online (checked)
+        map_checkbox = ttk.Checkbutton(map_frame, text="Online Map Mode", 
+                                      variable=online_map_mode)
+        map_checkbox.pack(anchor="w", pady=(0, 5))
+        
+        ttk.Label(map_frame, text="• Checked: Use online maps (requires internet)", 
+                 font=("Arial", 8), foreground="gray").pack(anchor="w")
+        ttk.Label(map_frame, text="• Unchecked: Use offline maps (downloads tiles)", 
+                 font=("Arial", 8), foreground="gray").pack(anchor="w")
 
     # Precipitation overlay removed per user request
         
@@ -328,6 +342,7 @@ class GUISections:
                 self.performance_mode = performance_mode
                 self.trail_length = trail_length
                 self.time_step = time_step
+                self.online_map_mode = online_map_mode  # Add online map mode
                 # (Precipitation removed)
                 
             def get_config(self):
@@ -335,7 +350,8 @@ class GUISections:
                     'performance_mode': self.performance_mode.get(),
                     'trail_length': self.trail_length.get(),
                     'time_step': self.time_step.get(),
-                    'playback_speed': 1.0
+                    'playback_speed': 1.0,
+                    'online_map_mode': self.online_map_mode.get()  # Add to config
                 }
                 # Precipitation config removed
                 # Include optional animation time range if present as attributes
