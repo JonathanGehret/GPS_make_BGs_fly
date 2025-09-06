@@ -359,7 +359,7 @@ class GUISections:
         
         ttk.Label(precipitation_frame, text="• Fetches hourly rainfall data from Open-Meteo API", 
                  font=("Arial", 8), foreground="gray").pack(anchor="w")
-        ttk.Label(precipitation_frame, text="• Shows precipitation as overlay on the map", 
+        ttk.Label(precipitation_frame, text="• Colors GPS points by rainfall intensity (blue = rain)", 
                  font=("Arial", 8), foreground="gray").pack(anchor="w")
         ttk.Label(precipitation_frame, text="• No API key required, free service", 
                  font=("Arial", 8), foreground="gray").pack(anchor="w")

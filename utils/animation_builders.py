@@ -6,7 +6,7 @@ Functions:
 - create_base_figure: initializes a Plotly figure with empty traces
 - apply_standard_layout: sets map, size, margins, title, legend
 - apply_controls_and_slider: wires updatemenus and slider
-- attach_frames: applies TrailSystem frames to the figure
+- attach_frames: applies TrailSystem frames to the figure with precipitation overlay
 """
 
 from __future__ import annotations
@@ -148,6 +148,7 @@ def attach_frames(
     unique_times: Sequence[str],
     enable_prominent_time_display: bool = False,
     strategy: str = "markers_fade",
+    enable_precipitation_overlay: bool = False,
 ) -> None:
     """Use the TrailSystem to generate and attach frames to the figure."""
     frames = trail_system.create_frames_with_trail(
@@ -157,5 +158,6 @@ def attach_frames(
         list(unique_times),
         enable_prominent_time_display=enable_prominent_time_display,
         strategy=strategy,
+        enable_precipitation_overlay=enable_precipitation_overlay,
     )
     fig.frames = frames

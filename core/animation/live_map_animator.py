@@ -454,6 +454,7 @@ class LiveMapAnimator:
                 unique_times=unique_times,
                 enable_prominent_time_display=False,
                 strategy=strategy,
+                enable_precipitation_overlay=self.enable_precipitation,
             )
             map_style = "open-street-map"
             if self.offline_map:
@@ -552,6 +553,7 @@ class LiveMapAnimator:
                                 unique_times=full_times,
                                 enable_prominent_time_display=False,
                                 strategy="markers_fade",
+                                enable_precipitation_overlay=self.enable_precipitation,
                             )
                             mp4_path = export_animation_video(
                                 fig_full,
@@ -575,6 +577,7 @@ class LiveMapAnimator:
                             unique_times=full_times,
                             enable_prominent_time_display=False,
                             strategy="markers_fade",
+                            enable_precipitation_overlay=self.enable_precipitation,
                         )
                         mp4_path = export_animation_video(
                             fig_full,
@@ -601,6 +604,8 @@ class LiveMapAnimator:
         print("   • Interactive controls: Pan, zoom, select, and reset view")
         print("   • Smooth animation: No jumping or layout shifts")
         print("   • Professional quality: Fixed layout and stable positioning")
+        if self.enable_precipitation:
+            print("   • Precipitation overlay: GPS points colored by rainfall intensity")
         if self.offline_map:
             print("   • Offline capability: Map tiles downloaded for offline viewing")
         print()

@@ -72,7 +72,8 @@ class TrailSystem:
     def create_frames_with_trail(self, df: pd.DataFrame, vulture_ids: List[str], 
                                 color_map: Dict[str, str], unique_times: List[str], 
                                 enable_prominent_time_display: bool = True,
-                                strategy: str = "markers_fade") -> List[go.Frame]:
+                                strategy: str = "markers_fade",
+                                enable_precipitation_overlay: bool = False) -> List[go.Frame]:
         """Create animation frames with trail length support and visual effects.
 
         strategy:
@@ -129,16 +130,32 @@ class TrailSystem:
                         # Head marker (latest point only)
                         head = trail_data.iloc[-1]
                         height_display = format_height_display(head['Height'])
+                        
+                        # Precipitation-based coloring
+                        if enable_precipitation_overlay and 'precipitation_mm' in head:
+                            precip_value = head['precipitation_mm'] if pd.notna(head['precipitation_mm']) else 0
+                            # Color scale: blue for rain, original color for no rain
+                            if precip_value > 0:
+                                marker_color = self._get_precipitation_color(precip_value)
+                                marker_size = 15  # Slightly larger for visibility
+                            else:
+                                marker_color = color_map[vulture_id]
+                                marker_size = 12
+                        else:
+                            marker_color = color_map[vulture_id]
+                            marker_size = 12
+                        
                         precip_info = ""
-                        if 'precipitation_mm' in head and pd.notna(head['precipitation_mm']) and head['precipitation_mm'] > 0:
+                        if enable_precipitation_overlay and 'precipitation_mm' in head and pd.notna(head['precipitation_mm']) and head['precipitation_mm'] > 0:
                             precip_info = f"<br>🌧️ Rain: {head['precipitation_mm']:.1f} mm/h"
+                        
                         frame_data.append(
                             go.Scattermap(
                                 lat=[head['Latitude']],
                                 lon=[head['Longitude']],
                                 mode='markers',
                                 name=f"{vulture_id} (current)",
-                                marker=dict(color=color_map[vulture_id], size=12),
+                                marker=dict(color=marker_color, size=marker_size),
                                 customdata=[[head['timestamp_display'], height_display, head.get('precipitation_mm', 0)]],
                                 hovertemplate=(
                                     f"<b>{vulture_id}</b><br>"
@@ -153,15 +170,28 @@ class TrailSystem:
                             )
                         )
                     else:
-                        # Original: fading markers along the trail
+                        # Original: fading markers along the trail with precipitation coloring
                         trail_points = len(trail_data)
                         marker_sizes = []
                         marker_opacities = []
+                        marker_colors = []
                         customdata = []
+                        
                         for i, (_, row) in enumerate(trail_data.iterrows()):
                             height_display = format_height_display(row['Height'])
                             customdata.append([row['timestamp_display'], height_display, row.get('precipitation_mm', 0)])
                             age_factor = i / max(1, trail_points - 1) if trail_points > 1 else 1.0
+                            
+                            # Precipitation-based coloring
+                            if enable_precipitation_overlay and 'precipitation_mm' in row:
+                                precip_value = row['precipitation_mm'] if pd.notna(row['precipitation_mm']) else 0
+                                if precip_value > 0:
+                                    marker_colors.append(self._get_precipitation_color(precip_value))
+                                else:
+                                    marker_colors.append(color_map[vulture_id])
+                            else:
+                                marker_colors.append(color_map[vulture_id])
+                            
                             if i == trail_points - 1:
                                 marker_sizes.append(12)
                                 marker_opacities.append(1.0)
@@ -178,7 +208,7 @@ class TrailSystem:
                                 mode='lines+markers',
                                 name=vulture_id,
                                 line=dict(color=color_map[vulture_id], width=3),
-                                marker=dict(color=color_map[vulture_id], size=marker_sizes, opacity=marker_opacities),
+                                marker=dict(color=marker_colors, size=marker_sizes, opacity=marker_opacities),
                                 customdata=customdata,
                                 hovertemplate=(
                                     f"<b>{vulture_id}</b><br>"
@@ -234,6 +264,19 @@ class TrailSystem:
             frames.append(go.Frame(data=frame_data, layout=frame_layout, name=time_str))
         
         return frames
+    
+    def _get_precipitation_color(self, precipitation_mm: float) -> str:
+        """Get color based on precipitation intensity"""
+        if precipitation_mm <= 0:
+            return 'rgba(255, 255, 255, 0.7)'  # Transparent white for no rain
+        elif precipitation_mm < 0.5:
+            return 'rgba(173, 216, 230, 0.8)'  # Light blue for light rain
+        elif precipitation_mm < 2.0:
+            return 'rgba(70, 130, 180, 0.9)'   # Medium blue for moderate rain
+        elif precipitation_mm < 5.0:
+            return 'rgba(25, 25, 112, 0.95)'   # Dark blue for heavy rain
+        else:
+            return 'rgba(0, 0, 139, 1.0)'      # Very dark blue for very heavy rain
     
     def get_output_filename(self, base_name: str = 'live_map_animation', bird_names: list = None) -> str:
         """Generate appropriate filename based on trail configuration and bird names"""
