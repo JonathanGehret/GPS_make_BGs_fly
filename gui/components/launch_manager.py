@@ -39,6 +39,9 @@ class LaunchManager:
         data_folder = folder_manager.get_data_folder()
         output_folder = folder_manager.get_output_folder()
         
+        print(f"DEBUG: LaunchManager config: {config}")
+        print(f"DEBUG: LaunchManager online_map_mode: {config.get('online_map_mode')}")
+        
         # Find the animation script (now implemented under core/animation)
         script_path = os.path.join(os.path.dirname(__file__), "..", "..", "core", "animation", "animate_live_map.py")
         if not os.path.exists(script_path):
@@ -62,6 +65,8 @@ class LaunchManager:
             env['TIME_STEP'] = config['time_step']
             env['PLAYBACK_SPEED'] = str(config.get('playback_speed', 1.0))
             env['PERFORMANCE_MODE'] = '1' if config['performance_mode'] else '0'
+            env['ONLINE_MAP_MODE'] = '1' if config.get('online_map_mode', True) else '0'
+            print(f"DEBUG: LaunchManager setting ONLINE_MAP_MODE={env['ONLINE_MAP_MODE']}")
             # (Precipitation overlay removed)
             
             # Set time window if provided by GUI
@@ -132,7 +137,7 @@ class LaunchManager:
             # Run the script synchronously
             print(f"🚀 Launching animation script: {script_path}")
             process = subprocess.run([python_exe, script_path], env=env, 
-                                   capture_output=True, text=True, timeout=600)
+                                   capture_output=False, text=True, timeout=600)
             
             # Parse output for HTML file path
             html_file_path = None

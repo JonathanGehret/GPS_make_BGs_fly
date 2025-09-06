@@ -326,7 +326,8 @@ class GUISections:
         
         online_map_mode = tk.BooleanVar(value=True)  # Default to online (checked)
         map_checkbox = ttk.Checkbutton(map_frame, text="Online Map Mode", 
-                                      variable=online_map_mode)
+                                      variable=online_map_mode,
+                                      command=lambda: print(f"DEBUG: Checkbox clicked, online_map_mode={online_map_mode.get()}"))
         map_checkbox.pack(anchor="w", pady=(0, 5))
         
         ttk.Label(map_frame, text="• Checked: Use online maps (requires internet)", 
@@ -353,6 +354,8 @@ class GUISections:
                     'playback_speed': 1.0,
                     'online_map_mode': self.online_map_mode.get()  # Add to config
                 }
+                print(f"DEBUG: SettingsManager get_config - online_map_mode.get(): {self.online_map_mode.get()}")
+                print(f"DEBUG: SettingsManager get_config - online_map_mode type: {type(self.online_map_mode.get())}")
                 # Precipitation config removed
                 # Include optional animation time range if present as attributes
                 try:

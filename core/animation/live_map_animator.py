@@ -58,18 +58,22 @@ class LiveMapAnimator:
         self.performance_mode = os.environ.get('PERFORMANCE_MODE', '0') == '1'
         self.export_mp4 = os.environ.get('EXPORT_MP4', '0') == '1'
         self.export_mp4_browser = os.environ.get('EXPORT_MP4_BROWSER', '0') == '1'
-        self.offline_map = os.environ.get('OFFLINE_MAP', '0') == '1'
-        # Also check GUI-specific offline map setting
-        if not self.offline_map:
-            offline_gui = os.environ.get('OFFLINE_MAP_GUI')
-            if offline_gui and offline_gui.lower() in ('1', 'true', 'yes'):
-                self.offline_map = True
-        # Check GUI online map mode setting
+        # Check GUI online map mode setting first (takes precedence)
         online_gui = os.environ.get('ONLINE_MAP_MODE')
         if online_gui:
             # ONLINE_MAP_MODE='1' means online (checkbox checked), so offline_map = False
             # ONLINE_MAP_MODE='0' means offline (checkbox unchecked), so offline_map = True
             self.offline_map = online_gui.lower() in ('0', 'false', 'no')
+            print(f"🗺️ GUI map mode: ONLINE_MAP_MODE={online_gui}, offline_map={self.offline_map}")
+        else:
+            # Fall back to legacy environment variables if GUI setting not present
+            self.offline_map = os.environ.get('OFFLINE_MAP', '0') == '1'
+            # Also check GUI-specific offline map setting
+            if not self.offline_map:
+                offline_gui = os.environ.get('OFFLINE_MAP_GUI')
+                if offline_gui and offline_gui.lower() in ('1', 'true', 'yes'):
+                    self.offline_map = True
+            print(f"🗺️ No ONLINE_MAP_MODE set, using legacy settings: offline_map={self.offline_map}")
         self.offline_map_download = os.environ.get('OFFLINE_MAP_DOWNLOAD', '1') == '1'
         self.tiles_dir = (
             os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'assets', 'tiles_cache')

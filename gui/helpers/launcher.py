@@ -64,6 +64,10 @@ class AnimationLauncher:
             data_folder = folder_manager.get_data_folder()
             output_folder = folder_manager.get_output_folder()
             
+            print(f"DEBUG: Full config from settings_manager: {config}")
+            print(f"DEBUG: online_map_mode in config: {config.get('online_map_mode')}")
+            print(f"DEBUG: online_map_mode type: {type(config.get('online_map_mode'))}")
+            
             script_path = os.path.join("scripts", script_name)
             # Check if script exists in scripts directory, otherwise try core/animation
             if not os.path.exists(script_path):
@@ -76,6 +80,7 @@ class AnimationLauncher:
                 print(f"  Trail length: {config['trail_length']} hours")
                 print(f"  Time step: {config['time_step']}")
                 print(f"  Performance mode: {config['performance_mode']}")
+                print(f"  Online map mode: {config.get('online_map_mode', True)}")
                 
                 # Set environment variables for configuration
                 env = os.environ.copy()
@@ -86,6 +91,7 @@ class AnimationLauncher:
                 env['PLAYBACK_SPEED'] = str(config.get('playback_speed', 1.0))
                 env['PERFORMANCE_MODE'] = '1' if config['performance_mode'] else '0'
                 env['ONLINE_MAP_MODE'] = '1' if config.get('online_map_mode', True) else '0'
+                print(f"  Setting ONLINE_MAP_MODE={env['ONLINE_MAP_MODE']}")
                 env['GUI_MODE'] = '1'  # Indicate we're running from GUI
                 # (Precipitation overlay removed)
                 # Include optional animation time range if provided by settings_manager
