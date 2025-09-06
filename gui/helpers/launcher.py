@@ -80,6 +80,10 @@ class AnimationLauncher:
                 
                 # Set environment variables for configuration
                 env = os.environ.copy()
+                # Add project root to PYTHONPATH
+                project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+                env['PYTHONPATH'] = project_root + (os.pathsep + env.get('PYTHONPATH', '')) if env.get('PYTHONPATH') else project_root
+                
                 env['GPS_DATA_DIR'] = data_folder
                 env['OUTPUT_DIR'] = output_folder
                 env['TRAIL_LENGTH_HOURS'] = str(config['trail_length'])
