@@ -10,7 +10,7 @@ import glob
 import logging
 import pandas as pd
 from typing import List, Optional
-from .constants import DATA_DIR, CSV_SEPARATOR, TIMESTAMP_FORMAT
+from .constants import DATA_DIR, CSV_SEPARATOR, TIMESTAMP_FORMAT, PROJECT_ROOT
 from .validation import DataValidator
 
 
@@ -22,12 +22,58 @@ class DataLoader:
         self.logger = logging.getLogger(__name__ + '.DataLoader')
     
     def find_csv_files(self) -> List[str]:
-        """Find all CSV files in the data directory"""
-        pattern = os.path.join(self.data_dir, '*.csv')
-        csv_files = glob.glob(pattern)
-        # Filter out .gitkeep and other non-data files
-        csv_files = [f for f in csv_files if not os.path.basename(f).startswith('.')]
-        return csv_files
+        """Find all CSV files in known data locations.
+
+        Search order (first non-empty wins unless ALWAYS_MERGE_DATA_DIRS=1):
+          1. Explicit self.data_dir (DATA_DIR or injected path)
+          2. Environment override GPS_DATA_DIR
+          3. assets/rain_test_data
+          4. assets/data/rain_test_data
+          5. assets/data
+          6. assets
+        If ALWAYS_MERGE_DATA_DIRS=1 then we aggregate unique CSVs from all.
+        """
+        project_root = PROJECT_ROOT
+        env_dir = os.environ.get('GPS_DATA_DIR')
+        candidate_dirs: List[str] = []
+        seen = set()
+
+        def add(d: Optional[str]):
+            if not d:
+                return
+            if d in seen:
+                return
+            if os.path.isdir(d):
+                seen.add(d)
+                candidate_dirs.append(d)
+
+        force_rain = os.environ.get('RAIN_TEST_DATA', '0') == '1'
+        rain_dir_primary = os.path.join(project_root, 'assets', 'rain_test_data')
+        if force_rain:
+            add(rain_dir_primary)
+        add(self.data_dir)
+        add(env_dir)
+        if not force_rain:
+            add(rain_dir_primary)
+        add(os.path.join(project_root, 'assets', 'data', 'rain_test_data'))
+        add(os.path.join(project_root, 'assets', 'data'))
+        add(os.path.join(project_root, 'assets'))
+
+        merge = os.environ.get('ALWAYS_MERGE_DATA_DIRS', '0') == '1'
+        collected: List[str] = []
+        for d in candidate_dirs:
+            pattern = os.path.join(d, '*.csv')
+            files = [f for f in glob.glob(pattern) if not os.path.basename(f).startswith('.')]
+            if files:
+                if force_rain and d == rain_dir_primary:
+                    return sorted(files)
+                if merge:
+                    collected.extend(files)
+                else:
+                    return sorted(files)
+        if merge and collected:
+            collected = sorted(list({os.path.abspath(f) for f in collected}))
+        return collected
     
     def load_single_csv(self, file_path: str, validate: bool = True) -> Optional[pd.DataFrame]:
         """

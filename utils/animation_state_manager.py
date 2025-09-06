@@ -142,22 +142,6 @@ class AnimationStateManager:
             "execute": True
     }
 
-    def create_precip_toggle_button(self) -> Dict[str, Any]:
-        """
-        Create a precipitation overlay toggle button.
-
-        This is a dummy Plotly button that our injected JS binds to for toggling
-        the canvas-based precipitation overlay.
-
-        Returns:
-            Button configuration dict
-        """
-        return {
-            "label": "☔ Precip",
-            "method": "restyle",  # No-op for Plotly; handled by injected JS
-            "args": [{}],
-            "execute": True
-        }
     
     def create_speed_control_buttons(self, speeds: List[float] = None) -> List[Dict[str, Any]]:
         """
@@ -306,8 +290,7 @@ class AnimationStateManager:
                 self.create_robust_play_button(duration),
                 self.create_robust_pause_button(),
                 self.create_robust_restart_button(duration),
-                self.create_fullscreen_button(),
-                self.create_precip_toggle_button()
+                self.create_fullscreen_button()
             ] + ([self.create_recenter_button(center_lat, center_lon, zoom_level)] 
                  if all(x is not None for x in [center_lat, center_lon, zoom_level]) else []),
             # Fixed positioning to prevent movement

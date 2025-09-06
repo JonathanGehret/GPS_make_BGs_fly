@@ -29,13 +29,6 @@ from core.export.video_export import export_animation_video
 from core.export.browser_video_export import export_animation_video_browser
 from utils.lod import LODConfig, apply_lod
 from utils.offline_tiles import ensure_offline_style_for_bounds
-# Legacy precipitation imports removed (canvas/point overlays) – now using native heatmap only
-from utils.precip_heatmap import (
-    PrecipHeatmapConfig,
-    fetch_precip_grid,
-    build_precip_heatmap_traces,
-)
-print("🌧️ Native Plotly precipitation heatmap mode active")
 
 
 class LiveMapAnimator:
@@ -343,51 +336,7 @@ class LiveMapAnimator:
                 zoom_level=zoom_level,
                 include_speed_controls=True,
             )
-            PRECIP_ENABLE = os.environ.get('PRECIP_ENABLE', '0') == '1'
-            PRECIP_MODE = os.environ.get('PRECIP_MODE', 'heatmap').lower()
-            PRECIP_GRID_STEP = float(os.environ.get('PRECIP_GRID_STEP', '0.25'))
-            PRECIP_ZMAX = float(os.environ.get('PRECIP_ZMAX', '8.0'))
-            PRECIP_OPACITY = float(os.environ.get('PRECIP_OPACITY', '0.55'))
-            precip_payload = None
-            _heatmap_trace_index = -1  # (reserved; may use later for dynamic legend updates)
-            if PRECIP_ENABLE and PRECIP_MODE == 'heatmap':
-                try:
-                    # Determine temporal range of animation
-                    dt_series = pd.to_datetime(unique_times, format='%d.%m.%Y %H:%M:%S', utc=True)
-                    start_dt = dt_series.min().to_pydatetime()
-                    end_dt = dt_series.max().to_pydatetime()
-                    bbox = (float(lat_min), float(lat_max), float(lon_min), float(lon_max))
-                    cfg = PrecipHeatmapConfig(
-                        enable=True,
-                        grid_step_deg=PRECIP_GRID_STEP,
-                        zmax=PRECIP_ZMAX,
-                        opacity=PRECIP_OPACITY,
-                    )
-                    self.ui.print_info(f"Fetching precipitation grid (step {cfg.grid_step_deg}°)...")
-                    precip_payload = fetch_precip_grid(bbox, start_dt, end_dt, cfg)
-                    if precip_payload:
-                        meta = precip_payload.get('meta', {})
-                        print("🌧️ Precip heatmap ready:")
-                        print(f"   • Hours: {len(precip_payload.get('hours', []))}")
-                        print(f"   • Grid: {len(precip_payload['lat'])} x {len(precip_payload['lon'])} (step {meta.get('grid_step_deg')})")
-                        print(f"   • Calls: {meta.get('calls')}  Time: {meta.get('seconds')}s  Provider: {precip_payload.get('provider')}")
-                        # Parser for frame names (format '%d.%m.%Y %H:%M:%S')
-                        def parse_frame(name: str):
-                            try:
-                                return pd.to_datetime(name, format='%d.%m.%Y %H:%M:%S', utc=True).to_pydatetime()
-                            except Exception:
-                                return None
-                        _heatmap_trace_index = build_precip_heatmap_traces(
-                            fig,
-                            precip_payload,
-                            zmax=PRECIP_ZMAX,
-                            opacity=PRECIP_OPACITY,
-                            frame_time_parser=parse_frame,
-                        )
-                    else:
-                        self.ui.print_warning("Precipitation: no payload returned (disabled or fetch failure)")
-                except Exception as pe:
-                    self.ui.print_warning(f"Precipitation heatmap disabled: {pe}")
+            # Precipitation / rain radar feature removed per user request.
             filename = self.trail_system.get_output_filename(base_name=base_name, bird_names=list(vulture_ids))
             output_path = get_numbered_output_path(filename)
             config = {

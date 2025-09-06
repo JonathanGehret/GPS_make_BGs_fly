@@ -13,7 +13,10 @@ import plotly.express as px
 # ===========================
 
 # Project paths
-PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+# Determine project root robustly: this file is at <root>/utils/gps/constants.py
+# So go up three levels instead of four.
+_THIS_FILE = os.path.abspath(__file__)
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(_THIS_FILE)))
 DATA_DIR = os.path.join(PROJECT_ROOT, 'data')
 VISUALIZATIONS_DIR = os.path.join(PROJECT_ROOT, 'visualizations')
 ANALYSIS_DIR = os.path.join(PROJECT_ROOT, 'analysis')
