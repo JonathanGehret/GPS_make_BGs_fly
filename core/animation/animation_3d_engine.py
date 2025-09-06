@@ -14,7 +14,8 @@ from gps_utils import VisualizationHelper, format_height_display, get_numbered_o
 from utils.user_interface import UserInterface
 from utils.enhanced_timeline_labels import create_enhanced_slider_config
 from utils.animation_state_manager import create_reliable_animation_controls
-from core.elevation_data_manager import ElevationDataManager, ElevationData
+from core.data.elevation_data_manager import ElevationDataManager, ElevationData
+from utils.html_injection import inject_fullscreen
 
 
 class Animation3DEngine:
@@ -170,7 +171,17 @@ class Animation3DEngine:
             base_filename = '3d_flight_animation' if animation_type == 'full' else '3d_flight_paths'
             filename = f'{base_filename}_{birds_filename}'
             output_path = get_numbered_output_path(filename)
-            fig.write_html(output_path)
+            
+            # Generate HTML with fullscreen support
+            html_string = fig.to_html()
+            try:
+                html_string = inject_fullscreen(html_string)
+            except Exception as e:
+                print(f"Warning: Could not inject fullscreen functionality: {e}")
+            
+            # Write the HTML file
+            with open(output_path, 'w', encoding='utf-8') as f:
+                f.write(html_string)
             
             self.ui.print_success(f"🏔️ 3D visualization saved: {output_path}")
             return output_path
@@ -190,11 +201,11 @@ class Animation3DEngine:
                 raise ValueError(f"Required column '{col}' not found in data")
         
         # Create formatted timestamps for display
-        df['timestamp_str'] = df['Timestamp [UTC]'].dt.strftime('%Y-%m-%d %H:%M:%S')
+        df['timestamp_str'] = df['Timestamp [UTC]'].dt.strftime('%d.%m.%Y %H:%M:%S')
         df['timestamp_short'] = df['Timestamp [UTC]'].dt.strftime('%H:%M')
         
         # Sort by timestamp for proper animation
-        df = df.sort_values('Timestamp [UTC]')
+        df = df.sort_values('Timestamp [UTC]').reset_index(drop=True)
         
         # Ensure height is numeric and handle missing values
         df['Height'] = pd.to_numeric(df['Height'], errors='coerce')
@@ -327,31 +338,11 @@ class Animation3DEngine:
                 cumulative_data = vulture_data[vulture_data['timestamp_str'] <= time_str].sort_values('Timestamp [UTC]')
                 
                 if len(cumulative_data) > 0:
-                    # Calculate visual effects for fading trail
-                    trail_points = len(cumulative_data)
-                    marker_sizes = []
-                    marker_opacities = []
-                    
-                    # Prepare custom data for hover and calculate fading effects
+                    # Prepare custom data for hover
                     customdata = []
                     for i, (_, row) in enumerate(cumulative_data.iterrows()):
                         height_display = format_height_display(row['Height'])
                         customdata.append([row['timestamp_short'], height_display])
-                        
-                        # Calculate age factor (0 = oldest, 1 = newest)
-                        age_factor = i / max(1, trail_points - 1) if trail_points > 1 else 1.0
-                        
-                        # Create fading effect for markers
-                        if i == trail_points - 1:  # Current position (newest point)
-                            marker_sizes.append(16)  # Larger current position marker for 3D
-                            marker_opacities.append(1.0)  # Full opacity for current position
-                        else:
-                            # Fade trail markers based on age (min size 4, max size 8)
-                            fade_size = 4 + (4 * age_factor)
-                            marker_sizes.append(fade_size)
-                            # Fade opacity (min 0.4, max 0.8 for trail)
-                            fade_opacity = 0.4 + (0.4 * age_factor)
-                            marker_opacities.append(fade_opacity)
                     
                     frame_data.append(
                         go.Scatter3d(
@@ -363,12 +354,12 @@ class Animation3DEngine:
                             line=dict(color=color_map[vulture_id], width=self.line_width),
                             marker=dict(
                                 color=color_map[vulture_id], 
-                                size=marker_sizes,
-                                opacity=marker_opacities,
+                                size=8,  # Fixed size for 3D markers
+                                opacity=0.8,  # Fixed opacity
                                 line=dict(
                                     color='white',
                                     width=1
-                                ) if trail_points > 1 else None  # White outline for better visibility
+                                ) if len(cumulative_data) > 1 else None  # White outline for better visibility
                             ),
                             customdata=customdata,
                             hovertemplate=(

@@ -9,12 +9,18 @@ import sys
 import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
-from gps_utils import DataLoader, ensure_output_directories
+from core.gps_utils import DataLoader, ensure_output_directories
 from utils.user_interface import UserInterface
 from utils.performance_optimizer import PerformanceOptimizer
-from core.elevation_data_manager import ElevationDataManager
-from core.animation_3d_engine import Animation3DEngine
+from core.data.elevation_data_manager import ElevationDataManager
+from core.animation.animation_3d_engine import Animation3DEngine
 import pandas as pd
+import os
+import tkinter as tk
+from tkinter import messagebox
+import platform
+import subprocess
+import webbrowser
 
 
 def _parse_time_step_from_gui(time_step_str: str) -> int:
@@ -37,6 +43,98 @@ def _parse_time_step_from_gui(time_step_str: str) -> int:
     else:
         # Default to seconds if no unit specified
         return int(time_step_str)
+
+
+def show_3d_completion_popup(output_path):
+    """Show a completion popup with options to open folder and HTML file"""
+    try:
+        # Create popup dialog
+        root = tk.Tk()
+        root.title("3D Animation Complete")
+        root.geometry("500x200")
+        root.resizable(False, False)
+        
+        # Center the dialog
+        root.update_idletasks()
+        x = (root.winfo_screenwidth() // 2) - (root.winfo_width() // 2)
+        y = (root.winfo_screenheight() // 2) - (root.winfo_height() // 2)
+        root.geometry(f"+{x}+{y}")
+        
+        # Main frame
+        main_frame = tk.Frame(root, padx=20, pady=20)
+        main_frame.pack(fill=tk.BOTH, expand=True)
+        
+        # Success message
+        tk.Label(main_frame, text="✅", font=("Arial", 24)).pack(pady=(0, 10))
+        tk.Label(main_frame, text="3D Animation Created Successfully!", 
+                font=("Arial", 12, "bold")).pack(pady=(0, 5))
+        
+        # File info
+        output_folder = os.path.dirname(output_path)
+        filename = os.path.basename(output_path)
+        tk.Label(main_frame, text=f"📁 Output: {output_folder}", 
+                font=("Arial", 9)).pack(pady=(0, 2))
+        tk.Label(main_frame, text=f"📄 File: {filename}", 
+                font=("Arial", 9), fg="blue").pack(pady=(0, 10))
+        
+        # Buttons
+        button_frame = tk.Frame(main_frame)
+        button_frame.pack(pady=(10, 0))
+        
+        # Open folder button
+        tk.Button(button_frame, text="📁 Open Folder", 
+                 command=lambda: open_output_folder(output_folder)).pack(side=tk.LEFT, padx=(0, 10))
+        
+        # Open HTML button
+        tk.Button(button_frame, text="🌐 Open HTML", 
+                 command=lambda: open_html_file(output_path)).pack(side=tk.LEFT, padx=(0, 10))
+        
+        # Close button
+        tk.Button(button_frame, text="Close", 
+                 command=root.destroy).pack(side=tk.LEFT)
+        
+        # Focus and bindings
+        root.focus_set()
+        root.bind('<Return>', lambda e: root.destroy())
+        root.bind('<Escape>', lambda e: root.destroy())
+        
+        # Start the GUI
+        root.mainloop()
+        
+    except Exception as e:
+        print(f"Warning: Could not show completion popup: {e}")
+
+
+def open_output_folder(folder_path):
+    """Open the output folder in the system file manager"""
+    try:
+        if os.path.exists(folder_path):
+            system = platform.system()
+            
+            if system == "Windows":
+                subprocess.run(['explorer', folder_path], check=True)
+            elif system == "Darwin":
+                subprocess.run(['open', folder_path], check=True)
+            else:
+                subprocess.run(['xdg-open', folder_path], check=True)
+            
+            print(f"📁 Opened output folder: {folder_path}")
+        else:
+            messagebox.showerror("Error", f"Folder not found: {folder_path}")
+    except Exception as e:
+        messagebox.showerror("Error", f"Failed to open folder: {e}")
+
+
+def open_html_file(html_file_path):
+    """Open the generated HTML file in the default browser"""
+    try:
+        if html_file_path and os.path.exists(html_file_path):
+            webbrowser.open(f"file://{os.path.abspath(html_file_path)}")
+            print(f"🌐 Opened HTML file: {html_file_path}")
+        else:
+            messagebox.showerror("Error", f"HTML file not found: {html_file_path}")
+    except Exception as e:
+        messagebox.showerror("Error", f"Failed to open HTML file: {e}")
 
 
 def main():
@@ -116,11 +214,8 @@ def main():
                 resolution_choice = int(terrain_quality_env)
             ui.print_success(f"Using GUI terrain quality: {terrain_quality_str} ({resolution_choice})")
         except (ValueError, TypeError):
-            resolution_choice = ui.get_user_input(
-                "Terrain resolution (higher = more detail, slower download)", 
-                "100", 
-                int
-            )
+            resolution_choice = 100  # Default to medium quality
+            ui.print_success(f"Using default terrain quality: medium ({resolution_choice})")
         
         if resolution_choice < 20 or resolution_choice > 200:
             ui.print_warning("Resolution should be between 20-200, using 100")
@@ -149,17 +244,11 @@ def main():
                 ui.print_success(f"Using GUI time step: {time_step_env} ({time_step}s)")
             except Exception:
                 ui.print_warning(f"Invalid time step from GUI: {time_step_env}, falling back to manual selection")
-                time_step = ui.get_user_input(
-                    "Time step for GPS filtering (seconds, larger = fewer points)", 
-                    "120", 
-                    int
-                )
+                time_step = 120  # Default to 2 minutes
+                ui.print_success(f"Using default time step: 2 minutes ({time_step}s)")
         else:
-            time_step = ui.get_user_input(
-                "Time step for GPS filtering (seconds, larger = fewer points)", 
-                "120", 
-                int
-            )
+            time_step = 120  # Default to 2 minutes
+            ui.print_success(f"Using default time step: 2 minutes ({time_step}s)")
         
         # Process GPS data
         ui.print_section("🔄 PROCESSING GPS DATA")
@@ -198,18 +287,8 @@ def main():
             animation_type = 'static'  # Default for GUI usage
             ui.print_success("Using static 3D paths for GUI mode")
         else:
-            ui.print_section("🎬 3D VISUALIZATION OPTIONS")
-            print("Animation types:")
-            print("  1. Full animation (with time slider and play controls)")
-            print("  2. Static 3D paths (all paths shown at once)")
-            
-            anim_choice = ui.get_user_input(
-                "Select animation type (1 or 2)", 
-                "1", 
-                int
-            )
-            
-            animation_type = 'full' if anim_choice == 1 else 'static'
+            animation_type = 'full'  # Default to full animation for independent testing
+            ui.print_success("Using full 3D animation for independent testing")
         
         # Create 3D visualization
         output_path = animation_engine.create_3d_visualization(animation_type)
@@ -233,13 +312,9 @@ def main():
             
             ui.print_success("🏔️ 3D terrain visualization ready!")
             
-            # Usage tips
-            print("\n📋 3D Visualization Tips:")
-            print("   • Drag to rotate the 3D view")
-            print("   • Scroll to zoom in/out")
-            print("   • Click and drag terrain for details")
-            print("   • Use animation controls to play through time")
-            print("   • Hover over flight paths for vulture info")
+            # Show completion popup if running in GUI mode
+            if os.environ.get('GUI_MODE') == '1':
+                show_3d_completion_popup(output_path)
             
             return True
         else:
