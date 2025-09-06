@@ -29,10 +29,13 @@ from core.export.video_export import export_animation_video
 from core.export.browser_video_export import export_animation_video_browser
 from utils.lod import LODConfig, apply_lod
 from utils.offline_tiles import ensure_offline_style_for_bounds
-from utils.precip_providers import BBox
-from utils.precip_overlay import build_precip_dataset
-from utils.precip_osm_heatmap import inject_precip_osm_heatmap as inject_precip_overlay
-print("🌧️ Using new OSM precipitation heatmap injector")
+# Legacy precipitation imports removed (canvas/point overlays) – now using native heatmap only
+from utils.precip_heatmap import (
+    PrecipHeatmapConfig,
+    fetch_precip_grid,
+    build_precip_heatmap_traces,
+)
+print("🌧️ Native Plotly precipitation heatmap mode active")
 
 
 class LiveMapAnimator:
@@ -341,44 +344,50 @@ class LiveMapAnimator:
                 include_speed_controls=True,
             )
             PRECIP_ENABLE = os.environ.get('PRECIP_ENABLE', '0') == '1'
-            PRECIP_PROVIDER = os.environ.get('PRECIP_PROVIDER', 'open-meteo')
-            PRECIP_ZMAX = float(os.environ.get('PRECIP_ZMAX', '10.0'))
-            PRECIP_INTERVAL_MIN = int(os.environ.get('PRECIP_INTERVAL_MIN','60'))
-            serial = None
-            try:
-                if PRECIP_ENABLE:
-                    unique_dt = pd.to_datetime(unique_times, format='%d.%m.%Y %H:%M:%S', utc=True).to_pydatetime().tolist()
-                    bbox = BBox(lat_min=float(lat_min), lat_max=float(lat_max), lon_min=float(lon_min), lon_max=float(lon_max))
-                    data_by_hour, hours = build_precip_dataset(unique_dt, bbox, provider_name=PRECIP_PROVIDER, cache_dir=Path('.cache/precip'))
-                    try:
-                        Path('.cache/precip').mkdir(parents=True, exist_ok=True)
-                    except Exception:
-                        pass
-                    serial = {}
-                    for h, dfh in data_by_hour.items():
-                        ts = pd.Timestamp(h)
-                        if ts.tz is None:
-                            ts = ts.tz_localize('UTC')
-                        else:
-                            ts = ts.tz_convert('UTC')
-                        key = ts.isoformat()
-                        arr = dfh[['lat','lon','precip_mm']].astype(float).values.tolist()
-                        serial[key] = arr
-                    # Diagnostics: report availability
-                    try:
-                        hour_count = len(serial)
-                        total_points = sum(len(v) for v in serial.values())
-                        sample_keys = list(serial.keys())[:3]
-                        print(f"🌧️ Precipitation overlay enabled (provider: {PRECIP_PROVIDER})")
-                        print(f"   • Hours fetched: {hour_count} | Total points: {total_points}")
-                        if sample_keys:
-                            print(f"   • Example hour keys: {', '.join(sample_keys)}")
-                        if hour_count == 0 or total_points == 0:
-                            self.ui.print_warning("Precip overlay: no data for the selected bbox/time window (try another date or lower ZMAX)")
-                    except Exception:
-                        pass
-            except Exception as pe:
-                self.ui.print_warning(f"Precipitation overlay disabled: {pe}")
+            PRECIP_MODE = os.environ.get('PRECIP_MODE', 'heatmap').lower()
+            PRECIP_GRID_STEP = float(os.environ.get('PRECIP_GRID_STEP', '0.25'))
+            PRECIP_ZMAX = float(os.environ.get('PRECIP_ZMAX', '8.0'))
+            PRECIP_OPACITY = float(os.environ.get('PRECIP_OPACITY', '0.55'))
+            precip_payload = None
+            _heatmap_trace_index = -1  # (reserved; may use later for dynamic legend updates)
+            if PRECIP_ENABLE and PRECIP_MODE == 'heatmap':
+                try:
+                    # Determine temporal range of animation
+                    dt_series = pd.to_datetime(unique_times, format='%d.%m.%Y %H:%M:%S', utc=True)
+                    start_dt = dt_series.min().to_pydatetime()
+                    end_dt = dt_series.max().to_pydatetime()
+                    bbox = (float(lat_min), float(lat_max), float(lon_min), float(lon_max))
+                    cfg = PrecipHeatmapConfig(
+                        enable=True,
+                        grid_step_deg=PRECIP_GRID_STEP,
+                        zmax=PRECIP_ZMAX,
+                        opacity=PRECIP_OPACITY,
+                    )
+                    self.ui.print_info(f"Fetching precipitation grid (step {cfg.grid_step_deg}°)...")
+                    precip_payload = fetch_precip_grid(bbox, start_dt, end_dt, cfg)
+                    if precip_payload:
+                        meta = precip_payload.get('meta', {})
+                        print("🌧️ Precip heatmap ready:")
+                        print(f"   • Hours: {len(precip_payload.get('hours', []))}")
+                        print(f"   • Grid: {len(precip_payload['lat'])} x {len(precip_payload['lon'])} (step {meta.get('grid_step_deg')})")
+                        print(f"   • Calls: {meta.get('calls')}  Time: {meta.get('seconds')}s  Provider: {precip_payload.get('provider')}")
+                        # Parser for frame names (format '%d.%m.%Y %H:%M:%S')
+                        def parse_frame(name: str):
+                            try:
+                                return pd.to_datetime(name, format='%d.%m.%Y %H:%M:%S', utc=True).to_pydatetime()
+                            except Exception:
+                                return None
+                        _heatmap_trace_index = build_precip_heatmap_traces(
+                            fig,
+                            precip_payload,
+                            zmax=PRECIP_ZMAX,
+                            opacity=PRECIP_OPACITY,
+                            frame_time_parser=parse_frame,
+                        )
+                    else:
+                        self.ui.print_warning("Precipitation: no payload returned (disabled or fetch failure)")
+                except Exception as pe:
+                    self.ui.print_warning(f"Precipitation heatmap disabled: {pe}")
             filename = self.trail_system.get_output_filename(base_name=base_name, bird_names=list(vulture_ids))
             output_path = get_numbered_output_path(filename)
             config = {
@@ -394,11 +403,6 @@ class LiveMapAnimator:
                 'showTips': True,
             }
             html_string = fig.to_html(config=config)
-            try:
-                if PRECIP_ENABLE and isinstance(serial, dict):
-                    html_string = inject_precip_overlay(html_string, data_by_hour=serial, interval_min=PRECIP_INTERVAL_MIN, zmax=PRECIP_ZMAX)
-            except Exception:
-                pass
             html_string = inject_fullscreen(html_string)
             with open(output_path, 'w', encoding='utf-8') as f:
                 f.write(html_string)
@@ -451,8 +455,6 @@ class LiveMapAnimator:
                                 width=1280,
                                 height=720,
                                 quality_crf=20,
-                                precip_hours=serial if (PRECIP_ENABLE and isinstance(serial, dict)) else None,
-                                precip_zmax=PRECIP_ZMAX,
                             )
                             print(f"🎬 Wrote video (offline): {mp4_path}")
                     else:
@@ -475,8 +477,6 @@ class LiveMapAnimator:
                             width=1280,
                             height=720,
                             quality_crf=20,
-                            precip_hours=serial if (PRECIP_ENABLE and isinstance(serial, dict)) else None,
-                            precip_zmax=PRECIP_ZMAX,
                         )
                         print(f"🎬 Wrote video: {mp4_path}")
                 except Exception as ve:
