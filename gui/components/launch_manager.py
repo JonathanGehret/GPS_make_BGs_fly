@@ -162,7 +162,7 @@ class LaunchManager:
                             offline_mode_used = env.get('ONLINE_MAP_MODE') == '0'
                             success_dialog = self._show_success_dialog_with_video_status(
                                 env['OUTPUT_DIR'], html_file_path, offline_mode_used, 
-                                video_pending=video_export_enabled
+                                video_export_enabled=video_export_enabled
                             )
                         except tk.TclError:
                             print("GUI Error: Could not show success dialog")
@@ -214,7 +214,7 @@ class LaunchManager:
                 print(f"GUI Error: {error_msg}")
             return False, None
     
-    def _show_success_dialog_with_video_status(self, output_folder, html_file_path=None, offline_mode_used=False, video_pending=False):
+    def _show_success_dialog_with_video_status(self, output_folder, html_file_path=None, offline_mode_used=False, video_export_enabled=False):
         """Show a success dialog with video generation status"""
         language = self.get_language()
         
@@ -280,39 +280,50 @@ class LaunchManager:
         video_frame = tk.Frame(main_frame)
         video_frame.pack(pady=(0, 10))
         
-        if video_pending:
+        if video_export_enabled:
             # Show video pending message
             video_label = tk.Label(video_frame, text=video_pending_text, font=("Arial", 10, "italic"), fg="orange")
             video_label.pack()
             dialog.video_label = video_label
             dialog.video_button = None
         else:
-            # Video is ready - this shouldn't happen in this method, but handle it
-            video_button = tk.Button(video_frame, text=video_ready_text, 
-                                   command=lambda: self._open_video_file(html_file_path.replace('.html', '.mp4')))
-            video_button.pack()
-            dialog.video_button = video_button
+            # No video export - don't show anything
             dialog.video_label = None
+            dialog.video_button = None
         
         # Buttons
         button_frame = tk.Frame(main_frame)
         button_frame.pack(pady=(10, 0))
         
+        # Left side buttons
+        left_button_frame = tk.Frame(button_frame)
+        left_button_frame.pack(side=tk.LEFT)
+        
         # Open folder button
-        tk.Button(button_frame, text=open_folder_btn_text, 
+        tk.Button(left_button_frame, text=open_folder_btn_text, 
                  command=lambda: self._open_output_folder(output_folder)).pack(side=tk.LEFT, padx=(0, 10))
         
         # Open HTML button
         if html_file_path:
             if offline_mode_used:
-                tk.Button(button_frame, text=open_html_btn_text, 
+                tk.Button(left_button_frame, text=open_html_btn_text, 
                          command=lambda: self._open_html_with_server(html_file_path, output_folder)).pack(side=tk.LEFT, padx=(0, 10))
             else:
-                tk.Button(button_frame, text=open_html_btn_text, 
+                tk.Button(left_button_frame, text=open_html_btn_text, 
                          command=lambda: self._open_html_file(html_file_path)).pack(side=tk.LEFT, padx=(0, 10))
         
         # Close button
-        tk.Button(button_frame, text=close_btn_text, command=dialog.destroy).pack(side=tk.LEFT)
+        tk.Button(left_button_frame, text=close_btn_text, command=dialog.destroy).pack(side=tk.LEFT)
+        
+        # Right side - Video button (if video export is enabled)
+        if video_export_enabled:
+            right_button_frame = tk.Frame(button_frame)
+            right_button_frame.pack(side=tk.RIGHT)
+            
+            # Video is being created - show disabled button
+            video_button = tk.Button(right_button_frame, text=video_pending_text, state=tk.DISABLED)
+            video_button.pack(side=tk.RIGHT)
+            dialog.video_button = video_button
         
         # Focus and bindings
         dialog.focus_set()
