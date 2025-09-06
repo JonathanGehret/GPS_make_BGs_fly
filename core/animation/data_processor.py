@@ -14,6 +14,7 @@ from utils.user_interface import UserInterface
 from utils.performance_optimizer import PerformanceOptimizer
 from core.gps_utils import DataLoader
 from core.animation.precipitation_manager import PrecipitationManager
+from utils.gps.calculations import calculate_velocity
 
 
 class DataProcessor:
@@ -152,6 +153,10 @@ class DataProcessor:
                     print(f"   🌧️ Adding precipitation data for {filename}...")
                     filtered_df = self.precipitation_manager.add_precipitation_data_to_dataframe(filtered_df)
 
+                # Calculate velocity for each point
+                print(f"   🏃 Calculating velocity for {filename}...")
+                filtered_df = self._calculate_velocity(filtered_df)
+
                 processed.append(filtered_df)
             if not processed:
                 self.ui.print_error("No data remained after processing!")
@@ -173,3 +178,32 @@ class DataProcessor:
     def get_dataframes(self) -> List[pd.DataFrame]:
         """Get the list of loaded dataframes"""
         return self.dataframes
+
+    def _calculate_velocity(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Calculate velocity for each point in the dataframe"""
+        if df.empty or len(df) < 2:
+            # Add empty velocity column for single points
+            df = df.copy()
+            df['Velocity'] = 0.0
+            return df
+
+        df = df.copy()
+        df = df.sort_values('Timestamp [UTC]').reset_index(drop=True)
+        
+        # Calculate time differences in seconds
+        time_diff = df['Timestamp [UTC]'].diff().dt.total_seconds()
+        
+        # Calculate velocities
+        velocities = []
+        for i in range(len(df)):
+            if i == 0:
+                # First point has no previous point to calculate velocity from
+                velocities.append(0.0)
+            else:
+                lat1, lon1 = df.loc[i-1, ['Latitude', 'Longitude']]
+                lat2, lon2 = df.loc[i, ['Latitude', 'Longitude']]
+                velocity = calculate_velocity(lat1, lon1, lat2, lon2, time_diff.iloc[i])
+                velocities.append(velocity)
+        
+        df['Velocity'] = velocities
+        return df

@@ -14,7 +14,7 @@ from .constants import (
     EARTH_RADIUS_KM, PERFORMANCE_THRESHOLDS, TIME_STEP_OPTIONS
 )
 
-from .calculations import haversine_distance, format_height_display
+from .calculations import haversine_distance, format_height_display, calculate_velocity, format_velocity_display
 
 from .validation import (
     DataValidator, GPSVisualizationError, DataLoadError, 
@@ -50,7 +50,7 @@ __all__ = [
     'VisualizationHelper', 'UserInterface',
     
     # Functions
-    'haversine_distance', 'format_height_display',
+    'haversine_distance', 'format_height_display', 'calculate_velocity', 'format_velocity_display',
     'ensure_output_directories', 'get_output_path', 'get_numbered_output_path',
     'setup_logging',
     

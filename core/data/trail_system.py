@@ -10,6 +10,7 @@ import plotly.graph_objects as go
 from typing import Optional, Dict, List
 from utils.user_interface import UserInterface
 from core.gps_utils import format_height_display
+from utils.gps.calculations import format_velocity_display
 
 
 class TrailSystem:
@@ -130,6 +131,7 @@ class TrailSystem:
                         # Head marker (latest point only)
                         head = trail_data.iloc[-1]
                         height_display = format_height_display(head['Height'])
+                        velocity_display = format_velocity_display(head.get('Velocity', 0))
                         
                         # Precipitation-based coloring
                         if enable_precipitation_overlay and 'precipitation_mm' in head:
@@ -156,13 +158,14 @@ class TrailSystem:
                                 mode='markers',
                                 name=f"{vulture_id} (current)",
                                 marker=dict(color=marker_color, size=marker_size),
-                                customdata=[[head['timestamp_display'], height_display, head.get('precipitation_mm', 0)]],
+                                customdata=[[head['timestamp_display'], height_display, head.get('precipitation_mm', 0), velocity_display]],
                                 hovertemplate=(
                                     f"<b>{vulture_id}</b><br>"
                                     "Time: %{customdata[0]}<br>"
                                     "Lat: %{lat:.6f}°<br>"
                                     "Lon: %{lon:.6f}°<br>"
-                                    "Alt: %{customdata[1]}"
+                                    "Alt: %{customdata[1]}<br>"
+                                    "🏃 Velocity: %{customdata[3]}"
                                     f"{precip_info}"
                                     "<extra></extra>"
                                 ),
@@ -179,7 +182,8 @@ class TrailSystem:
                         
                         for i, (_, row) in enumerate(trail_data.iterrows()):
                             height_display = format_height_display(row['Height'])
-                            customdata.append([row['timestamp_display'], height_display, row.get('precipitation_mm', 0)])
+                            velocity_display = format_velocity_display(row.get('Velocity', 0))
+                            customdata.append([row['timestamp_display'], height_display, row.get('precipitation_mm', 0), velocity_display])
                             age_factor = i / max(1, trail_points - 1) if trail_points > 1 else 1.0
                             
                             # Precipitation-based coloring
@@ -216,7 +220,8 @@ class TrailSystem:
                                     "Lat: %{lat:.6f}°<br>"
                                     "Lon: %{lon:.6f}°<br>"
                                     "Alt: %{customdata[1]}<br>"
-                                    "🌧️ Rain: %{customdata[2]:.1f} mm/h"
+                                    "� Velocity: %{customdata[3]}<br>"
+                                    "�🌧️ Rain: %{customdata[2]:.1f} mm/h"
                                     "<extra></extra>"
                                 ),
                             )
