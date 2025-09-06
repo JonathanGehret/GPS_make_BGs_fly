@@ -88,7 +88,8 @@ class LaunchManager:
             
             if success:
                 try:
-                    self._show_success_dialog(output_folder, html_file_path)
+                    offline_mode_used = env.get('ONLINE_MAP_MODE') == '0'
+                    self._show_success_dialog(output_folder, html_file_path, offline_mode_used)
                 except tk.TclError:
                     # Window was destroyed, just print success message
                     print(f"Animation completed successfully. Output: {output_folder}")
@@ -137,7 +138,7 @@ class LaunchManager:
             # Run the script synchronously
             print(f"🚀 Launching animation script: {script_path}")
             process = subprocess.run([python_exe, script_path], env=env, 
-                                   capture_output=False, text=True, timeout=600)
+                                   capture_output=True, text=True, timeout=600)
             
             # Parse output for HTML file path
             html_file_path = None
@@ -177,7 +178,7 @@ class LaunchManager:
                 print(f"GUI Error: {error_msg}")
             return False, None
     
-    def _show_success_dialog(self, output_folder, html_file_path=None):
+    def _show_success_dialog(self, output_folder, html_file_path=None, offline_mode_used=False):
         """Show a success dialog with options to open output"""
         language = self.get_language()
         
@@ -223,7 +224,15 @@ class LaunchManager:
                 html_text = f"HTML-Datei: {html_filename}"
             else:
                 html_text = f"HTML file: {html_filename}"
-            tk.Label(main_frame, text=html_text, font=("Arial", 9), fg="blue").pack(pady=(0, 20))
+            tk.Label(main_frame, text=html_text, font=("Arial", 9), fg="blue").pack(pady=(0, 10))
+            
+            # Add offline mode info only when offline mode was used
+            if offline_mode_used:
+                if language == "de":
+                    offline_text = "Offline-Modus: Lokaler Server wird automatisch gestartet"
+                else:
+                    offline_text = "Offline mode: Local server will start automatically"
+                tk.Label(main_frame, text=offline_text, font=("Arial", 8), fg="green").pack(pady=(0, 10))
         else:
             tk.Label(main_frame, text="", font=("Arial", 2)).pack(pady=(0, 10))
         
@@ -237,8 +246,12 @@ class LaunchManager:
         
         # Open HTML button
         if html_file_path:
-            tk.Button(button_frame, text=open_html_btn_text, 
-                     command=lambda: self._open_html_file(html_file_path)).pack(side=tk.LEFT, padx=(0, 10))
+            if offline_mode_used:
+                tk.Button(button_frame, text=open_html_btn_text, 
+                         command=lambda: self._open_html_with_server(html_file_path, output_folder)).pack(side=tk.LEFT, padx=(0, 10))
+            else:
+                tk.Button(button_frame, text=open_html_btn_text, 
+                         command=lambda: self._open_html_file(html_file_path)).pack(side=tk.LEFT, padx=(0, 10))
         
         # Close button
         tk.Button(button_frame, text=close_btn_text, command=dialog.destroy).pack(side=tk.LEFT)
@@ -283,6 +296,71 @@ class LaunchManager:
             if html_file_path and os.path.exists(html_file_path):
                 webbrowser.open(f"file://{os.path.abspath(html_file_path)}")
                 print(f"🌐 Opened HTML file: {html_file_path}")
+            else:
+                language = self.get_language()
+                error_msg = f"HTML-Datei nicht gefunden: {html_file_path}" if language == "de" else f"HTML file not found: {html_file_path}"
+                try:
+                    messagebox.showerror("Fehler" if language == "de" else "Error", error_msg)
+                except tk.TclError:
+                    print(f"GUI Error: {error_msg}")
+        except Exception as e:
+            language = self.get_language()
+            error_msg = f"Fehler beim Öffnen der HTML-Datei: {e}" if language == "de" else f"Failed to open HTML file: {e}"
+            try:
+                messagebox.showerror("Fehler" if language == "de" else "Error", error_msg)
+            except tk.TclError:
+                print(f"GUI Error: {error_msg}")
+    
+    def _open_html_with_server(self, html_file_path, output_folder):
+        """Open the generated HTML file with a local HTTP server for offline viewing"""
+        try:
+            if html_file_path and os.path.exists(html_file_path):
+                # Start HTTP server in background
+                import threading
+                import http.server
+                import socketserver
+                
+                # Find an available port
+                port = 8000
+                while port < 8100:
+                    try:
+                        with socketserver.TCPServer(("", port), http.server.SimpleHTTPRequestHandler):
+                            break
+                    except OSError:
+                        port += 1
+                
+                # Create server in output folder
+                os.chdir(output_folder)
+                
+                def start_server():
+                    try:
+                        with socketserver.TCPServer(("", port), http.server.SimpleHTTPRequestHandler) as httpd:
+                            print(f"🌐 Local server started on http://localhost:{port}")
+                            httpd.serve_forever()
+                    except Exception as e:
+                        print(f"Server error: {e}")
+                
+                # Start server in background thread
+                server_thread = threading.Thread(target=start_server, daemon=True)
+                server_thread.start()
+                
+                # Wait a moment for server to start
+                import time
+                time.sleep(0.5)
+                
+                # Open HTML file with localhost URL
+                html_filename = os.path.basename(html_file_path)
+                localhost_url = f"http://localhost:{port}/{html_filename}"
+                webbrowser.open(localhost_url)
+                print(f"🌐 Opened offline HTML: {localhost_url}")
+                
+                language = self.get_language()
+                if language == "de":
+                    server_msg = f"Lokaler Server gestartet: http://localhost:{port}"
+                else:
+                    server_msg = f"Local server started: http://localhost:{port}"
+                print(server_msg)
+                
             else:
                 language = self.get_language()
                 error_msg = f"HTML-Datei nicht gefunden: {html_file_path}" if language == "de" else f"HTML file not found: {html_file_path}"
