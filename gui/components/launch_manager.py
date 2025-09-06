@@ -175,11 +175,8 @@ class LaunchManager:
                             video_file_path = video_file_path.split(': ')[-1].strip()
                         print(f"🎬 Video file detected: {video_file_path}")
                         
-                        # Update dialog to show video is ready
-                        try:
-                            self._update_success_dialog_for_video_ready(success_dialog, video_file_path)
-                        except tk.TclError:
-                            print("GUI Error: Could not update success dialog")
+                        # Video creation completed - no UI update needed
+                        # The video file is ready but we don't show any button
             
             # Wait for process to complete
             process.wait()
@@ -227,8 +224,6 @@ class LaunchManager:
             open_folder_btn_text = "📁 Ordner öffnen"
             open_html_btn_text = "🌐 HTML öffnen"
             close_btn_text = "Schließen"
-            video_pending_text = "🎬 Video wird erstellt..."
-            video_ready_text = "🎬 Video öffnen"
         else:
             dialog.title("Success")
             message = "2D Live Map created successfully!"
@@ -236,8 +231,6 @@ class LaunchManager:
             open_folder_btn_text = "📁 Open Folder"
             open_html_btn_text = "🌐 Open HTML"
             close_btn_text = "Close"
-            video_pending_text = "🎬 Video is being created..."
-            video_ready_text = "🎬 Open Video"
         
         dialog.geometry("550x280")
         dialog.resizable(False, False)
@@ -276,20 +269,8 @@ class LaunchManager:
         else:
             tk.Label(main_frame, text="", font=("Arial", 2)).pack(pady=(0, 10))
         
-        # Video status section
-        video_frame = tk.Frame(main_frame)
-        video_frame.pack(pady=(0, 10))
-        
-        if video_export_enabled:
-            # Show video pending message
-            video_label = tk.Label(video_frame, text=video_pending_text, font=("Arial", 10, "italic"), fg="orange")
-            video_label.pack()
-            dialog.video_label = video_label
-            dialog.video_button = None
-        else:
-            # No video export - don't show anything
-            dialog.video_label = None
-            dialog.video_button = None
+        # Video status section - removed completely
+        # Video creation happens in background without UI elements
         
         # Buttons
         button_frame = tk.Frame(main_frame)
@@ -315,44 +296,15 @@ class LaunchManager:
         # Close button
         tk.Button(left_button_frame, text=close_btn_text, command=dialog.destroy).pack(side=tk.LEFT)
         
-        # Right side - Video button (if video export is enabled)
-        if video_export_enabled:
-            right_button_frame = tk.Frame(button_frame)
-            right_button_frame.pack(side=tk.RIGHT)
-            
-            # Video is being created - show disabled button
-            video_button = tk.Button(right_button_frame, text=video_pending_text, state=tk.DISABLED)
-            video_button.pack(side=tk.RIGHT)
-            dialog.video_button = video_button
+        # Video button removed completely - video creation happens in background
         
         # Focus and bindings
         dialog.focus_set()
         dialog.bind('<Return>', lambda e: dialog.destroy())
         dialog.bind('<Escape>', lambda e: dialog.destroy())
         
+        # Video creation happens silently in the background
         return dialog
-    
-    def _update_success_dialog_for_video_ready(self, dialog, video_file_path):
-        """Update the success dialog to show video is ready"""
-        if hasattr(dialog, 'video_label') and dialog.video_label:
-            # Remove the pending message
-            dialog.video_label.destroy()
-            
-            # Add the video button
-            language = self.get_language()
-            video_ready_text = "🎬 Video öffnen" if language == "de" else "🎬 Open Video"
-            
-            video_button = tk.Button(dialog.video_label.master, text=video_ready_text, 
-                                   command=lambda: self._open_video_file(video_file_path))
-            video_button.pack()
-            dialog.video_button = video_button
-            dialog.video_label = None
-            
-            # Update dialog title to indicate video is ready
-            if language == "de":
-                dialog.title("Erfolg - Video bereit")
-            else:
-                dialog.title("Success - Video Ready")
     
     def _show_success_dialog(self, output_folder, html_file_path=None, offline_mode_used=False):
         """Show a success dialog with options to open output"""
