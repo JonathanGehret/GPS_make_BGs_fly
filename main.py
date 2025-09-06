@@ -7,7 +7,6 @@ Double-click this file to launch the complete GPS analysis application.
 
 Features:
 - 2D Live Map Visualization
-- 3D Terrain Visualization  
 - Proximity Analysis
 - Bilingual Interface (German/English)
 """
@@ -48,16 +47,6 @@ def main():
                         return gui_main()
                     except Exception as e:
                         print(f"❌ Failed to launch 2D Map GUI: {e}")
-                        return 1
-                        
-                elif gui_mode == "--3d-viz":
-                    # Import and run 3D visualization GUI
-                    try:
-                        from gui.visualization_3d_gui import main as gui_main
-                        print("✅ 3D Visualization GUI module loaded successfully")
-                        return gui_main()
-                    except Exception as e:
-                        print(f"❌ Failed to launch 3D Visualization GUI: {e}")
                         return 1
                         
                 elif gui_mode == "--proximity":
