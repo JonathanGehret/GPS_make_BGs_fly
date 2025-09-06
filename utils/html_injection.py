@@ -51,34 +51,6 @@ body {
     overflow: hidden;
 }
 
-/* Scale bar for map (bottom-left) */
-.map-scale {
-    position: absolute;
-    left: 12px;
-    bottom: 56px; /* above timeline controls */
-    z-index: 40;
-    pointer-events: none;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
-    color: rgba(40,30,20,0.95);
-    font-size: 13px;
-    text-shadow: 0 1px 0 rgba(255,255,255,0.6);
-}
-.map-scale .bar {
-    height: 8px;
-    background: linear-gradient(90deg, rgba(255,215,120,0.98), rgba(255,190,60,0.98));
-    box-shadow: 0 0 10px rgba(255,190,60,0.85);
-    border-radius: 4px;
-    display: block;
-}
-.map-scale .label {
-    margin-top: 6px;
-    text-align: left;
-    background: rgba(255, 255, 255, 0.85);
-    padding: 2px 6px;
-    border-radius: 4px;
-    display: inline-block;
-}
-
 /* Updatemenu active glow (centralized) */
 .updatemenu-button.control-active {
     /* Stronger golden glow for visibility */
@@ -306,25 +278,9 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Scale bar: create element and update based on map zoom/center
-    function ensureScaleBar() {
-        const gd = document.querySelector('.plotly-graph-div'); if (!gd) return null;
-        // Ensure the plot container is positioned so absolute children are anchored correctly
-        try {
-            const cs = window.getComputedStyle(gd);
-            if (cs && cs.position === 'static') gd.style.position = 'relative';
-        } catch(_) { gd.style.position = gd.style.position || 'relative'; }
-
-        let s = gd.querySelector('.map-scale');
-        if (!s) {
-            s = document.createElement('div'); s.className = 'map-scale';
-            const bar = document.createElement('div'); bar.className = 'bar'; bar.style.width = '120px';
-            const label = document.createElement('div'); label.className = 'label'; label.textContent = '';
-            s.appendChild(bar); s.appendChild(label);
-            gd.appendChild(s);
-        }
-        return s;
     }
+
+    // Find all buttons and add fullscreen functionality
 
     function metersPerPixelAtLat(zoom, lat) {
         // More accurate Web Mercator meters-per-pixel using Earth radius
