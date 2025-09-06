@@ -84,12 +84,7 @@ class LaunchManager:
             success, html_file_path = self._run_animation_script(script_path, env)
             
             if success:
-                try:
-                    offline_mode_used = env.get('ONLINE_MAP_MODE') == '0'
-                    self._show_success_dialog(output_folder, html_file_path, offline_mode_used)
-                except tk.TclError:
-                    # Window was destroyed, just print success message
-                    print(f"Animation completed successfully. Output: {output_folder}")
+                # Dialog is already shown by _run_animation_script when HTML is generated
                 return True
             else:
                 return False
@@ -104,7 +99,7 @@ class LaunchManager:
             return False
     
     def _run_animation_script(self, script_path, env):
-        """Run the animation script and wait for completion"""
+        """Run the animation script and monitor output for real-time updates"""
         try:
             # Determine Python executable
             if getattr(sys, '_MEIPASS', False):
@@ -137,28 +132,67 @@ class LaunchManager:
             # Set GUI mode
             env['GUI_MODE'] = '1'
             
-            # Run the script synchronously
+            # Run the script and monitor output in real-time
             print(f"🚀 Launching animation script: {script_path}")
-            process = subprocess.run([python_exe, script_path], env=env, 
-                                   capture_output=True, text=True, timeout=600)
+            process = subprocess.Popen([python_exe, script_path], env=env, 
+                                     stdout=subprocess.PIPE, stderr=subprocess.PIPE, 
+                                     text=True, bufsize=1, universal_newlines=True)
             
-            # Parse output for HTML file path
             html_file_path = None
-            if process.stdout:
-                for line in process.stdout.split('\n'):
-                    if 'Saved:' in line and '.html' in line:
-                        html_file_path = line.split('Saved: ')[-1].strip()
-                        break
+            video_file_path = None
+            success_dialog = None
+            
+            # Monitor output in real-time
+            while True:
+                output = process.stdout.readline()
+                if output == '' and process.poll() is not None:
+                    break
+                if output:
+                    print(output.strip())  # Print the output
+                    
+                    # Check for HTML file generation
+                    if 'Saved:' in output and '.html' in output and not html_file_path:
+                        html_file_path = output.split('Saved: ')[-1].strip()
+                        print(f"📁 HTML file detected: {html_file_path}")
+                        
+                        # Show success dialog immediately when HTML is generated
+                        # Only show video pending status if video export is enabled
+                        video_export_enabled = env.get('EXPORT_MP4') == '1' or env.get('EXPORT_MP4_BROWSER') == '1'
+                        try:
+                            offline_mode_used = env.get('ONLINE_MAP_MODE') == '0'
+                            success_dialog = self._show_success_dialog_with_video_status(
+                                env['OUTPUT_DIR'], html_file_path, offline_mode_used, 
+                                video_pending=video_export_enabled
+                            )
+                        except tk.TclError:
+                            print("GUI Error: Could not show success dialog")
+                    
+                    # Check for video completion
+                    if 'Wrote video' in output and success_dialog:
+                        video_file_path = output.split('Wrote video')[1].strip()
+                        if video_file_path.startswith('('):
+                            # Handle format: "Wrote video (browser capture with tiles): /path/to/file.mp4"
+                            video_file_path = video_file_path.split(': ')[-1].strip()
+                        print(f"🎬 Video file detected: {video_file_path}")
+                        
+                        # Update dialog to show video is ready
+                        try:
+                            self._update_success_dialog_for_video_ready(success_dialog, video_file_path)
+                        except tk.TclError:
+                            print("GUI Error: Could not update success dialog")
+            
+            # Wait for process to complete
+            process.wait()
             
             if process.returncode == 0:
                 return True, html_file_path
             else:
+                error_output = process.stderr.read() if process.stderr else "Unknown error"
                 language = self.get_language()
-                error_msg = process.stderr if process.stderr else "Unknown error"
-                full_error = f"Script execution failed:\n{error_msg}"
+                full_error = f"Script execution failed:\n{error_output}"
                 try:
                     messagebox.showerror("Fehler" if language == "de" else "Error", 
-                                       "Skript-Ausführung fehlgeschlagen:\n{error_msg}" if language == "de" else full_error)
+                                       "Skript-Ausführung fehlgeschlagen:\n{error_output}" if language == "de" else full_error)
                 except tk.TclError:
                     print(f"GUI Error: {full_error}")
                 return False, None
@@ -179,6 +213,135 @@ class LaunchManager:
             except tk.TclError:
                 print(f"GUI Error: {error_msg}")
             return False, None
+    
+    def _show_success_dialog_with_video_status(self, output_folder, html_file_path=None, offline_mode_used=False, video_pending=False):
+        """Show a success dialog with video generation status"""
+        language = self.get_language()
+        
+        # Create custom dialog
+        dialog = tk.Toplevel()
+        if language == "de":
+            dialog.title("Erfolg")
+            message = "2D Live Karte erfolgreich erstellt!"
+            folder_text = f"Ausgabeordner: {output_folder}"
+            open_folder_btn_text = "📁 Ordner öffnen"
+            open_html_btn_text = "🌐 HTML öffnen"
+            close_btn_text = "Schließen"
+            video_pending_text = "🎬 Video wird erstellt..."
+            video_ready_text = "🎬 Video öffnen"
+        else:
+            dialog.title("Success")
+            message = "2D Live Map created successfully!"
+            folder_text = f"Output folder: {output_folder}"
+            open_folder_btn_text = "📁 Open Folder"
+            open_html_btn_text = "🌐 Open HTML"
+            close_btn_text = "Close"
+            video_pending_text = "🎬 Video is being created..."
+            video_ready_text = "🎬 Open Video"
+        
+        dialog.geometry("550x280")
+        dialog.resizable(False, False)
+        
+        # Center the dialog
+        dialog.update_idletasks()
+        x = (dialog.winfo_screenwidth() // 2) - (dialog.winfo_width() // 2)
+        y = (dialog.winfo_screenheight() // 2) - (dialog.winfo_height() // 2)
+        dialog.geometry(f"+{x}+{y}")
+        
+        # Main frame
+        main_frame = tk.Frame(dialog, padx=20, pady=20)
+        main_frame.pack(fill=tk.BOTH, expand=True)
+        
+        # Success message
+        tk.Label(main_frame, text="✅", font=("Arial", 24)).pack(pady=(0, 10))
+        tk.Label(main_frame, text=message, font=("Arial", 12, "bold")).pack(pady=(0, 5))
+        tk.Label(main_frame, text=folder_text, font=("Arial", 9)).pack(pady=(0, 10))
+        
+        # HTML file info
+        if html_file_path:
+            html_filename = os.path.basename(html_file_path)
+            if language == "de":
+                html_text = f"HTML-Datei: {html_filename}"
+            else:
+                html_text = f"HTML file: {html_filename}"
+            tk.Label(main_frame, text=html_text, font=("Arial", 9), fg="blue").pack(pady=(0, 10))
+            
+            # Add offline mode info only when offline mode was used
+            if offline_mode_used:
+                if language == "de":
+                    offline_text = "Offline-Modus: Lokaler Server wird automatisch gestartet"
+                else:
+                    offline_text = "Offline mode: Local server will start automatically"
+                tk.Label(main_frame, text=offline_text, font=("Arial", 8), fg="green").pack(pady=(0, 10))
+        else:
+            tk.Label(main_frame, text="", font=("Arial", 2)).pack(pady=(0, 10))
+        
+        # Video status section
+        video_frame = tk.Frame(main_frame)
+        video_frame.pack(pady=(0, 10))
+        
+        if video_pending:
+            # Show video pending message
+            video_label = tk.Label(video_frame, text=video_pending_text, font=("Arial", 10, "italic"), fg="orange")
+            video_label.pack()
+            dialog.video_label = video_label
+            dialog.video_button = None
+        else:
+            # Video is ready - this shouldn't happen in this method, but handle it
+            video_button = tk.Button(video_frame, text=video_ready_text, 
+                                   command=lambda: self._open_video_file(html_file_path.replace('.html', '.mp4')))
+            video_button.pack()
+            dialog.video_button = video_button
+            dialog.video_label = None
+        
+        # Buttons
+        button_frame = tk.Frame(main_frame)
+        button_frame.pack(pady=(10, 0))
+        
+        # Open folder button
+        tk.Button(button_frame, text=open_folder_btn_text, 
+                 command=lambda: self._open_output_folder(output_folder)).pack(side=tk.LEFT, padx=(0, 10))
+        
+        # Open HTML button
+        if html_file_path:
+            if offline_mode_used:
+                tk.Button(button_frame, text=open_html_btn_text, 
+                         command=lambda: self._open_html_with_server(html_file_path, output_folder)).pack(side=tk.LEFT, padx=(0, 10))
+            else:
+                tk.Button(button_frame, text=open_html_btn_text, 
+                         command=lambda: self._open_html_file(html_file_path)).pack(side=tk.LEFT, padx=(0, 10))
+        
+        # Close button
+        tk.Button(button_frame, text=close_btn_text, command=dialog.destroy).pack(side=tk.LEFT)
+        
+        # Focus and bindings
+        dialog.focus_set()
+        dialog.bind('<Return>', lambda e: dialog.destroy())
+        dialog.bind('<Escape>', lambda e: dialog.destroy())
+        
+        return dialog
+    
+    def _update_success_dialog_for_video_ready(self, dialog, video_file_path):
+        """Update the success dialog to show video is ready"""
+        if hasattr(dialog, 'video_label') and dialog.video_label:
+            # Remove the pending message
+            dialog.video_label.destroy()
+            
+            # Add the video button
+            language = self.get_language()
+            video_ready_text = "🎬 Video öffnen" if language == "de" else "🎬 Open Video"
+            
+            video_button = tk.Button(dialog.video_label.master, text=video_ready_text, 
+                                   command=lambda: self._open_video_file(video_file_path))
+            video_button.pack()
+            dialog.video_button = video_button
+            dialog.video_label = None
+            
+            # Update dialog title to indicate video is ready
+            if language == "de":
+                dialog.title("Erfolg - Video bereit")
+            else:
+                dialog.title("Success - Video Ready")
     
     def _show_success_dialog(self, output_folder, html_file_path=None, offline_mode_used=False):
         """Show a success dialog with options to open output"""
@@ -373,6 +536,48 @@ class LaunchManager:
         except Exception as e:
             language = self.get_language()
             error_msg = f"Fehler beim Öffnen der HTML-Datei: {e}" if language == "de" else f"Failed to open HTML file: {e}"
+            try:
+                messagebox.showerror("Fehler" if language == "de" else "Error", error_msg)
+            except tk.TclError:
+                print(f"GUI Error: {error_msg}")
+    
+    def _open_video_file(self, video_file_path):
+        """Open the generated video file with the default video player"""
+        try:
+            if video_file_path and os.path.exists(video_file_path):
+                system = platform.system()
+                
+                if system == "Windows":
+                    subprocess.run(['start', video_file_path], shell=True, check=True)
+                elif system == "Darwin":
+                    subprocess.run(['open', video_file_path], check=True)
+                else:
+                    # Linux - try common video players
+                    players = ['vlc', 'mpv', 'mplayer', 'totem', 'xdg-open']
+                    opened = False
+                    for player in players:
+                        try:
+                            subprocess.run([player, video_file_path], check=True)
+                            opened = True
+                            break
+                        except (subprocess.CalledProcessError, FileNotFoundError):
+                            continue
+                    
+                    if not opened:
+                        # Fallback to xdg-open
+                        subprocess.run(['xdg-open', video_file_path], check=True)
+                
+                print(f"🎬 Opened video file: {video_file_path}")
+            else:
+                language = self.get_language()
+                error_msg = f"Video-Datei nicht gefunden: {video_file_path}" if language == "de" else f"Video file not found: {video_file_path}"
+                try:
+                    messagebox.showerror("Fehler" if language == "de" else "Error", error_msg)
+                except tk.TclError:
+                    print(f"GUI Error: {error_msg}")
+        except Exception as e:
+            language = self.get_language()
+            error_msg = f"Fehler beim Öffnen der Video-Datei: {e}" if language == "de" else f"Failed to open video file: {e}"
             try:
                 messagebox.showerror("Fehler" if language == "de" else "Error", error_msg)
             except tk.TclError:
