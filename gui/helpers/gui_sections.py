@@ -348,7 +348,21 @@ class GUISections:
         ttk.Label(video_frame, text="• Uses browser capture for offline maps", 
                  font=("Arial", 8), foreground="gray").pack(anchor="w")
 
-    # Precipitation overlay removed per user request
+        # Precipitation overlay settings
+        precipitation_frame = ttk.LabelFrame(parent, text="🌧️ Precipitation Overlay", padding="10")
+        precipitation_frame.pack(fill="x", pady=(0, 10))
+        
+        enable_precipitation = tk.BooleanVar(value=False)
+        precipitation_checkbox = ttk.Checkbutton(precipitation_frame, text="Enable Precipitation Overlay", 
+                                                variable=enable_precipitation)
+        precipitation_checkbox.pack(anchor="w", pady=(0, 5))
+        
+        ttk.Label(precipitation_frame, text="• Fetches hourly rainfall data from Open-Meteo API", 
+                 font=("Arial", 8), foreground="gray").pack(anchor="w")
+        ttk.Label(precipitation_frame, text="• Shows precipitation as overlay on the map", 
+                 font=("Arial", 8), foreground="gray").pack(anchor="w")
+        ttk.Label(precipitation_frame, text="• No API key required, free service", 
+                 font=("Arial", 8), foreground="gray").pack(anchor="w")
         
         # Create settings manager object
         class SettingsManager:
@@ -358,7 +372,7 @@ class GUISections:
                 self.time_step = time_step
                 self.online_map_mode = online_map_mode  # Add online map mode
                 self.export_mp4 = export_mp4  # Add video export
-                # (Precipitation removed)
+                self.enable_precipitation = enable_precipitation  # Add precipitation overlay
                 
             def get_config(self):
                 cfg = {
@@ -367,9 +381,9 @@ class GUISections:
                     'time_step': self.time_step.get(),
                     'playback_speed': 1.0,
                     'online_map_mode': self.online_map_mode.get(),  # Add to config
-                    'export_mp4': self.export_mp4.get()  # Add video export to config
+                    'export_mp4': self.export_mp4.get(),  # Add video export to config
+                    'enable_precipitation': self.enable_precipitation.get()  # Add precipitation to config
                 }
-                # Precipitation config removed
                 # Include optional animation time range if present as attributes
                 try:
                     if hasattr(self, 'animation_start_time') and getattr(self, 'animation_start_time'):

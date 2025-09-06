@@ -129,6 +129,9 @@ class TrailSystem:
                         # Head marker (latest point only)
                         head = trail_data.iloc[-1]
                         height_display = format_height_display(head['Height'])
+                        precip_info = ""
+                        if 'precipitation_mm' in head and pd.notna(head['precipitation_mm']) and head['precipitation_mm'] > 0:
+                            precip_info = f"<br>🌧️ Rain: {head['precipitation_mm']:.1f} mm/h"
                         frame_data.append(
                             go.Scattermap(
                                 lat=[head['Latitude']],
@@ -136,13 +139,14 @@ class TrailSystem:
                                 mode='markers',
                                 name=f"{vulture_id} (current)",
                                 marker=dict(color=color_map[vulture_id], size=12),
-                                customdata=[[head['timestamp_display'], height_display]],
+                                customdata=[[head['timestamp_display'], height_display, head.get('precipitation_mm', 0)]],
                                 hovertemplate=(
                                     f"<b>{vulture_id}</b><br>"
                                     "Time: %{customdata[0]}<br>"
                                     "Lat: %{lat:.6f}°<br>"
                                     "Lon: %{lon:.6f}°<br>"
                                     "Alt: %{customdata[1]}"
+                                    f"{precip_info}"
                                     "<extra></extra>"
                                 ),
                                 showlegend=False,
@@ -156,7 +160,7 @@ class TrailSystem:
                         customdata = []
                         for i, (_, row) in enumerate(trail_data.iterrows()):
                             height_display = format_height_display(row['Height'])
-                            customdata.append([row['timestamp_display'], height_display])
+                            customdata.append([row['timestamp_display'], height_display, row.get('precipitation_mm', 0)])
                             age_factor = i / max(1, trail_points - 1) if trail_points > 1 else 1.0
                             if i == trail_points - 1:
                                 marker_sizes.append(12)
@@ -181,7 +185,8 @@ class TrailSystem:
                                     "Time: %{customdata[0]}<br>"
                                     "Lat: %{lat:.6f}°<br>"
                                     "Lon: %{lon:.6f}°<br>"
-                                    "Alt: %{customdata[1]}"
+                                    "Alt: %{customdata[1]}<br>"
+                                    "🌧️ Rain: %{customdata[2]:.1f} mm/h"
                                     "<extra></extra>"
                                 ),
                             )

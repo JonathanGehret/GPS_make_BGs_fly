@@ -82,6 +82,10 @@ class LiveMapAnimator:
         )
         self.tile_server_url = os.environ.get('TILE_SERVER_URL', 'https://tile.openstreetmap.org/{z}/{x}/{y}.png')
 
+        # Precipitation overlay settings
+        self.enable_precipitation = os.environ.get('ENABLE_PRECIPITATION', '0') == '1'
+        self.precipitation_cache = {}  # Cache for API responses
+
         # Read playback speed from environment if available (from GUI)
         playback_speed_env = os.environ.get('PLAYBACK_SPEED')
         if playback_speed_env:
@@ -98,6 +102,57 @@ class LiveMapAnimator:
 
     def get_frame_duration(self) -> int:
         return max(50, int(self.base_animation_speed / self.playback_speed))
+
+    def fetch_precipitation_data(self, lat: float, lon: float, start_date: str, end_date: str) -> dict:
+        """Fetch hourly precipitation data from Open-Meteo API"""
+        import requests
+        
+        cache_key = f"{lat:.4f}_{lon:.4f}_{start_date}_{end_date}"
+        if cache_key in self.precipitation_cache:
+            return self.precipitation_cache[cache_key]
+        
+        try:
+            # Use past_days parameter for historical data
+            url = (
+                f"https://api.open-meteo.com/v1/forecast?"
+                f"latitude={lat}&longitude={lon}"
+                "&hourly=precipitation"
+                "&timezone=Europe/Berlin"
+                "&past_days=7"  # Get last 7 days of data
+            )
+            
+            self.ui.print_info(f"🌧️ Fetching precipitation data for {lat:.4f}, {lon:.4f}")
+            response = requests.get(url, timeout=30)
+            response.raise_for_status()
+            
+            data = response.json()
+            self.precipitation_cache[cache_key] = data
+            return data
+            
+        except Exception as e:
+            self.ui.print_warning(f"Failed to fetch precipitation data: {e}")
+            return None
+
+    def get_precipitation_for_timestamp(self, data: dict, timestamp: pd.Timestamp) -> float:
+        """Get precipitation value for a specific timestamp"""
+        if not data or 'hourly' not in data:
+            return 0.0
+        
+        times = data['hourly'].get('time', [])
+        precipitations = data['hourly'].get('precipitation', [])
+        
+        if not times or not precipitations:
+            return 0.0
+        
+        # Find the closest hour
+        target_time = timestamp.replace(minute=0, second=0, microsecond=0)
+        target_str = target_time.strftime('%Y-%m-%dT%H:%M')
+        
+        for i, time_str in enumerate(times):
+            if time_str.startswith(target_str):
+                return precipitations[i]
+        
+        return 0.0
 
     def _parse_time_step_from_gui(self, time_step_str: str) -> int:
         s = time_step_str.lower().strip()
@@ -120,6 +175,8 @@ class LiveMapAnimator:
         try:
             self.ui.print_header("🦅 BEARDED VULTURE GPS VISUALIZATION", 80)
             print("Live Map Animation with Performance Optimization")
+            if self.enable_precipitation:
+                print("🌧️ Precipitation overlay enabled - fetching weather data from Open-Meteo")
             print()
             if self.performance_mode:
                 self.ui.print_success("Performance mode: ON (line+head + adaptive LOD)")
@@ -293,6 +350,12 @@ class LiveMapAnimator:
                 print(f"   ✅ Filtered: {original_count} → {filtered_count} points ({reduction:.1f}% reduction)")
                 filtered_df = filtered_df.copy()
                 filtered_df['color'] = px.colors.qualitative.Set1[i % len(px.colors.qualitative.Set1)]
+                
+                # Add precipitation data if enabled
+                if self.enable_precipitation:
+                    print(f"   🌧️ Adding precipitation data for {filename}...")
+                    filtered_df = self._add_precipitation_data(filtered_df)
+                
                 processed.append(filtered_df)
             if not processed:
                 self.ui.print_error("No data remained after processing!")
@@ -306,6 +369,42 @@ class LiveMapAnimator:
         except Exception as e:
             self.ui.print_error(f"Failed to process data: {e}")
             return False
+
+    def _add_precipitation_data(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Add precipitation data to the dataframe"""
+        if df.empty:
+            return df
+        
+        # Get date range for API call
+        start_date = df['Timestamp [UTC]'].min().strftime('%Y-%m-%d')
+        end_date = df['Timestamp [UTC]'].max().strftime('%Y-%m-%d')
+        
+        # Get unique coordinates (to minimize API calls)
+        coords = df[['Latitude', 'Longitude']].drop_duplicates()
+        
+        # Fetch precipitation data for each unique coordinate
+        precipitation_data = {}
+        for _, row in coords.iterrows():
+            lat, lon = row['Latitude'], row['Longitude']
+            data = self.fetch_precipitation_data(lat, lon, start_date, end_date)
+            if data:
+                precipitation_data[(lat, lon)] = data
+        
+        # Add precipitation column
+        df = df.copy()
+        df['precipitation_mm'] = 0.0
+        
+        # Match each point to precipitation data
+        for idx, row in df.iterrows():
+            lat, lon = row['Latitude'], row['Longitude']
+            timestamp = row['Timestamp [UTC]']
+            
+            coord_key = (lat, lon)
+            if coord_key in precipitation_data:
+                precip = self.get_precipitation_for_timestamp(precipitation_data[coord_key], timestamp)
+                df.at[idx, 'precipitation_mm'] = precip
+        
+        return df
 
     def create_visualization(self, base_name: str = 'live_map_animation') -> bool:
         if self.combined_data is None or len(self.combined_data) == 0:

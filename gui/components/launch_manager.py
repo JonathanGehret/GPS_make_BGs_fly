@@ -64,6 +64,7 @@ class LaunchManager:
             env['PERFORMANCE_MODE'] = '1' if config['performance_mode'] else '0'
             env['EXPORT_MP4'] = '1' if config.get('export_mp4', False) else '0'
             env['ONLINE_MAP_MODE'] = '1' if config.get('online_map_mode', True) else '0'
+            env['ENABLE_PRECIPITATION'] = '1' if config.get('enable_precipitation', False) else '0'
             # (Precipitation overlay removed)
             
             # Set time window if provided by GUI

@@ -90,8 +90,9 @@ class AnimationLauncher:
                 print(f"  Setting EXPORT_MP4={env['EXPORT_MP4']}")
                 env['ONLINE_MAP_MODE'] = '1' if config.get('online_map_mode', True) else '0'
                 print(f"  Setting ONLINE_MAP_MODE={env['ONLINE_MAP_MODE']}")
+                env['ENABLE_PRECIPITATION'] = '1' if config.get('enable_precipitation', False) else '0'
+                print(f"  Setting ENABLE_PRECIPITATION={env['ENABLE_PRECIPITATION']}")
                 env['GUI_MODE'] = '1'  # Indicate we're running from GUI
-                # (Precipitation overlay removed)
                 # Include optional animation time range if provided by settings_manager
                 # SettingsManager may expose them as attributes or the config may include them.
                 start_time = None
